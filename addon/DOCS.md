@@ -1,0 +1,20 @@
+# Options reference
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `client_id` | str | `""` | Daikin ONECTA OAuth2 client ID (Daikin Developer Portal). |
+| `client_secret` | password | `""` | Daikin ONECTA OAuth2 client secret. |
+| `mqtt_server` | str | `core-mosquitto` | MQTT broker hostname (use `core-mosquitto` for the Supervisor broker). |
+| `mqtt_port` | int | `1883` | MQTT broker port. |
+| `mqtt_login` | str | `""` | MQTT username (leave empty for anonymous). |
+| `mqtt_password` | password | `""` | MQTT password. |
+| `mqtt_topic` | str | `daikin` | Base MQTT topic for published device state. |
+| `hass_enable` | bool | `true` | Publish Home Assistant MQTT discovery messages. |
+| `language` | list(en\|de) | `en` | UI / entity naming language. |
+| `web_enable` | bool | `true` | Enable the diagnostic web UI / OAuth flow (required for Ingress login). |
+| `refresh_day_interval` | int | `600` | Seconds between cloud polls during day hours. |
+| `refresh_night_interval` | int | `1800` | Seconds between cloud polls during night hours. |
+
+Fixed by the add-on (not user-configurable): the token store lives at
+`/data/token-store.json`, the web UI binds to `0.0.0.0:8080` for Ingress,
+and the OAuth callback uses `http://localhost:8080/callback`.

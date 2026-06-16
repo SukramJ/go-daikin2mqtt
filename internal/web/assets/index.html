@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<!--
+  SPDX-License-Identifier: MIT
+  Copyright (C) 2026 SukramJ
+  Diagnostic web UI for go-daikin2mqtt. Hand-written vanilla SPA (no build
+  step) — served verbatim via go:embed. All asset/API URLs are relative so
+  the page works both directly and behind Home-Assistant ingress. Static
+  strings carry data-i18n keys; app.js fills them from the translation
+  bundle for the configured LANGUAGE (default English).
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Daikin · daikin2mqtt</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext y='20' font-size='20'%3E%E2%9D%84%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">❄</span>
+          <div class="brand-text">
+            <strong>daikin2mqtt</strong>
+            <small>Daikin ONECTA</small>
+          </div>
+        </div>
+        <nav class="nav" id="nav">
+          <a href="#sec-auth" class="nav-item active" data-target="sec-auth" data-i18n="nav.auth">Authentication</a>
+          <a href="#sec-devices" class="nav-item" data-target="sec-devices" data-i18n="nav.devices">Devices</a>
+          <a href="#sec-patch" class="nav-item" data-target="sec-patch" data-i18n="nav.patch">PATCH test</a>
+          <a href="#sec-status" class="nav-item" data-target="sec-status" data-i18n="nav.status">Status</a>
+        </nav>
+        <div class="sidebar-foot">
+          <button id="theme-toggle" class="ghost-btn" data-i18n-title="theme.toggle" title="Toggle light/dark">◐ <span data-i18n="theme.label">Theme</span></button>
+          <small id="version" class="muted"></small>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <main class="main">
+        <header class="topbar">
+          <div class="topbar-title">
+            <h1 data-i18n="app.title">Daikin diagnostics</h1>
+            <span id="topbar-sub" class="muted" data-i18n="app.subtitle">Cloud diagnostics & OAuth</span>
+          </div>
+          <div class="topbar-status">
+            <span id="auth-badge" class="badge badge-neutral" data-i18n="badge.unknown">unknown</span>
+          </div>
+        </header>
+
+        <div id="toast" class="toast" hidden></div>
+
+        <!-- Authentication -->
+        <section id="sec-auth" class="section">
+          <h2 class="section-title" data-i18n="section.auth">Authentication</h2>
+          <div class="card">
+            <div class="status-grid" id="auth-grid"></div>
+            <div class="card-actions">
+              <a id="login-btn" class="btn" href="api/auth/login" data-i18n="btn.connect">Connect to Daikin</a>
+              <button id="auth-refresh" class="ghost-btn" data-i18n="btn.refresh">Refresh</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Devices -->
+        <section id="sec-devices" class="section">
+          <h2 class="section-title" data-i18n="section.devices">Devices &amp; data points</h2>
+          <p class="muted hint" data-i18n="devices.hint">Live device tree from the ONECTA cloud, enriched with catalog metadata.</p>
+          <div class="card-actions">
+            <button id="devices-load" class="btn" data-i18n="btn.load">Load devices</button>
+            <span id="devices-status" class="muted"></span>
+          </div>
+          <div id="devices-host"></div>
+        </section>
+
+        <!-- Manual PATCH test -->
+        <section id="sec-patch" class="section">
+          <h2 class="section-title" data-i18n="section.patch">Manual PATCH test</h2>
+          <p class="muted hint" data-i18n="patch.hint">Send a raw characteristic write to the cloud. Use with care.</p>
+          <div class="card">
+            <form id="patch-form" class="patch-form">
+              <label><span data-i18n="patch.device">Device ID</span><input id="p-device" type="text" required /></label>
+              <label><span data-i18n="patch.embedded">Embedded ID</span><input id="p-embedded" type="text" required /></label>
+              <label><span data-i18n="patch.char">Characteristic</span><input id="p-char" type="text" required /></label>
+              <label><span data-i18n="patch.value">Value</span><input id="p-value" type="text" required /></label>
+              <label><span data-i18n="patch.path">Path (optional)</span><input id="p-path" type="text" /></label>
+              <label class="checkbox"><input id="p-json" type="checkbox" /> <span data-i18n="patch.asjson">Parse value as JSON (number/bool)</span></label>
+              <div class="card-actions">
+                <button type="submit" class="btn" data-i18n="btn.send">Send PATCH</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- Status / rate limit -->
+        <section id="sec-status" class="section">
+          <h2 class="section-title" data-i18n="section.status">Rate limit &amp; status</h2>
+          <div class="card-actions">
+            <button id="status-refresh" class="ghost-btn" data-i18n="btn.refresh">Refresh</button>
+          </div>
+          <div class="card">
+            <div class="status-grid" id="ratelimit-grid"></div>
+          </div>
+          <div class="card">
+            <div class="status-grid" id="config-grid"></div>
+          </div>
+        </section>
+
+        <footer class="footer">
+          <span class="muted" data-i18n="footer.app">go-daikin2mqtt · diagnostic UI</span>
+          <span id="last-update" class="muted"></span>
+        </footer>
+      </main>
+    </div>
+
+    <script src="static/app.js"></script>
+  </body>
+</html>

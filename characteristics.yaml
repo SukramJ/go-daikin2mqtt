@@ -1,0 +1,418 @@
+# go-daikin2mqtt — curated ONECTA characteristic catalog.
+#
+# This file maps Daikin ONECTA cloud data points (management-point
+# characteristics) to MQTT topics and Home Assistant entities. It is the
+# single source of truth for which characteristics are published and how
+# they are exposed — only entries listed here are mapped (deterministic,
+# curated coverage). See docs/konzept.md §9 for the full schema and §8 for
+# the i18n model (English canonical, German optional, per-item fallback).
+#
+# Each entry has the shape:
+#
+#   - match:                       # which characteristic this entry matches
+#       managementPointType: climateControl
+#       characteristic: sensoryData
+#     topic: room_temperature      # MQTT suffix, snake_case, unique
+#     name: Room temperature       # English friendly name (canonical)
+#     name_de: Raumtemperatur      # optional German name
+#     platform: sensor             # sensor|binary_sensor|switch|select|number|climate
+#     device_class: temperature
+#     unit: "°C"
+#     state_class: measurement
+#     settable: false
+#     value_path: roomTemperature  # nested path into the characteristic value
+#     values:                      # enum options for select / enum sensor
+#       - {value: heating, label: Heating, label_de: Heizen}
+#     path: operationModes/{mode}/setpoints/roomTemperature  # nested PATCH path
+#     precision: 1
+#     enabled: true                # optional, default true
+#
+# value_path / path support the "{mode}" token, replaced at runtime by the
+# current operationMode (e.g. "cooling"). Unknown fields are ignored.
+# Covers the climateControl management point plus read-only hardware info;
+# domesticHotWater and energy will be added in later milestones.
+
+# === climateControl ========================================================
+
+# --- Power -----------------------------------------------------------------
+- match: {managementPointType: climateControl, characteristic: onOffMode}
+  topic: power
+  name: Power
+  name_de: Betrieb
+  platform: switch
+  settable: true
+  values:
+    - {value: "on", label: "On", label_de: "An"}
+    - {value: "off", label: "Off", label_de: "Aus"}
+
+- match: {managementPointType: climateControl, characteristic: powerfulMode}
+  topic: powerful_mode
+  name: Powerful mode
+  name_de: Powerful-Modus
+  platform: switch
+  settable: true
+  values:
+    - {value: "on", label: "On", label_de: "An"}
+    - {value: "off", label: "Off", label_de: "Aus"}
+
+# --- Operation mode --------------------------------------------------------
+- match: {managementPointType: climateControl, characteristic: operationMode}
+  topic: operation_mode
+  name: Operation mode
+  name_de: Betriebsart
+  platform: select
+  settable: true
+  values:
+    - {value: heating, label: Heating, label_de: Heizen}
+    - {value: cooling, label: Cooling, label_de: Kühlen}
+    - {value: auto, label: Auto, label_de: Automatik}
+    - {value: dry, label: Dry, label_de: Entfeuchten}
+    - {value: fanOnly, label: Fan only, label_de: Nur Lüfter}
+
+# --- Temperatures / humidity (read-only, nested in sensoryData) ------------
+- match: {managementPointType: climateControl, characteristic: sensoryData}
+  topic: room_temperature
+  name: Room temperature
+  name_de: Raumtemperatur
+  platform: sensor
+  device_class: temperature
+  unit: "°C"
+  state_class: measurement
+  value_path: roomTemperature
+  precision: 1
+
+- match: {managementPointType: climateControl, characteristic: sensoryData}
+  topic: outdoor_temperature
+  name: Outdoor temperature
+  name_de: Außentemperatur
+  platform: sensor
+  device_class: temperature
+  unit: "°C"
+  state_class: measurement
+  value_path: outdoorTemperature
+  precision: 1
+
+- match: {managementPointType: climateControl, characteristic: sensoryData}
+  topic: room_humidity
+  name: Room humidity
+  name_de: Raumfeuchte
+  platform: sensor
+  device_class: humidity
+  unit: "%"
+  state_class: measurement
+  value_path: roomHumidity
+  precision: 0
+
+# --- Temperature setpoint (settable, scoped by active operation mode) ------
+# min/max/step come from the live API (minValue/maxValue/stepValue) so the
+# bounds always match the unit's reported capabilities.
+- match: {managementPointType: climateControl, characteristic: temperatureControl}
+  topic: temperature_setpoint
+  name: Temperature setpoint
+  name_de: Solltemperatur
+  platform: number
+  device_class: temperature
+  unit: "°C"
+  settable: true
+  precision: 1
+  value_path: operationModes/{mode}/setpoints/roomTemperature
+  path: /operationModes/{mode}/setpoints/roomTemperature
+
+# --- Diagnostics -----------------------------------------------------------
+- match: {managementPointType: climateControl, characteristic: isInErrorState}
+  topic: error_state
+  name: Error
+  name_de: Fehler
+  platform: binary_sensor
+  category: diagnostic
+  device_class: problem
+
+- match: {managementPointType: climateControl, characteristic: isInWarningState}
+  topic: warning_state
+  name: Warning
+  name_de: Warnung
+  platform: binary_sensor
+  category: diagnostic
+  device_class: problem
+
+- match: {managementPointType: climateControl, characteristic: errorCode}
+  topic: error_code
+  name: Error code
+  name_de: Fehlercode
+  platform: sensor
+  category: diagnostic
+
+# === gateway (read-only hardware info) =====================================
+- match: {managementPointType: gateway, characteristic: firmwareVersion}
+  topic: gateway_firmware_version
+  name: Gateway firmware version
+  name_de: Gateway-Firmwareversion
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: gateway, characteristic: ipAddress}
+  topic: gateway_ip_address
+  name: Gateway IP address
+  name_de: Gateway-IP-Adresse
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: gateway, characteristic: macAddress}
+  topic: gateway_mac_address
+  name: Gateway MAC address
+  name_de: Gateway-MAC-Adresse
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: gateway, characteristic: serialNumber}
+  topic: gateway_serial_number
+  name: Gateway serial number
+  name_de: Gateway-Seriennummer
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: gateway, characteristic: softwareVersion}
+  topic: gateway_software_version
+  name: Gateway software version
+  name_de: Gateway-Softwareversion
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: gateway, characteristic: isInErrorState}
+  topic: gateway_error_state
+  name: Gateway error
+  name_de: Gateway-Fehler
+  platform: binary_sensor
+  category: diagnostic
+  device_class: problem
+
+# === indoorUnit / outdoorUnit (read-only hardware info) ====================
+- match: {managementPointType: indoorUnit, characteristic: modelInfo}
+  topic: indoor_unit_model
+  name: Indoor unit model
+  name_de: Innengerät-Modell
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: indoorUnit, characteristic: serialNumber}
+  topic: indoor_unit_serial_number
+  name: Indoor unit serial number
+  name_de: Innengerät-Seriennummer
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: outdoorUnit, characteristic: modelInfo}
+  topic: outdoor_unit_model
+  name: Outdoor unit model
+  name_de: Außengerät-Modell
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: outdoorUnit, characteristic: serialNumber}
+  topic: outdoor_unit_serial_number
+  name: Outdoor unit serial number
+  name_de: Außengerät-Seriennummer
+  platform: sensor
+  category: diagnostic
+
+# === climateControl: Altherma air-to-water (leaving water) =================
+# Altherma units control leaving-water temperature instead of room
+# temperature. The entry coexists with temperature_setpoint: each device
+# resolves only the setpoint its temperatureControl actually exposes.
+- match: {managementPointType: climateControl, characteristic: temperatureControl}
+  topic: leaving_water_setpoint
+  name: Leaving water setpoint
+  name_de: Vorlauf-Solltemperatur
+  platform: number
+  device_class: temperature
+  unit: "°C"
+  settable: true
+  precision: 1
+  value_path: operationModes/{mode}/setpoints/leavingWaterTemperature
+  path: /operationModes/{mode}/setpoints/leavingWaterTemperature
+
+- match: {managementPointType: climateControl, characteristic: temperatureControl}
+  topic: leaving_water_offset
+  name: Leaving water offset
+  name_de: Vorlauf-Offset
+  platform: number
+  unit: "°C"
+  settable: true
+  precision: 1
+  value_path: operationModes/{mode}/setpoints/leavingWaterOffset
+  path: /operationModes/{mode}/setpoints/leavingWaterOffset
+
+# === domesticHotWaterTank ==================================================
+- match: {managementPointType: domesticHotWaterTank, characteristic: onOffMode}
+  topic: dhw_power
+  name: Domestic hot water
+  name_de: Warmwasser
+  platform: switch
+  settable: true
+  values:
+    - {value: "on", label: "On", label_de: "An"}
+    - {value: "off", label: "Off", label_de: "Aus"}
+
+- match: {managementPointType: domesticHotWaterTank, characteristic: powerfulMode}
+  topic: dhw_powerful_mode
+  name: Domestic hot water powerful mode
+  name_de: Warmwasser Powerful-Modus
+  platform: switch
+  settable: true
+  values:
+    - {value: "on", label: "On", label_de: "An"}
+    - {value: "off", label: "Off", label_de: "Aus"}
+
+- match: {managementPointType: domesticHotWaterTank, characteristic: setpointMode}
+  topic: dhw_setpoint_mode
+  name: Domestic hot water setpoint mode
+  name_de: Warmwasser Sollwertmodus
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: domesticHotWaterTank, characteristic: sensoryData}
+  topic: dhw_tank_temperature
+  name: Tank temperature
+  name_de: Speichertemperatur
+  platform: sensor
+  device_class: temperature
+  unit: "°C"
+  state_class: measurement
+  value_path: tankTemperature
+  precision: 1
+
+- match: {managementPointType: domesticHotWaterTank, characteristic: temperatureControl}
+  topic: dhw_temperature_setpoint
+  name: Domestic hot water setpoint
+  name_de: Warmwasser-Solltemperatur
+  platform: number
+  device_class: temperature
+  unit: "°C"
+  settable: true
+  precision: 1
+  value_path: operationModes/{mode}/setpoints/domesticHotWaterTemperature
+  path: /operationModes/{mode}/setpoints/domesticHotWaterTemperature
+
+- match: {managementPointType: domesticHotWaterTank, characteristic: isInErrorState}
+  topic: dhw_error_state
+  name: Domestic hot water error
+  name_de: Warmwasser-Fehler
+  platform: binary_sensor
+  category: diagnostic
+  device_class: problem
+
+# === Energy / consumption (climateControl electrical) ======================
+# kind=energy sums the relevant period slice of consumptionData arrays:
+# daily = today, weekly = this week, monthly = current month. total_increasing.
+- match: {managementPointType: climateControl, characteristic: consumptionData}
+  topic: cooling_energy_daily
+  name: Cooling energy today
+  name_de: Kühlenergie heute
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  kind: energy
+  consumption: electrical
+  energy_mode: cooling
+  energy_period: daily
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: consumptionData}
+  topic: cooling_energy_weekly
+  name: Cooling energy this week
+  name_de: Kühlenergie diese Woche
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  kind: energy
+  consumption: electrical
+  energy_mode: cooling
+  energy_period: weekly
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: consumptionData}
+  topic: cooling_energy_monthly
+  name: Cooling energy this month
+  name_de: Kühlenergie diesen Monat
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  kind: energy
+  consumption: electrical
+  energy_mode: cooling
+  energy_period: monthly
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: consumptionData}
+  topic: heating_energy_daily
+  name: Heating energy today
+  name_de: Heizenergie heute
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  kind: energy
+  consumption: electrical
+  energy_mode: heating
+  energy_period: daily
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: consumptionData}
+  topic: heating_energy_weekly
+  name: Heating energy this week
+  name_de: Heizenergie diese Woche
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  kind: energy
+  consumption: electrical
+  energy_mode: heating
+  energy_period: weekly
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: consumptionData}
+  topic: heating_energy_monthly
+  name: Heating energy this month
+  name_de: Heizenergie diesen Monat
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  kind: energy
+  consumption: electrical
+  energy_mode: heating
+  energy_period: monthly
+  precision: 3
+
+# === Air purifier ==========================================================
+- match: {managementPointType: climateControl, characteristic: airPurificationMode}
+  topic: air_purification_mode
+  name: Air purification mode
+  name_de: Luftreinigungsmodus
+  platform: select
+  settable: true
+  values:
+    - {value: manualFan, label: Manual fan, label_de: Manueller Lüfter}
+    - {value: autoFan, label: Auto fan, label_de: Automatischer Lüfter}
+    - {value: econo, label: Econo, label_de: Eco}
+    - {value: antiPollen, label: Anti-pollen, label_de: Anti-Pollen}
+    - {value: circulator, label: Circulator, label_de: Umluft}
+
+# === indoorUnitHydro (Altherma hardware info) ==============================
+- match: {managementPointType: indoorUnitHydro, characteristic: modelInfo}
+  topic: indoor_hydro_model
+  name: Indoor hydro unit model
+  name_de: Hydro-Inneneinheit-Modell
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: indoorUnitHydro, characteristic: softwareVersion}
+  topic: indoor_hydro_software_version
+  name: Indoor hydro unit software version
+  name_de: Hydro-Inneneinheit-Softwareversion
+  platform: sensor
+  category: diagnostic

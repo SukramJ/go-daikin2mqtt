@@ -1,0 +1,46 @@
+# go-daikin2mqtt configuration template.
+#
+# Every key below can also be set via environment variable using the
+# DAIKIN_ prefix, e.g. CLIENT_ID -> DAIKIN_CLIENT_ID. Environment values
+# override the file. Booleans accept true/false.
+
+# --- Daikin / ONECTA cloud (OAuth2) ---
+# Credentials from the Daikin Developer Portal (https://developer.cloud.daikineurope.com).
+CLIENT_ID: ""
+CLIENT_SECRET: ""
+# Must match a redirect URI registered for your client in the portal.
+REDIRECT_URI: "http://localhost:8080/callback"
+# Listen address for the temporary callback server used during first-time
+# auth when the web UI is disabled.
+OAUTH_CALLBACK_BIND: "127.0.0.1:8080"
+# Where the rotated refresh token is stored. Empty -> XDG default
+# ($XDG_CONFIG_HOME/daikin2mqtt/token-store.json).
+TOKEN_STORE_PATH: ""
+
+# --- Polling / rate limiting (the ONECTA API is rate limited) ---
+REFRESH_DAY_INTERVAL: 600     # seconds, during day hours
+REFRESH_NIGHT_INTERVAL: 1800  # seconds, during night hours
+DAY_START_HOUR: 7             # local hour the day window starts (inclusive)
+DAY_END_HOUR: 22              # local hour the day window ends (exclusive)
+SCAN_IGNORE: 30               # seconds to skip GETs after a PATCH (stale data)
+
+# --- MQTT ---
+MQTT_SERVER: localhost
+MQTT_PORT: 1883
+MQTT_LOGIN: ""
+MQTT_PASSWORD: ""
+MQTT_TOPIC: daikin
+
+# --- Home Assistant ---
+HASS_ENABLE: true
+HASS_BASE_TOPIC: homeassistant
+
+# --- Diagnostic web UI (optional; also hosts the OAuth callback) ---
+WEB_ENABLE: false
+WEB_BIND: "127.0.0.1:8080"
+WEB_USER: ""
+WEB_PASSWORD: ""
+
+# --- Misc ---
+LANGUAGE: en   # en | de
+DEBUG: false
