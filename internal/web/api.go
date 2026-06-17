@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 )
@@ -89,9 +90,59 @@ func (s *Server) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		s.errorPage(w, http.StatusInternalServerError, "could not start login: "+err.Error())
 		return
 	}
-	s.states.put(state, pkce.Verifier)
-	url := s.auth.AuthorizeURL(state, pkce.Challenge)
-	http.Redirect(w, r, url, http.StatusFound)
+	// Resolve the redirect_uri for this login and replay it verbatim at the
+	// token exchange (the IdP requires both to match). A per-request copy of
+	// the OAuth config carries the resolved value without mutating shared state.
+	redir := s.effectiveRedirectURI(r)
+	s.states.put(state, pkce.Verifier, redir)
+	if redir != s.auth.RedirectURI {
+		s.log.Info("web.oauth_redirect_uri",
+			slog.String("redirect_uri", redir),
+			slog.String("hint", "register this exact URI with the Daikin developer portal"))
+	}
+	cfg := s.auth
+	cfg.RedirectURI = redir
+	http.Redirect(w, r, cfg.AuthorizeURL(state, pkce.Challenge), http.StatusFound)
+}
+
+// effectiveRedirectURI returns the OAuth redirect_uri to use for this request.
+// An explicitly configured value always wins. Otherwise it is derived from the
+// request so the flow works behind Home-Assistant ingress (or any TLS reverse
+// proxy) with no manual configuration: <scheme>://<host><ingress-path>/callback.
+// The derived value is logged at login time so the operator can register the
+// exact URI with the IdP.
+func (s *Server) effectiveRedirectURI(r *http.Request) string {
+	// An explicit, non-default redirect_uri always wins. When it is unset or
+	// still the localhost default (the value config fills in for an empty
+	// option), derive it from the request instead.
+	if s.auth.RedirectURI != "" && s.auth.RedirectURI != config.DefaultRedirectURI {
+		return s.auth.RedirectURI
+	}
+	scheme := "http"
+	switch {
+	case firstValue(r.Header.Get("X-Forwarded-Proto")) != "":
+		scheme = firstValue(r.Header.Get("X-Forwarded-Proto"))
+	case r.TLS != nil:
+		scheme = "https"
+	case ingressPrefix(r) != "":
+		// HA ingress always fronts the add-on over external HTTPS, even though
+		// the proxied hop to the add-on itself is plain HTTP.
+		scheme = "https"
+	}
+	host := firstValue(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = r.Host
+	}
+	return scheme + "://" + host + ingressPrefix(r) + "/callback"
+}
+
+// firstValue returns the first comma-separated token of a header value,
+// trimmed — proxies may append multiple values (e.g. "https, http").
+func firstValue(h string) string {
+	if i := strings.IndexByte(h, ','); i >= 0 {
+		h = h[:i]
+	}
+	return strings.TrimSpace(h)
 }
 
 // handleCallback completes the OAuth flow: it validates the returned state
@@ -113,13 +164,17 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	verifier, ok := s.states.take(state)
+	verifier, redir, ok := s.states.take(state)
 	if !ok {
 		s.errorPage(w, http.StatusBadRequest, "invalid or expired state (possible CSRF or timeout)")
 		return
 	}
 
-	tok, err := s.auth.ExchangeCode(r.Context(), http.DefaultClient, code, verifier)
+	// Replay the exact redirect_uri recorded at login (it must match the one
+	// sent to the authorize endpoint), via a per-request config copy.
+	cfg := s.auth
+	cfg.RedirectURI = redir
+	tok, err := cfg.ExchangeCode(r.Context(), http.DefaultClient, code, verifier)
 	if err != nil {
 		s.log.Warn("web.callback_exchange_failed", slog.String("err", err.Error()))
 		s.errorPage(w, http.StatusBadGateway, "token exchange failed: "+err.Error())
@@ -320,18 +375,24 @@ func (s *Server) handlePatch(w http.ResponseWriter, r *http.Request) {
 // the X-Ingress-Path prefix; otherwise a relative "./" returns to the SPA
 // root regardless of where it is mounted.
 func rootRedirect(r *http.Request) string {
-	// Only honor the ingress prefix when it is an internal, absolute path
-	// ("/...") with no scheme or protocol-relative ("//") prefix, so the
-	// header cannot be abused to drive an open redirect to an external host.
-	if p := r.Header.Get("X-Ingress-Path"); p != "" &&
-		strings.HasPrefix(p, "/") && !strings.HasPrefix(p, "//") &&
-		!strings.Contains(p, ":") {
-		if p[len(p)-1] != '/' {
-			p += "/"
-		}
-		return p
+	if p := ingressPrefix(r); p != "" {
+		return p + "/"
 	}
 	return "./"
+}
+
+// ingressPrefix returns the validated Home-Assistant X-Ingress-Path prefix
+// (without a trailing slash), or "" when the header is absent or unsafe. Only
+// an internal, absolute path ("/...") with no scheme or protocol-relative
+// ("//") prefix is honored, so the header cannot drive an open redirect or
+// inject an external host into the derived redirect_uri.
+func ingressPrefix(r *http.Request) string {
+	p := r.Header.Get("X-Ingress-Path")
+	if p == "" || !strings.HasPrefix(p, "/") || strings.HasPrefix(p, "//") ||
+		strings.Contains(p, ":") {
+		return ""
+	}
+	return strings.TrimRight(p, "/")
 }
 
 // writeJSON encodes v as the response body with the given status.

@@ -344,6 +344,56 @@ func TestRateLimitEndpoint(t *testing.T) {
 	}
 }
 
+func TestEffectiveRedirectURI(t *testing.T) {
+	// Explicit config always wins, regardless of request headers.
+	d := baseDeps()
+	d.Auth = auth.Config{RedirectURI: "https://configured/callback"}
+	cfgSrv := New(d)
+	req := httptest.NewRequest(http.MethodGet, "http://ha.local/api/auth/login", http.NoBody)
+	req.Header.Set("X-Ingress-Path", "/api/hassio_ingress/abc")
+	if got := cfgSrv.effectiveRedirectURI(req); got != "https://configured/callback" {
+		t.Errorf("configured redirect = %q, want the explicit value", got)
+	}
+
+	// Derived cases use an empty-RedirectURI server (baseDeps sets none).
+	srv := New(baseDeps())
+	cases := []struct {
+		name    string
+		host    string
+		headers map[string]string
+		want    string
+	}{
+		{
+			name:    "ingress implies https and prefix",
+			host:    "ha.example.com",
+			headers: map[string]string{"X-Ingress-Path": "/api/hassio_ingress/abc"},
+			want:    "https://ha.example.com/api/hassio_ingress/abc/callback",
+		},
+		{
+			name:    "forwarded proto and host win",
+			host:    "internal:8080",
+			headers: map[string]string{"X-Forwarded-Proto": "https, http", "X-Forwarded-Host": "proxy.example.com"},
+			want:    "https://proxy.example.com/callback",
+		},
+		{
+			name: "plain http fallback",
+			host: "localhost:8080",
+			want: "http://localhost:8080/callback",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, "http://"+tc.host+"/api/auth/login", http.NoBody)
+			for k, v := range tc.headers {
+				r.Header.Set(k, v)
+			}
+			if got := srv.effectiveRedirectURI(r); got != tc.want {
+				t.Errorf("effectiveRedirectURI = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestRootRedirectIngressAware(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/callback", http.NoBody)
 	if got := rootRedirect(req); got != "./" {

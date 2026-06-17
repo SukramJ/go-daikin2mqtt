@@ -30,18 +30,26 @@ discovery and a diagnostic web UI that also drives the OAuth2 login.
 ### Redirect URI registration
 
 The Daikin Developer Portal **requires the redirect URI to use HTTPS** and
-rejects `http://` (and `localhost`). The add-on serves the OAuth callback on
-its `:8080` (behind Ingress), but that is plain HTTP, so you must front it
-with an HTTPS endpoint that forwards to the add-on's `:8080` — for example an
-HTTPS reverse proxy or a tunnel — and set that URL as the **`redirect_uri`**
-option (path `…/callback`). For the reverse-proxy route, first expose the port:
-open the add-on's **Network** tab and map host port `8080` (it is unmapped by
-default, since Ingress needs no open port), then point your proxy at
-`http://<ha-host>:8080`. Register the *same* URL for your client in the
-[Daikin Developer Portal](https://developer.cloud.daikineurope.com). The
-default empty value falls back to `http://localhost:8080/callback`, which
-only works for a browser running on the same host as the add-on. See
-`docs/konzept.md` (§11, §12.4) for the full redirect-URI guidance.
+rejects `http://` (and `localhost`).
+
+**Recommended (Ingress, zero-config):** leave the `redirect_uri` option
+**empty**. When you click *Connect to Daikin* the add-on derives the redirect
+URI from the request — behind Ingress that is your Home Assistant's external
+**HTTPS** ingress URL — and logs it as `web.oauth_redirect_uri`. Copy that
+exact URL into your client in the
+[Daikin Developer Portal](https://developer.cloud.daikineurope.com), then click
+*Connect* again. No open port or extra proxy rule is needed, since you already
+reach Home Assistant over TLS. The derived URL contains the add-on's ingress
+token; re-register it if the token ever changes (e.g. after a reinstall).
+
+**Alternative (explicit reverse proxy / tunnel):** set the `redirect_uri`
+option to an HTTPS URL that forwards to the add-on's `:8080`. For a reverse
+proxy, first expose the port — open the add-on's **Network** tab and map host
+port `8080` (unmapped by default, since Ingress needs no open port) — then
+point your proxy at `http://<ha-host>:8080` and register the *same* URL with
+the portal.
+
+See `docs/konzept.md` (§11, §12.4) for the full redirect-URI guidance.
 
 ## Image build paths
 

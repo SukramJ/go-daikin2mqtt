@@ -27,7 +27,7 @@ Everything else has sensible defaults; use the reference below to fine-tune.
 | --- | --- | --- | --- |
 | `client_id` | str | `""` | Daikin ONECTA OAuth2 client ID (Daikin Developer Portal). |
 | `client_secret` | password | `""` | Daikin ONECTA OAuth2 client secret. |
-| `redirect_uri` | str | `""` | OAuth2 redirect URI registered for your client in the Daikin portal. Empty → `http://localhost:8080/callback`, which only works for a browser on the same host. Daikin requires **HTTPS**, so behind Ingress set an HTTPS URL that forwards to the add-on's `:8080` (reverse-proxy or tunnel). |
+| `redirect_uri` | str | `""` | OAuth2 redirect URI registered for your client in the Daikin portal. **Leave empty** to auto-derive it from the request — behind Ingress this becomes the add-on's external HTTPS ingress URL, logged at login time (`web.oauth_redirect_uri`) so you can register that exact value. Set a value only to override, e.g. a dedicated HTTPS reverse-proxy or tunnel URL. |
 | `mqtt_server` | str | `""` | MQTT broker hostname. **Leave empty** to auto-use the Home Assistant MQTT broker (the configured MQTT integration / `core-mosquitto`). Set a value only to point at a different broker. |
 | `mqtt_port` | int | `1883` | MQTT broker port. Only used when `mqtt_server` is set; the auto-detected broker brings its own port. |
 | `mqtt_login` | str | `""` | MQTT username. Only used when `mqtt_server` is set (auto-detect supplies credentials). |

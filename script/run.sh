@@ -57,15 +57,14 @@ export DAIKIN_WEB_BIND="0.0.0.0:8080"
 # The OAuth2 callback is served by the same web UI/port behind Ingress.
 export DAIKIN_OAUTH_CALLBACK_BIND="0.0.0.0:8080"
 
-# Redirect URI: Daikin requires an HTTPS, portal-registered URI, and behind
-# Ingress the localhost default is not browser-reachable. Operators therefore
-# set their own (an HTTPS reverse-proxy or tunnel URL that forwards to the
-# add-on's :8080). Empty -> the local default, usable only for a browser on
-# the same host as the add-on.
+# Redirect URI: Daikin requires an HTTPS, portal-registered URI. When this is
+# left empty the daemon derives it automatically from the incoming request —
+# behind Ingress that yields the add-on's external HTTPS ingress URL
+# (…/callback), logged at login time so you can register it with the portal.
+# Set an explicit value only to override (e.g. a dedicated reverse-proxy or
+# tunnel URL). Leaving DAIKIN_REDIRECT_URI unset enables the auto-derivation.
 if bashio::config.has_value 'redirect_uri'; then
   export DAIKIN_REDIRECT_URI="$(bashio::config 'redirect_uri')"
-else
-  export DAIKIN_REDIRECT_URI="http://localhost:8080/callback"
 fi
 
 # --- Persistent state ---

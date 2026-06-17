@@ -395,7 +395,9 @@ sowie **Multi-Arch-Docker-Push nach GHCR** erweitert.
   **`ingress: true`** (Diagnose-UI inkl. OAuth-Button als HA-Panel),
   `ports`/`ports_description` optional, `services: ["mqtt:want"]`
   (MQTT-Discovery vom Supervisor), `options`/`schema` für
-  `DAIKIN_CLIENT_ID/SECRET`, `redirect_uri` (HTTPS, da Daikin `http` ablehnt),
+  `DAIKIN_CLIENT_ID/SECRET`, `redirect_uri` (HTTPS, da Daikin `http` ablehnt;
+  **leer → der Daemon leitet die Redirect-URI automatisch aus dem Request ab**,
+  hinter Ingress die externe HTTPS-Ingress-URL, und loggt sie zum Registrieren),
   MQTT, `LANGUAGE` etc. Repo-Root trägt zusätzlich `repository.yaml`, damit die
   Repo-URL als Add-on-Store hinzugefügt werden kann.
 - `Dockerfile`: `FROM ghcr.io/home-assistant/{arch}-base`, kopiert das statische

@@ -14,11 +14,13 @@ import (
 const stateTTL = 10 * time.Minute
 
 // pendingAuth holds the per-login data needed to complete the OAuth code
-// exchange: the PKCE verifier matching the challenge sent to the IdP, and an
-// expiry used for opportunistic cleanup.
+// exchange: the PKCE verifier matching the challenge sent to the IdP, the
+// redirect_uri used at authorize time (which must be replayed verbatim at the
+// token exchange), and an expiry used for opportunistic cleanup.
 type pendingAuth struct {
-	verifier  string
-	expiresAt time.Time
+	verifier    string
+	redirectURI string
+	expiresAt   time.Time
 }
 
 // stateStore keeps pending OAuth states in memory, keyed by the opaque state
@@ -38,33 +40,34 @@ func newStateStore() *stateStore {
 	}
 }
 
-// put records the PKCE verifier for a freshly generated state and prunes any
-// expired entries while the lock is held.
-func (s *stateStore) put(state, verifier string) {
+// put records the PKCE verifier and redirect_uri for a freshly generated state
+// and prunes any expired entries while the lock is held.
+func (s *stateStore) put(state, verifier, redirectURI string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pruneLocked()
 	s.entries[state] = pendingAuth{
-		verifier:  verifier,
-		expiresAt: s.now().Add(stateTTL),
+		verifier:    verifier,
+		redirectURI: redirectURI,
+		expiresAt:   s.now().Add(stateTTL),
 	}
 }
 
-// take returns the verifier for state and removes it (single use). The
-// boolean is false when the state is unknown or expired, which the callback
-// treats as a CSRF / timeout failure.
-func (s *stateStore) take(state string) (string, bool) {
+// take returns the verifier and redirect_uri for state and removes it (single
+// use). The boolean is false when the state is unknown or expired, which the
+// callback treats as a CSRF / timeout failure.
+func (s *stateStore) take(state string) (verifier, redirectURI string, ok bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	e, ok := s.entries[state]
-	if !ok {
-		return "", false
+	e, found := s.entries[state]
+	if !found {
+		return "", "", false
 	}
 	delete(s.entries, state)
 	if s.now().After(e.expiresAt) {
-		return "", false
+		return "", "", false
 	}
-	return e.verifier, true
+	return e.verifier, e.redirectURI, true
 }
 
 // pruneLocked drops expired entries. Callers must hold s.mu.
