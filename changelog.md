@@ -1,3 +1,35 @@
+# Version 0.1.1 (2026-06-17)
+
+## What's Changed
+
+Home Assistant add-on completion plus OAuth and first-boot fixes on top of 0.1.0.
+
+### Added
+
+- German labels for the combined climate entity's fan / swing / preset
+  dropdowns (mirroring `daikin_onecta`), reverse-mapped to the raw Daikin
+  values on write.
+- Home Assistant add-on manifest (`addon/config.yaml`) and repository
+  descriptor (`repository.yaml`) so the add-on is installable from the repo.
+- Zero-config MQTT: an empty `mqtt_server` auto-uses the Supervisor's MQTT
+  service (host / port / credentials), like zigbee2mqtt.
+- Automatic OAuth `redirect_uri` derivation from the request when unset —
+  behind Ingress this yields the external HTTPS ingress URL (logged for portal
+  registration), so no separate reverse-proxy rule is needed.
+- Optional host-port exposure (`ports`, disabled by default) for the
+  explicit reverse-proxy redirect route, plus a configurable `redirect_uri`
+  option and an add-on Quickstart.
+
+### Fixed
+
+- Daemon no longer requires a config file: it boots from `DAIKIN_*`
+  environment variables alone (the add-on ships no `config.yaml`).
+- Add-on container resolves `characteristics.yaml` (runs from `WORKDIR /app`).
+- `.gitignore` no longer excludes `addon/config.yaml` (the runtime-config rule
+  is anchored to the repo root).
+- Cross-platform (Windows) test assumptions for the token-store path and
+  file permissions.
+
 # Version 0.1.0 (2026-06-16)
 
 ## What's Changed
