@@ -56,20 +56,26 @@ See `docs/konzept.md` (§11, §12.4) for the full redirect-URI guidance.
 There are two ways the add-on image can be produced. The add-on is
 configured for the **preferred** path by default.
 
-### Preferred: pre-built GHCR image
+### Preferred: pre-built GHCR add-on image
 
 `addon/config.yaml` sets:
 
 ```yaml
-image: "ghcr.io/sukramj/go-daikin2mqtt"
+image: "ghcr.io/sukramj/go-daikin2mqtt-addon-{arch}"
 ```
 
-When `image:` is present, the Supervisor **pulls** that image at the tag
-matching the add-on `version:`. It is a single multi-arch manifest (amd64,
-aarch64, armv7), so Docker selects the right architecture automatically — no
-`-{arch}` suffix is needed. These images are published by
-`.github/workflows/docker-build-push.yml`. This path is fast and requires no
-toolchain on the Home Assistant host.
+When `image:` is present, the Supervisor substitutes `{arch}`
+(`amd64`/`aarch64`/`armv7`) and **pulls** that image at the tag matching the
+add-on `version:`. These per-arch images bundle the HA base, bashio and the
+`run.sh` entrypoint, and are published by
+`.github/workflows/addon-image.yml`. This path is fast and needs no toolchain
+on the Home Assistant host.
+
+> **Note:** this is **not** the distroless daemon image
+> `ghcr.io/sukramj/go-daikin2mqtt` (built by `docker-build-push.yml` for the
+> standalone Docker/systemd deployment). That image runs the binary directly
+> and has no `run.sh`, so it cannot translate add-on options into `DAIKIN_*`
+> env — it is not a valid add-on image.
 
 ### Fallback: local build from source
 

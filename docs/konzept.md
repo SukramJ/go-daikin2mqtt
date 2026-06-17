@@ -390,8 +390,10 @@ sowie **Multi-Arch-Docker-Push nach GHCR** erweitert.
 
 ### 12.4 Home-Assistant-Addon (`addon/`)
 - `config.yaml`: Addon-Manifest — `slug`, `arch: [amd64, aarch64, armv7]`,
-  `image: ghcr.io/sukramj/go-daikin2mqtt` (**ein** Multi-Arch-Manifest, kein
-  `-{arch}`-Suffix; Docker wählt die Arch), `init: false`,
+  `image: ghcr.io/sukramj/go-daikin2mqtt-addon-{arch}` (dediziertes Add-on-Image
+  aus `addon/Dockerfile` mit HA-Base + bashio + `run.sh`, per Arch via
+  `addon-image.yml` publiziert — **nicht** das distroless-Daemon-Image
+  `ghcr.io/sukramj/go-daikin2mqtt`, das kein `run.sh` hat), `init: false`,
   **`ingress: true`** (Diagnose-UI inkl. OAuth-Button als HA-Panel),
   `ports`/`ports_description` optional, `services: ["mqtt:want"]`
   (MQTT-Discovery vom Supervisor), `options`/`schema` für
