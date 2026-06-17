@@ -33,8 +33,8 @@ go.work.sum
 # Release artefacts from `make release`
 /dist/
 
-# Local runtime config
-config.yaml
+# Local runtime config (root only — must not swallow addon/config.yaml).
+/config.yaml
 
 # Token store written at runtime
 token-store.json

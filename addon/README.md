@@ -28,14 +28,16 @@ discovery and a diagnostic web UI that also drives the OAuth2 login.
 
 ### Redirect URI registration
 
-The OAuth2 redirect URI used by the add-on is
-`http://localhost:8080/callback`. You must register a matching redirect URI
-for your client in the
-[Daikin Developer Portal](https://developer.cloud.daikineurope.com).
-Because the flow runs behind Ingress, the browser is proxied by the
-Supervisor; register the URI exactly as expected by your client
-configuration. If your portal requires a publicly reachable URI, follow the
-guidance in the project's `docs/konzept.md` (§12.4).
+The Daikin Developer Portal **requires the redirect URI to use HTTPS** and
+rejects `http://` (and `localhost`). The add-on serves the OAuth callback on
+its `:8080` (behind Ingress), but that is plain HTTP, so you must front it
+with an HTTPS endpoint that forwards to the add-on's `:8080` — for example an
+HTTPS reverse proxy or a tunnel — and set that URL as the **`redirect_uri`**
+option (path `…/callback`). Register the *same* URL for your client in the
+[Daikin Developer Portal](https://developer.cloud.daikineurope.com). The
+default empty value falls back to `http://localhost:8080/callback`, which
+only works for a browser running on the same host as the add-on. See
+`docs/konzept.md` (§11, §12.4) for the full redirect-URI guidance.
 
 ## Image build paths
 
@@ -47,12 +49,13 @@ configured for the **preferred** path by default.
 `addon/config.yaml` sets:
 
 ```yaml
-image: "ghcr.io/sukramj/go-daikin2mqtt-{arch}"
+image: "ghcr.io/sukramj/go-daikin2mqtt"
 ```
 
-When `image:` is present, the Supervisor **pulls** the matching multi-arch
-image (`{arch}` is replaced with `aarch64`, `amd64`, or `armv7`) instead of
-building locally. These images are published by
+When `image:` is present, the Supervisor **pulls** that image at the tag
+matching the add-on `version:`. It is a single multi-arch manifest (amd64,
+aarch64, armv7), so Docker selects the right architecture automatically — no
+`-{arch}` suffix is needed. These images are published by
 `.github/workflows/docker-build-push.yml`. This path is fast and requires no
 toolchain on the Home Assistant host.
 

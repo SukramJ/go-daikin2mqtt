@@ -1,0 +1,66 @@
+# Home Assistant add-on manifest for go-daikin2mqtt.
+#
+# version MUST equal the published image tag (ghcr.io/sukramj/go-daikin2mqtt)
+# and is bumped in the release commit that cuts the matching git tag.
+name: go-daikin2mqtt
+version: "0.1.0"
+slug: go-daikin2mqtt
+description: >-
+  Bridges Daikin ONECTA cloud climate devices to MQTT with Home Assistant
+  MQTT discovery and a diagnostic web UI that drives the OAuth2 login.
+url: https://github.com/SukramJ/go-daikin2mqtt
+arch:
+  - amd64
+  - aarch64
+  - armv7
+
+# Single multi-arch manifest published by .github/workflows/docker-build-push.yml.
+# The Supervisor pulls <image>:<version> and Docker selects the right arch from
+# the manifest list (no per-arch "-{arch}" suffix needed). Remove this key to
+# build locally from addon/Dockerfile (see addon/README.md, fallback path).
+image: "ghcr.io/sukramj/go-daikin2mqtt"
+
+# The HA base image ships s6-overlay as its init; don't let the Supervisor
+# inject its own init on top.
+init: false
+
+# Diagnostic web UI (and the OAuth login button) surfaced as an HA panel via
+# Ingress — no port needs to be exposed.
+ingress: true
+ingress_port: 8080
+panel_icon: mdi:air-conditioner
+panel_title: go-daikin2mqtt
+
+# Soft dependency: use the Supervisor's MQTT broker (core-mosquitto) when present.
+services:
+  - mqtt:want
+
+options:
+  client_id: ""
+  client_secret: ""
+  redirect_uri: ""
+  mqtt_server: core-mosquitto
+  mqtt_port: 1883
+  mqtt_login: ""
+  mqtt_password: ""
+  mqtt_topic: daikin
+  hass_enable: true
+  language: en
+  web_enable: true
+  refresh_day_interval: 600
+  refresh_night_interval: 1800
+
+schema:
+  client_id: str
+  client_secret: password
+  redirect_uri: "str?"
+  mqtt_server: str
+  mqtt_port: int(1,65535)
+  mqtt_login: "str?"
+  mqtt_password: "password?"
+  mqtt_topic: str
+  hass_enable: bool
+  language: "list(en|de)"
+  web_enable: bool
+  refresh_day_interval: int(1,)
+  refresh_night_interval: int(1,)
