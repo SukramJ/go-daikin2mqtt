@@ -239,7 +239,22 @@ dry↔dry, fanOnly↔fan_only, off↔off`.
   Fallback** auf Englisch. Reverse-Lookup `CodeForLabel` akzeptiert beide Sprachen
   (für Writes aus UI/HA).
 - **Lokalisiert:** Katalog-/Entity-Namen, Enum-Labels, HA-Discovery-`name`,
-  Web-UI-Texte. **Nicht** lokalisiert: MQTT-Topics, entity_ids, characteristic-Keys.
+  Web-UI-Texte. **Nicht** lokalisiert: MQTT-Topics, entity_ids, characteristic-Keys
+  und — als Regel — settable Kommando-**Werte** (siehe Climate-Ausnahme unten).
+- **Climate-Dropdowns (Ausnahme):** Die kombinierte `climate`-Entität führt
+  fan/swing/preset als synthetische Optionslisten (aus `fanControl`/`powerfulMode`,
+  nicht aus dem Katalog). HAs MQTT-Climate-Plattform kennt — anders als ein
+  natives Integration-Translation-File (vgl. `daikin_onecta`,
+  `openccu-loom`) — **kein** separates Label-Feld: der Listeneintrag ist
+  Anzeige *und* Kommando-Wert zugleich. Damit die Dropdowns im DE-Modus deutsch
+  erscheinen, emittiert `internal/coordinator/climate.go` daher bewusst das
+  **deutsche Label als Wert** (z. B. `swing → "Schwingen"`, `windnice →
+  "Komfort Luftstrom"`, Strings gespiegelt aus `daikin_onecta/de.json`) und
+  bildet es beim Schreiben via `canonicalAux` auf den rohen Daikin-Wert zurück
+  (inkl. mixed-case `windNice`/`floorHeatingAirflow`). Numerische Lüfterstufen
+  bleiben Zahlen. Bei `LANGUAGE=en` bleiben die Werte sprachneutral roh. Dies ist
+  die einzige Stelle, an der ein Kommando-Wert lokalisiert wird — der Sonderfall
+  der fehlenden HA-Label/Wert-Trennung über MQTT.
 - **Web-UI:** flache JSON-Bundles `internal/web/static/i18n/{en,de}.json`
   (Dot-Notation-Keys); Frontend `t(key)`/`tf(key, params)`, `loadI18n(lang)`,
   `data-i18n`-Attribute. Sprache kommt aus `/api/config` (Daemon-Konfiguration).
