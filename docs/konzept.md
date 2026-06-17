@@ -390,15 +390,21 @@ sowie **Multi-Arch-Docker-Push nach GHCR** erweitert.
 
 ### 12.4 Home-Assistant-Addon (`addon/`)
 - `config.yaml`: Addon-Manifest — `slug`, `arch: [amd64, aarch64, armv7]`,
-  `image: ghcr.io/sukramj/go-daikin2mqtt-{arch}`, `init: false`,
+  `image: ghcr.io/sukramj/go-daikin2mqtt` (**ein** Multi-Arch-Manifest, kein
+  `-{arch}`-Suffix; Docker wählt die Arch), `init: false`,
   **`ingress: true`** (Diagnose-UI inkl. OAuth-Button als HA-Panel),
-  `ports`/`ports_description` optional, `map: [config]`, `services:
-  ["mqtt:want"]` (MQTT-Discovery vom Supervisor), `options`/`schema` für
-  `DAIKIN_CLIENT_ID/SECRET`, MQTT, `LANGUAGE` etc.
+  `ports`/`ports_description` optional, `services: ["mqtt:want"]`
+  (MQTT-Discovery vom Supervisor), `options`/`schema` für
+  `DAIKIN_CLIENT_ID/SECRET`, `redirect_uri` (HTTPS, da Daikin `http` ablehnt),
+  MQTT, `LANGUAGE` etc. Repo-Root trägt zusätzlich `repository.yaml`, damit die
+  Repo-URL als Add-on-Store hinzugefügt werden kann.
 - `Dockerfile`: `FROM ghcr.io/home-assistant/{arch}-base`, kopiert das statische
   Daemon-Binary + `characteristics.yaml`, `run.sh` als Entrypoint.
 - `script/run.sh`: liest `/data/options.json` via **bashio**, mappt Optionen auf
   `DAIKIN_*`-ENV, persistiert Token-Store unter `/data`, `exec` des Daemons.
+  Leeres `mqtt_server` → Zero-Config-Auto-Bezug von Host/Port/Login aus dem
+  `mqtt`-Service; expliziter Wert übersteuert, sonst Fallback
+  `core-mosquitto:1883`.
 - `build.yaml`: `build_from` je Arch. Token-Store liegt im Addon-`/data` (persistent
   über Updates). MQTT-Zugangsdaten bevorzugt über den HA-MQTT-Service.
 
