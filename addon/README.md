@@ -33,7 +33,10 @@ rejects `http://` (and `localhost`). The add-on serves the OAuth callback on
 its `:8080` (behind Ingress), but that is plain HTTP, so you must front it
 with an HTTPS endpoint that forwards to the add-on's `:8080` — for example an
 HTTPS reverse proxy or a tunnel — and set that URL as the **`redirect_uri`**
-option (path `…/callback`). Register the *same* URL for your client in the
+option (path `…/callback`). For the reverse-proxy route, first expose the port:
+open the add-on's **Network** tab and map host port `8080` (it is unmapped by
+default, since Ingress needs no open port), then point your proxy at
+`http://<ha-host>:8080`. Register the *same* URL for your client in the
 [Daikin Developer Portal](https://developer.cloud.daikineurope.com). The
 default empty value falls back to `http://localhost:8080/callback`, which
 only works for a browser running on the same host as the add-on. See

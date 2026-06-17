@@ -31,6 +31,15 @@ ingress_port: 8080
 panel_icon: mdi:air-conditioner
 panel_title: go-daikin2mqtt
 
+# Optional host-port exposure (disabled by default — `null` publishes no port,
+# Ingress stays the primary path). Assign a host port in the add-on's Network
+# tab only when you need to reach :8080 directly, e.g. to front it with a TLS
+# reverse proxy that provides the HTTPS OAuth `redirect_uri` Daikin requires.
+ports:
+  8080/tcp: null
+ports_description:
+  8080/tcp: "Diagnostic web UI / OAuth callback (normally reached via Ingress)"
+
 # Soft dependency: use the Supervisor's MQTT broker (core-mosquitto) when present.
 services:
   - mqtt:want
