@@ -44,12 +44,12 @@ func Validate(c *Config) error {
 	}
 
 	// --- Daikin cloud (OAuth2) ---
-	if c.ClientID == "" {
-		add("CLIENT_ID is required")
-	}
-	if c.ClientSecret == "" {
-		add("CLIENT_SECRET is required")
-	}
+	// CLIENT_ID / CLIENT_SECRET are intentionally NOT required here: a fresh
+	// Home Assistant add-on install has them empty, and a fatal config error
+	// would crash-loop before the operator can configure them. The daemon
+	// instead starts unconfigured (web UI up, auth reported as "not
+	// configured"); see [Config.CredentialsConfigured] and the startup warning
+	// in cmd/daikin2mqtt. They are still required for actual cloud access.
 	if u, err := url.Parse(c.RedirectURI); err != nil || u.Scheme == "" || u.Host == "" {
 		add("REDIRECT_URI must be an absolute URL, got %q", c.RedirectURI)
 	}

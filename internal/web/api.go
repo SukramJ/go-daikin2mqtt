@@ -71,8 +71,13 @@ func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := s.tokens.Token(r.Context())
 	if err != nil {
+		// Distinguish "not configured yet" (fresh install) from a real auth
+		// failure so the UI guides onboarding instead of showing a generic error.
 		detail := "re-authentication required"
-		if !errors.Is(err, auth.ErrReauthRequired) {
+		switch {
+		case s.auth.ClientID == "" || s.auth.ClientSecret == "":
+			detail = "client credentials not configured"
+		case !errors.Is(err, auth.ErrReauthRequired):
 			detail = err.Error()
 		}
 		writeJSON(w, http.StatusOK, authStatusView{Authenticated: false, Detail: detail, RedirectURI: redir})

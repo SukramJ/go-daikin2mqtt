@@ -7,6 +7,7 @@ import (
 	"errors"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -86,7 +87,7 @@ func TestLoadEnvOverride(t *testing.T) {
 }
 
 func TestLoadValidationAggregates(t *testing.T) {
-	// Empty config: missing CLIENT_ID, CLIENT_SECRET, MQTT_SERVER.
+	// Empty config still fails on the genuinely-required MQTT_SERVER.
 	_, err := Load(strings.NewReader(""), mapEnv{})
 	if err == nil {
 		t.Fatal("expected validation error, got nil")
@@ -95,17 +96,14 @@ func TestLoadValidationAggregates(t *testing.T) {
 	if !errors.As(err, &ve) {
 		t.Fatalf("error type = %T, want *ValidationError", err)
 	}
-	want := []string{"CLIENT_ID", "CLIENT_SECRET", "MQTT_SERVER"}
-	for _, w := range want {
-		found := false
-		for _, iss := range ve.Issues {
-			if strings.Contains(iss, w) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("missing issue mentioning %q in %v", w, ve.Issues)
+	if !slices.ContainsFunc(ve.Issues, func(s string) bool { return strings.Contains(s, "MQTT_SERVER") }) {
+		t.Errorf("missing issue mentioning MQTT_SERVER in %v", ve.Issues)
+	}
+	// CLIENT_ID / CLIENT_SECRET are intentionally NOT fatal so a fresh add-on
+	// install starts unconfigured instead of crash-looping.
+	for _, iss := range ve.Issues {
+		if strings.Contains(iss, "CLIENT_ID") || strings.Contains(iss, "CLIENT_SECRET") {
+			t.Errorf("credentials should not be a fatal validation issue, got %q", iss)
 		}
 	}
 }

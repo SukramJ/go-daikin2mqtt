@@ -1,3 +1,19 @@
+# Version 0.1.4 (2026-06-17)
+
+## What's Changed
+
+Smoother first-install onboarding for the Home Assistant add-on.
+
+### Fixed
+
+- The daemon no longer crash-loops when `CLIENT_ID`/`CLIENT_SECRET` are empty
+  (a fresh add-on install starts with them unset). It now starts unconfigured —
+  the web UI is reachable and the auth panel reports **"client credentials not
+  configured"** — and the bridge stays idle until the credentials are entered.
+  A startup warning (`daikin2mqtt.credentials_missing`) points to the fix.
+- `client_id`/`client_secret` are marked optional in the add-on options schema
+  (`str?`/`password?`) so the Supervisor does not require them to start.
+
 # Version 0.1.3 (2026-06-17)
 
 ## What's Changed

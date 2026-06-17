@@ -42,8 +42,11 @@ const (
 // never multiply by time.Second themselves.
 type Config struct {
 	// --- Daikin / ONECTA cloud (OAuth2) ---
-	// ClientID / ClientSecret are the OAuth2 credentials issued by the
-	// Daikin Developer Portal. Both are mandatory.
+	// ClientID / ClientSecret are the OAuth2 credentials issued by the Daikin
+	// Developer Portal. They are required for any cloud access, but the daemon
+	// still starts without them (a fresh add-on install has them empty) so the
+	// operator can configure them via the UI rather than hitting a crash-loop;
+	// see [Config.CredentialsConfigured].
 	ClientID     string `yaml:"CLIENT_ID"`
 	ClientSecret string `yaml:"CLIENT_SECRET"`
 	// RedirectURI must match a redirect URI registered for the client in
@@ -108,6 +111,13 @@ type Config struct {
 
 	// --- Misc ---
 	Debug bool `yaml:"DEBUG"`
+}
+
+// CredentialsConfigured reports whether both OAuth client credentials are set.
+// The daemon starts without them so a fresh install does not crash-loop, but
+// no cloud access (auth, polling, writes) is possible until both are present.
+func (c *Config) CredentialsConfigured() bool {
+	return c.ClientID != "" && c.ClientSecret != ""
 }
 
 // RefreshDayIntervalDuration returns RefreshDayInterval as a duration.

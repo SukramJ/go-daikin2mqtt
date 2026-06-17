@@ -64,6 +64,14 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 		slog.SetDefault(logger)
 	}
 
+	// Missing client credentials are not fatal so a fresh add-on install does
+	// not crash-loop: the daemon comes up (web UI reachable for onboarding) but
+	// stays idle until CLIENT_ID/CLIENT_SECRET are set.
+	if !cfg.CredentialsConfigured() {
+		logger.Warn("daikin2mqtt.credentials_missing",
+			slog.String("hint", "set CLIENT_ID and CLIENT_SECRET (add-on options) from the Daikin Developer Portal; the bridge stays idle until then"))
+	}
+
 	cat, err := catalog.LoadFile(catalogPath)
 	if err != nil {
 		return err
