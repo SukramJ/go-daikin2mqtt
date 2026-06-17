@@ -57,10 +57,15 @@ RUN go build -trimpath \
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-# The daemon's config/characteristics locator resolves files next to the
-# binary (via os.Executable), so keep characteristics.yaml alongside /app.
+# The daemon resolves the catalog from its working directory (the --catalog
+# default is the relative "characteristics.yaml"), so place the file in /app
+# and make /app the WORKDIR below.
 COPY --from=builder /out/daikin2mqtt /usr/bin/daikin2mqtt
 COPY --from=builder /src/characteristics.yaml /app/characteristics.yaml
+
+# Run from /app so the default relative catalog path resolves; the daemon
+# itself otherwise needs no writable working directory (state lives in /data).
+WORKDIR /app
 
 # Add-on entrypoint: reads /data/options.json and exec's the daemon.
 COPY script/run.sh /run.sh
@@ -72,7 +77,7 @@ EXPOSE 8080
 # Add-on image labels (BUILD_ARCH / BUILD_VERSION are injected by the
 # Supervisor build; defaults keep manual builds from failing).
 ARG BUILD_ARCH=amd64
-ARG BUILD_VERSION=0.1.0
+ARG BUILD_VERSION=0.1.1
 LABEL \
   io.hass.version="${BUILD_VERSION}" \
   io.hass.type="addon" \

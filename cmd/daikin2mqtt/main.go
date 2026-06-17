@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -151,11 +152,21 @@ func loadConfig(configPath string, logger *slog.Logger) (*config.Config, error) 
 	env := config.OSEnv{}
 	path := configPath
 	if path == "" {
-		located, ok := config.Locate(env)
-		if !ok {
-			return nil, fmt.Errorf("no config file found; pass --config or create %s in a standard location", config.ConfigFile)
+		if located, ok := config.Locate(env); ok {
+			path = located
 		}
-		path = located
+	}
+	// No config file (explicit or located): build the config from environment
+	// variables and defaults alone. The Home Assistant add-on supplies every
+	// setting via DAIKIN_* env and ships no file, so a missing file must not be
+	// fatal — Validate still enforces the required values (CLIENT_ID, etc.).
+	if path == "" {
+		cfg, err := config.Load(strings.NewReader(""), env)
+		if err != nil {
+			return nil, err
+		}
+		logger.Info("daikin2mqtt.config_loaded", slog.String("path", "(environment only)"))
+		return cfg, nil
 	}
 	cfg, err := config.LoadFile(path, env)
 	if err != nil {
