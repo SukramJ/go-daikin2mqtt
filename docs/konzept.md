@@ -402,6 +402,9 @@ sowie **Multi-Arch-Docker-Push nach GHCR** erweitert.
   Daemon-Binary + `characteristics.yaml`, `run.sh` als Entrypoint.
 - `script/run.sh`: liest `/data/options.json` via **bashio**, mappt Optionen auf
   `DAIKIN_*`-ENV, persistiert Token-Store unter `/data`, `exec` des Daemons.
+  Leeres `mqtt_server` → Zero-Config-Auto-Bezug von Host/Port/Login aus dem
+  `mqtt`-Service; expliziter Wert übersteuert, sonst Fallback
+  `core-mosquitto:1883`.
 - `build.yaml`: `build_from` je Arch. Token-Store liegt im Addon-`/data` (persistent
   über Updates). MQTT-Zugangsdaten bevorzugt über den HA-MQTT-Service.
 

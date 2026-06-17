@@ -13,8 +13,9 @@ discovery and a diagnostic web UI that also drives the OAuth2 login.
 3. The **go-daikin2mqtt** add-on now appears in the store. Open it and
    click **Install**.
 4. Open the **Configuration** tab and fill in your options (at minimum your
-   Daikin `client_id` and `client_secret`). If you use the Supervisor's
-   Mosquitto broker, leave `mqtt_server` as `core-mosquitto`.
+   Daikin `client_id` and `client_secret`). Leave `mqtt_server` **empty** to
+   auto-use the Home Assistant MQTT broker; set it only to
+   target a different broker.
 5. **Start** the add-on.
 
 ## Connecting to Daikin (OAuth2)

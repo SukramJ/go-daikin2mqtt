@@ -15,10 +15,27 @@ export DAIKIN_CLIENT_ID="$(bashio::config 'client_id')"
 export DAIKIN_CLIENT_SECRET="$(bashio::config 'client_secret')"
 
 # --- MQTT ---
-export DAIKIN_MQTT_SERVER="$(bashio::config 'mqtt_server')"
-export DAIKIN_MQTT_PORT="$(bashio::config 'mqtt_port')"
-export DAIKIN_MQTT_LOGIN="$(bashio::config 'mqtt_login')"
-export DAIKIN_MQTT_PASSWORD="$(bashio::config 'mqtt_password')"
+# Zero-config: when mqtt_server is left empty, borrow the
+# broker the Supervisor already knows about (the HA MQTT integration /
+# core-mosquitto add-on) via the mqtt service. An explicit mqtt_server always
+# wins; if nothing is set and no service is offered, fall back to
+# core-mosquitto:1883.
+if bashio::config.has_value 'mqtt_server'; then
+  export DAIKIN_MQTT_SERVER="$(bashio::config 'mqtt_server')"
+  export DAIKIN_MQTT_PORT="$(bashio::config 'mqtt_port')"
+  export DAIKIN_MQTT_LOGIN="$(bashio::config 'mqtt_login')"
+  export DAIKIN_MQTT_PASSWORD="$(bashio::config 'mqtt_password')"
+elif bashio::services.available 'mqtt'; then
+  bashio::log.info "mqtt_server empty; using the Home Assistant MQTT service."
+  export DAIKIN_MQTT_SERVER="$(bashio::services 'mqtt' 'host')"
+  export DAIKIN_MQTT_PORT="$(bashio::services 'mqtt' 'port')"
+  export DAIKIN_MQTT_LOGIN="$(bashio::services 'mqtt' 'username')"
+  export DAIKIN_MQTT_PASSWORD="$(bashio::services 'mqtt' 'password')"
+else
+  bashio::log.warning "mqtt_server empty and no MQTT service offered; falling back to core-mosquitto:1883."
+  export DAIKIN_MQTT_SERVER="core-mosquitto"
+  export DAIKIN_MQTT_PORT="1883"
+fi
 export DAIKIN_MQTT_TOPIC="$(bashio::config 'mqtt_topic')"
 
 # --- Home Assistant discovery ---
