@@ -1,4 +1,27 @@
-# Options reference
+# go-daikin2mqtt add-on
+
+## Quickstart
+
+For a standard Home Assistant install with the Mosquitto broker, only two
+options are required:
+
+1. Create an application in the
+   [Daikin Developer Portal](https://developer.cloud.daikineurope.com) and copy
+   its **Client ID** and **Client secret** into `client_id` / `client_secret`.
+2. Leave **`mqtt_server` empty** — the add-on auto-connects to the Home
+   Assistant MQTT broker (like zigbee2mqtt), and `hass_enable` is on by
+   default, so devices appear automatically via MQTT discovery.
+3. **Start** the add-on, open its **Web UI**, and click **Connect to Daikin**
+   for the one-time OAuth login.
+
+> **Redirect URI:** Daikin requires an **HTTPS** redirect URI registered in the
+> portal. Behind Ingress the default `http://localhost:8080/callback` is not
+> reachable, so set the `redirect_uri` option to an HTTPS URL that forwards to
+> the add-on's `:8080` (reverse proxy or tunnel) — see the add-on README.
+
+Everything else has sensible defaults; use the reference below to fine-tune.
+
+## Options reference
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -10,7 +33,7 @@
 | `mqtt_login` | str | `""` | MQTT username. Only used when `mqtt_server` is set (auto-detect supplies credentials). |
 | `mqtt_password` | password | `""` | MQTT password. Only used when `mqtt_server` is set. |
 | `mqtt_topic` | str | `daikin` | Base MQTT topic for published device state. |
-| `hass_enable` | bool | `true` | Publish Home Assistant MQTT discovery messages. |
+| `hass_enable` | bool | `true` | Publish Home Assistant MQTT discovery so devices and entities appear automatically. On by default — leave enabled for the normal HA experience; disable only to manage entities manually. |
 | `language` | list(en\|de) | `en` | UI / entity naming language. |
 | `web_enable` | bool | `true` | Enable the diagnostic web UI / OAuth flow (required for Ingress login). |
 | `refresh_day_interval` | int | `600` | Seconds between cloud polls during day hours. |
