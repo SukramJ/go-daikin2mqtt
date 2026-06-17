@@ -5,6 +5,8 @@ package config
 
 import (
 	"errors"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -154,9 +156,16 @@ func TestResolveTokenStorePathExplicit(t *testing.T) {
 }
 
 func TestResolveTokenStorePathXDG(t *testing.T) {
+	// configCandidates uses APPDATA on Windows and XDG_CONFIG_HOME elsewhere;
+	// drive each platform with its own base dir and build the expected path
+	// with filepath.Join so the separators match too.
+	envKey, base := "XDG_CONFIG_HOME", "/xdg"
+	if runtime.GOOS == "windows" {
+		envKey, base = "APPDATA", `C:\xdg`
+	}
 	cfg := &Config{}
-	got := cfg.ResolveTokenStorePath(mapEnv{"XDG_CONFIG_HOME": "/xdg"})
-	want := "/xdg/" + AppDirName + "/" + TokenStoreFile
+	got := cfg.ResolveTokenStorePath(mapEnv{envKey: base})
+	want := filepath.Join(base, AppDirName, TokenStoreFile)
 	if got != want {
 		t.Errorf("ResolveTokenStorePath = %q, want %q", got, want)
 	}

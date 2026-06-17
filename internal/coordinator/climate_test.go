@@ -52,6 +52,69 @@ func TestParseClimateAux(t *testing.T) {
 	}
 }
 
+// TestClimateAuxInfoGerman verifies the discovery option lists carry the
+// German labels (mirroring daikin_onecta) while numeric fan speeds stay raw.
+func TestClimateAuxInfoGerman(t *testing.T) {
+	ci := parseClimateAux(climateMP(), "cooling").info("de")
+	if want := []string{"Automatisch", "Leise", "1", "2", "3", "4", "5"}; !reflect.DeepEqual(ci.FanModes, want) {
+		t.Errorf("FanModes = %v, want %v", ci.FanModes, want)
+	}
+	if want := []string{"Stopp", "Schwingen", "Komfort Luftstrom"}; !reflect.DeepEqual(ci.SwingModes, want) {
+		t.Errorf("SwingModes = %v, want %v", ci.SwingModes, want)
+	}
+	if want := []string{"Stopp", "Schwingen"}; !reflect.DeepEqual(ci.SwingHorizontalModes, want) {
+		t.Errorf("SwingHorizontalModes = %v, want %v", ci.SwingHorizontalModes, want)
+	}
+	if want := []string{"Boost"}; !reflect.DeepEqual(ci.PresetModes, want) {
+		t.Errorf("PresetModes = %v, want %v", ci.PresetModes, want)
+	}
+}
+
+// TestClimateAuxInfoEnglishRaw verifies non-German keeps the raw values so the
+// command values stay language-neutral.
+func TestClimateAuxInfoEnglishRaw(t *testing.T) {
+	ci := parseClimateAux(climateMP(), "cooling").info("en")
+	if want := []string{"stop", "swing", "windnice"}; !reflect.DeepEqual(ci.SwingModes, want) {
+		t.Errorf("SwingModes = %v, want raw %v", ci.SwingModes, want)
+	}
+	if want := []string{"auto", "quiet", "1", "2", "3", "4", "5"}; !reflect.DeepEqual(ci.FanModes, want) {
+		t.Errorf("FanModes = %v, want raw %v", ci.FanModes, want)
+	}
+}
+
+// TestHandleAuxWriteGermanLabels verifies German dropdown labels reverse-map
+// back to the raw Daikin values on the write path (Language=de in testConfig).
+func TestHandleAuxWriteGermanLabels(t *testing.T) {
+	t.Run("fan", func(t *testing.T) {
+		cloud := &stubCloud{}
+		c := newCoordinator(t, cloud, newStubMQTT())
+		c.updateModeCache([]model.Device{{ID: "dev1", ManagementPoints: []model.ManagementPoint{climateMP()}}})
+		c.handleFanModeWrite(context.Background(), writeReq{deviceID: "dev1", embeddedID: "climateControl", topic: "fan_mode", payload: "Leise"})
+		p := cloud.lastPatch(t)
+		if p.path != "/operationModes/cooling/fanSpeed/currentMode" || p.value != "quiet" {
+			t.Errorf("patch = %+v, want currentMode=quiet", p)
+		}
+	})
+	t.Run("swing", func(t *testing.T) {
+		cloud := &stubCloud{}
+		c := newCoordinator(t, cloud, newStubMQTT())
+		c.updateModeCache([]model.Device{{ID: "dev1", ManagementPoints: []model.ManagementPoint{climateMP()}}})
+		c.handleSwingWrite(context.Background(), writeReq{deviceID: "dev1", embeddedID: "climateControl", topic: "swing_mode", payload: "Komfort Luftstrom"}, "vertical")
+		if p := cloud.lastPatch(t); p.value != "windNice" {
+			t.Errorf("patch value = %v, want windNice", p.value)
+		}
+	})
+	t.Run("preset", func(t *testing.T) {
+		cloud := &stubCloud{}
+		c := newCoordinator(t, cloud, newStubMQTT())
+		c.handlePresetWrite(context.Background(), writeReq{deviceID: "dev1", embeddedID: "climateControl", topic: "preset_mode", payload: "Boost"})
+		p := cloud.lastPatch(t)
+		if p.characteristic != "powerfulMode" || p.value != "on" {
+			t.Errorf("patch = %+v, want powerfulMode=on", p)
+		}
+	})
+}
+
 func TestParseClimateAuxFixedFanMode(t *testing.T) {
 	mp := climateMP()
 	// Switch currentMode to "fixed" → fanMode should reflect the numeric value.

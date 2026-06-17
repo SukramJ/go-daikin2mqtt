@@ -30,13 +30,83 @@ type climateAux struct {
 	presetModes []string
 }
 
-// info converts the option lists into the discovery-facing [hass.ClimateInfo].
-func (a climateAux) info() hass.ClimateInfo {
+// langDE is the language code for which the climate aux dropdowns are
+// localized; any other code keeps the raw (English) values.
+const langDE = "de"
+
+// German display labels for the climate fan/swing/preset dropdowns, keyed by
+// the canonical (lower-cased) Daikin value used internally. The strings mirror
+// the native daikin_onecta HA integration (translations/de.json). Values not
+// listed here pass through unchanged (numeric fan speeds, unmapped modes).
+//
+// A native HA integration keeps the raw value and localizes only the displayed
+// state via integration translations. MQTT discovery has no separate label
+// field — the list entry is both the displayed option and the command value —
+// so the German label is emitted directly and reversed back to the raw value
+// on write (see [canonicalAux] and the aux write handlers).
+var (
+	fanModeDE = map[string]string{
+		"auto":  "Automatisch",
+		"quiet": "Leise",
+	}
+	swingModeDE = map[string]string{
+		"stop":                "Stopp",
+		"swing":               "Schwingen",
+		"windnice":            "Komfort Luftstrom",
+		"floorheatingairflow": "Fußbodenheizung Luftstrom",
+	}
+	presetModeDE = map[string]string{
+		"boost": "Boost",
+	}
+)
+
+// localizeAux returns the German display label for a canonical climate aux
+// value, or the value unchanged for other languages and for unmapped values
+// (numeric fan speeds, unknown modes).
+func localizeAux(value, lang string, table map[string]string) string {
+	if lang == langDE {
+		if de, ok := table[value]; ok {
+			return de
+		}
+	}
+	return value
+}
+
+// localizeAuxList localizes every entry of an option list (see [localizeAux]).
+func localizeAuxList(values []string, lang string, table map[string]string) []string {
+	if lang != langDE || len(values) == 0 {
+		return values
+	}
+	out := make([]string, len(values))
+	for i, v := range values {
+		out[i] = localizeAux(v, lang, table)
+	}
+	return out
+}
+
+// canonicalAux reverses a (possibly localized) label back to the canonical
+// lower-cased Daikin value. Unmapped labels — English values, numeric fan
+// speeds — pass through unchanged so the existing write logic still applies.
+func canonicalAux(label, lang string, table map[string]string) string {
+	if lang == langDE {
+		for canon, de := range table {
+			if de == label {
+				return canon
+			}
+		}
+	}
+	return label
+}
+
+// info converts the option lists into the discovery-facing [hass.ClimateInfo],
+// localizing the option labels for lang. The raw API values are recovered on
+// the write path via [canonicalAux].
+func (a climateAux) info(lang string) hass.ClimateInfo {
 	return hass.ClimateInfo{
-		FanModes:             a.fanModes,
-		SwingModes:           a.swingModes,
-		SwingHorizontalModes: a.swingHModes,
-		PresetModes:          a.presetModes,
+		FanModes:             localizeAuxList(a.fanModes, lang, fanModeDE),
+		SwingModes:           localizeAuxList(a.swingModes, lang, swingModeDE),
+		SwingHorizontalModes: localizeAuxList(a.swingHModes, lang, swingModeDE),
+		PresetModes:          localizeAuxList(a.presetModes, lang, presetModeDE),
 	}
 }
 
@@ -134,7 +204,7 @@ func parseFanDirection(modeObj json.RawMessage, a *climateAux) {
 
 // climateInfos builds the discovery climate option lists keyed by
 // deviceID|embeddedID.
-func climateInfos(devices []model.Device) map[string]hass.ClimateInfo {
+func climateInfos(devices []model.Device, lang string) map[string]hass.ClimateInfo {
 	out := map[string]hass.ClimateInfo{}
 	for _, d := range devices {
 		for _, mp := range d.ManagementPoints {
@@ -142,7 +212,7 @@ func climateInfos(devices []model.Device) map[string]hass.ClimateInfo {
 				continue
 			}
 			a := parseClimateAux(mp, currentMode(mp))
-			out[d.ID+"|"+mp.EmbeddedID] = a.info()
+			out[d.ID+"|"+mp.EmbeddedID] = a.info(lang)
 		}
 	}
 	return out
@@ -156,21 +226,25 @@ func (c *Coordinator) publishClimateAux(ctx context.Context, devices []model.Dev
 				continue
 			}
 			a := parseClimateAux(mp, currentMode(mp))
+			lang := c.deps.Cfg.Language
 			base := fmt.Sprintf("%s/%s/%s", c.topicRoot, d.ID, mp.EmbeddedID)
 			pub := func(suffix, val string) {
 				_ = c.deps.MQTT.Publish(ctx, base+"/"+suffix+"/state", []byte(val), mqtt.QoS0, true)
 			}
+			// State payloads carry the localized label so the HA dropdown (whose
+			// options are localized) highlights the current selection; the write
+			// path reverses the label back to the raw value.
 			if len(a.fanModes) > 0 {
-				pub(hass.FanModeTopic, a.fanMode)
+				pub(hass.FanModeTopic, localizeAux(a.fanMode, lang, fanModeDE))
 			}
 			if len(a.swingModes) > 0 {
-				pub(hass.SwingModeTopic, a.swing)
+				pub(hass.SwingModeTopic, localizeAux(a.swing, lang, swingModeDE))
 			}
 			if len(a.swingHModes) > 0 {
-				pub(hass.SwingHModeTopic, a.swingH)
+				pub(hass.SwingHModeTopic, localizeAux(a.swingH, lang, swingModeDE))
 			}
 			if len(a.presetModes) > 0 {
-				pub(hass.PresetModeTopic, a.preset)
+				pub(hass.PresetModeTopic, localizeAux(a.preset, lang, presetModeDE))
 			}
 		}
 	}
@@ -196,7 +270,9 @@ func (c *Coordinator) handleFanModeWrite(ctx context.Context, req writeReq) {
 		return
 	}
 	base := "/operationModes/" + mode + "/fanSpeed"
-	payload := strings.TrimSpace(req.payload)
+	// Reverse a localized label back to the raw value; numeric speeds and
+	// English values pass through unchanged.
+	payload := canonicalAux(strings.TrimSpace(req.payload), c.deps.Cfg.Language, fanModeDE)
 	if n, err := strconv.Atoi(payload); err == nil {
 		c.patchClimate(ctx, req, "fanControl", base+"/currentMode", "fixed")
 		c.patchClimate(ctx, req, "fanControl", base+"/modes/fixed", n)
@@ -211,10 +287,14 @@ func (c *Coordinator) handleSwingWrite(ctx context.Context, req writeReq, direct
 	if mode == "" {
 		return
 	}
-	// HA uses lower-case modes; map the known mixed-case Daikin value back.
-	daikinVal := req.payload
-	if req.payload == "windnice" {
+	// Reverse a localized label to the canonical lower-cased value, then
+	// restore the known mixed-case Daikin spellings (the API is case-sensitive).
+	daikinVal := canonicalAux(req.payload, c.deps.Cfg.Language, swingModeDE)
+	switch daikinVal {
+	case "windnice":
 		daikinVal = "windNice"
+	case "floorheatingairflow":
+		daikinVal = "floorHeatingAirflow"
 	}
 	path := "/operationModes/" + mode + "/fanDirection/" + direction + "/currentMode"
 	c.patchClimate(ctx, req, "fanControl", path, daikinVal)
@@ -222,7 +302,7 @@ func (c *Coordinator) handleSwingWrite(ctx context.Context, req writeReq, direct
 
 // handlePresetWrite maps the HA preset to powerfulMode (boost/none).
 func (c *Coordinator) handlePresetWrite(ctx context.Context, req writeReq) {
-	switch strings.TrimSpace(req.payload) {
+	switch canonicalAux(strings.TrimSpace(req.payload), c.deps.Cfg.Language, presetModeDE) {
 	case "boost":
 		c.patchClimate(ctx, req, "powerfulMode", "", "on")
 	case "none":

@@ -144,7 +144,7 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	points := process.ResolveAt(devices, c.deps.Catalog, c.deps.Clock())
 
 	if c.deps.HASS != nil {
-		c.maybePublishDiscovery(ctx, points, deviceInfos(devices), climateInfos(devices))
+		c.maybePublishDiscovery(ctx, points, deviceInfos(devices), climateInfos(devices, c.deps.Cfg.Language))
 	}
 
 	published := 0
