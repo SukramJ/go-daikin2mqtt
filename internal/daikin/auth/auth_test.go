@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -145,8 +146,11 @@ func TestStoreRoundTripAndPerms(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("token store perms = %o, want 600", perm)
+	// NTFS doesn't carry Unix permission bits; Go reports 0666 there.
+	if runtime.GOOS != "windows" {
+		if perm := info.Mode().Perm(); perm != 0o600 {
+			t.Errorf("token store perms = %o, want 600", perm)
+		}
 	}
 }
 
