@@ -17,6 +17,7 @@
   "auth.state": "Zustand",
   "auth.detail": "Detail",
   "auth.expires": "Token läuft ab",
+  "auth.redirect": "Redirect-URI (im Daikin-Portal hinterlegen)",
   "btn.connect": "Mit Daikin verbinden",
   "btn.reconnect": "Erneut mit Daikin verbinden",
   "btn.refresh": "Aktualisieren",

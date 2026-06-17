@@ -60,7 +60,10 @@
           <div class="card">
             <div class="status-grid" id="auth-grid"></div>
             <div class="card-actions">
-              <a id="login-btn" class="btn" href="api/auth/login" data-i18n="btn.connect">Connect to Daikin</a>
+              <!-- target="_top" breaks out of the Home Assistant ingress iframe:
+                   the IdP login page sets X-Frame-Options and cannot be framed,
+                   so the OAuth flow must run in the top-level window. -->
+              <a id="login-btn" class="btn" href="api/auth/login" target="_top" rel="noopener" data-i18n="btn.connect">Connect to Daikin</a>
               <button id="auth-refresh" class="ghost-btn" data-i18n="btn.refresh">Refresh</button>
             </div>
           </div>

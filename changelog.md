@@ -1,3 +1,22 @@
+# Version 0.1.3 (2026-06-17)
+
+## What's Changed
+
+OAuth login fixes for the Home Assistant ingress iframe.
+
+### Fixed
+
+- The "Connect to Daikin" button now opens the OAuth flow in the **top-level
+  window** (`target="_top"`). Behind HA ingress the UI runs in an iframe, but
+  the Daikin IdP login sets `X-Frame-Options: sameorigin` and refuses to be
+  framed, so the login previously failed to render.
+
+### Added
+
+- The authentication panel now shows the **effective redirect URI** (derived
+  from the request behind ingress) so you can register exactly that value with
+  the Daikin portal — it is served via `/api/auth/status` and surfaced in the UI.
+
 # Version 0.1.2 (2026-06-17)
 
 ## What's Changed
