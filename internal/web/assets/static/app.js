@@ -102,6 +102,11 @@ async function refreshAuth() {
     tile(t("auth.detail"), st.detail || "—", null),
   ];
   if (st.expires_at) items.push(tile(t("auth.expires"), st.expires_at, null));
+  // Surface the redirect_uri the next login will send so the operator can
+  // register exactly this value with the Daikin portal (behind ingress it is
+  // derived from the request and is easy to get wrong).
+  if (!st.authenticated && st.redirect_uri)
+    items.push(tile(t("auth.redirect"), st.redirect_uri, null));
   setGrid("auth-grid", items);
 
   // The connect button is most relevant when not yet authenticated.

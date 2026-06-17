@@ -54,14 +54,19 @@ type authStatusView struct {
 	Authenticated bool   `json:"authenticated"`
 	ExpiresAt     string `json:"expires_at"`
 	Detail        string `json:"detail"`
+	// RedirectURI is the redirect_uri the next login will use (the configured
+	// value, or the one derived from this request behind ingress). The UI shows
+	// it so the operator can register the exact value with the IdP.
+	RedirectURI string `json:"redirect_uri,omitempty"`
 }
 
 // handleAuthStatus reports authentication state. authenticated is true when
 // the token source yields a token without error; ErrReauthRequired (and any
 // other error) maps to authenticated:false with a human-readable detail.
 func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
+	redir := s.effectiveRedirectURI(r)
 	if s.tokens == nil {
-		writeJSON(w, http.StatusOK, authStatusView{Detail: "token source unavailable"})
+		writeJSON(w, http.StatusOK, authStatusView{Detail: "token source unavailable", RedirectURI: redir})
 		return
 	}
 	_, err := s.tokens.Token(r.Context())
@@ -70,7 +75,7 @@ func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 		if !errors.Is(err, auth.ErrReauthRequired) {
 			detail = err.Error()
 		}
-		writeJSON(w, http.StatusOK, authStatusView{Authenticated: false, Detail: detail})
+		writeJSON(w, http.StatusOK, authStatusView{Authenticated: false, Detail: detail, RedirectURI: redir})
 		return
 	}
 	writeJSON(w, http.StatusOK, authStatusView{Authenticated: true, Detail: "authenticated"})
