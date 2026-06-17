@@ -1,3 +1,18 @@
+# Version 0.1.2 (2026-06-17)
+
+## What's Changed
+
+Makes the Home Assistant add-on actually installable from the store.
+
+### Fixed
+
+- Publish a **dedicated add-on image** (HA base + bashio + `run.sh`) per
+  architecture to `ghcr.io/sukramj/go-daikin2mqtt-addon-{arch}` via the new
+  `addon-image.yml` workflow, and point the manifest at it. The previous
+  `image:` referenced the distroless daemon image (`ghcr.io/sukramj/go-daikin2mqtt`),
+  which runs the binary directly and has **no `run.sh`**, so the add-on options
+  were never translated into `DAIKIN_*` env and the add-on aborted at boot.
+
 # Version 0.1.1 (2026-06-17)
 
 ## What's Changed

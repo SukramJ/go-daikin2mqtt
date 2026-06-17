@@ -27,6 +27,12 @@
 #
 #   For Home Assistant installs, use the PREFERRED GHCR image path instead.
 
+# BUILD_FROM (the per-arch HA base image) is consumed by the runtime stage's
+# `FROM ${BUILD_FROM}`. An ARG used in a FROM must be declared *before the first
+# FROM* to be a global build arg; declaring it only next to the runtime FROM
+# leaves it blank. The Supervisor (and addon-image.yml) supply it per arch.
+ARG BUILD_FROM
+
 # ---------- Stage 1: build the Go binary ----------
 # Pinned to match the project's Go toolchain (see go.mod / root Dockerfile).
 FROM golang:1.26-alpine AS builder
@@ -77,7 +83,7 @@ EXPOSE 8080
 # Add-on image labels (BUILD_ARCH / BUILD_VERSION are injected by the
 # Supervisor build; defaults keep manual builds from failing).
 ARG BUILD_ARCH=amd64
-ARG BUILD_VERSION=0.1.1
+ARG BUILD_VERSION=0.1.2
 LABEL \
   io.hass.version="${BUILD_VERSION}" \
   io.hass.type="addon" \

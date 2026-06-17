@@ -1,9 +1,9 @@
 # Home Assistant add-on manifest for go-daikin2mqtt.
 #
-# version MUST equal the published image tag (ghcr.io/sukramj/go-daikin2mqtt)
+# version MUST equal the published image tag (ghcr.io/sukramj/go-daikin2mqtt-addon-{arch})
 # and is bumped in the release commit that cuts the matching git tag.
 name: go-daikin2mqtt
-version: "0.1.1"
+version: "0.1.2"
 slug: go-daikin2mqtt
 description: >-
   Bridges Daikin ONECTA cloud climate devices to MQTT with Home Assistant
@@ -14,11 +14,13 @@ arch:
   - aarch64
   - armv7
 
-# Single multi-arch manifest published by .github/workflows/docker-build-push.yml.
-# The Supervisor pulls <image>:<version> and Docker selects the right arch from
-# the manifest list (no per-arch "-{arch}" suffix needed). Remove this key to
-# build locally from addon/Dockerfile (see addon/README.md, fallback path).
-image: "ghcr.io/sukramj/go-daikin2mqtt"
+# Per-arch add-on image (HA base + bashio + run.sh) published by
+# .github/workflows/addon-image.yml. The Supervisor substitutes {arch}
+# (amd64/aarch64/armv7) and pulls <image>:<version>. This is distinct from the
+# distroless daemon image (ghcr.io/sukramj/go-daikin2mqtt), which runs the
+# binary directly and is NOT a valid add-on image (no run.sh to apply options).
+# Remove this key to build addon/Dockerfile locally instead.
+image: "ghcr.io/sukramj/go-daikin2mqtt-addon-{arch}"
 
 # The HA base image ships s6-overlay as its init; don't let the Supervisor
 # inject its own init on top.
