@@ -194,10 +194,13 @@ func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string
 // omitempty keeps each entity's config minimal.
 type configPayload struct {
 	Name string `json:"name"`
-	// ObjectID seeds the Home Assistant entity_id. We set it to the English,
-	// language-independent topic so entity_ids stay English (e.g.
-	// sensor.<device>_room_temperature) while Name is localized for display.
-	ObjectID          string   `json:"object_id"`
+	// DefaultEntityID seeds the Home Assistant entity_id. Current HA replaced
+	// the older object_id discovery field with default_entity_id (a full
+	// "<domain>.<object_id>"); without it HA derives the entity_id from the
+	// device + entity name, which is localized — yielding e.g. a German id. We
+	// set it to the English, language-independent topic so entity_ids stay
+	// English (e.g. sensor.<device>_room_temperature) while Name is localized.
+	DefaultEntityID   string   `json:"default_entity_id"`
 	UniqueID          string   `json:"unique_id"`
 	EntityCategory    string   `json:"entity_category,omitempty"`
 	StateTopic        string   `json:"state_topic"`
@@ -279,7 +282,7 @@ func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos m
 func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic string, payload []byte, ok bool) {
 	cfg := configPayload{
 		Name:                p.Entry.LocalizedName(d.lang),
-		ObjectID:            uid,
+		DefaultEntityID:     p.Entry.Platform + "." + uid,
 		UniqueID:            uid,
 		EntityCategory:      p.Entry.Category,
 		StateTopic:          d.StateTopic(p),

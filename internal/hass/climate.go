@@ -67,7 +67,7 @@ func DaikinModeForHA(ha string) (string, bool) {
 // climatePayload is the HA MQTT climate discovery config.
 type climatePayload struct {
 	Name                    string   `json:"name"`
-	ObjectID                string   `json:"object_id"`
+	DefaultEntityID         string   `json:"default_entity_id"`
 	UniqueID                string   `json:"unique_id"`
 	Modes                   []string `json:"modes,omitempty"`
 	ModeStateTopic          string   `json:"mode_state_topic,omitempty"`
@@ -189,7 +189,7 @@ func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInf
 
 	cfg := climatePayload{
 		Name:                    "Thermostat",
-		ObjectID:                "climate",
+		DefaultEntityID:         "climate." + uid,
 		UniqueID:                uid,
 		Modes:                   modes,
 		ModeStateTopic:          modeBase + "/state",

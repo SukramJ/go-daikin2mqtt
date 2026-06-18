@@ -46,8 +46,8 @@ func samplePoint() process.Point {
 }
 
 // TestDiscoveryEnglishEntityIDLocalizedName verifies the core requirement:
-// object_id (which seeds the HA entity_id) is the English topic, while name
-// is localized.
+// default_entity_id (which seeds the HA entity_id) is the English topic, while
+// name is localized.
 func TestDiscoveryEnglishEntityIDLocalizedName(t *testing.T) {
 	pub := &capturePub{}
 	d := New("homeassistant", "daikin", "de", pub)
@@ -64,10 +64,10 @@ func TestDiscoveryEnglishEntityIDLocalizedName(t *testing.T) {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		t.Fatal(err)
 	}
-	// object_id is the full English, device-unique id so the HA entity_id is
-	// English regardless of the (possibly German) device name.
-	if got := cfg["object_id"]; got != "daikin_dev-1_room_temperature" {
-		t.Errorf("object_id = %v, want daikin_dev-1_room_temperature (English)", got)
+	// default_entity_id is the full English, device-unique entity_id so the HA
+	// entity_id is English regardless of the (possibly German) device name.
+	if got := cfg["default_entity_id"]; got != "sensor.daikin_dev-1_room_temperature" {
+		t.Errorf("default_entity_id = %v, want sensor.daikin_dev-1_room_temperature (English)", got)
 	}
 	if got := cfg["name"]; got != "Raumtemperatur" {
 		t.Errorf("name = %v, want Raumtemperatur (localized)", got)

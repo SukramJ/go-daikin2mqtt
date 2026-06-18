@@ -69,7 +69,7 @@ Legende: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · `[!]` blockiert/zu 
 ## M8 — HA-Discovery (§7, §8) — LIVE verifiziert
 - [x] `internal/hass`: Discovery-Builder (Device-Gruppierung, Availability/LWT)
 - [x] sensor/binary_sensor/switch/select/number, lokalisierte Entity-Namen
-- [x] **englische `entity_id` (via `object_id`=volle uid) + lokalisierter `name`** + Unit-Tests
+- [x] **englische `entity_id` (via `default_entity_id`=`<domain>.<uid>`) + lokalisierter `name`** + Unit-Tests
 - [x] **kombinierte `climate`-Entity** inkl. hvac_mode, temperature, fan_mode (fixed→1..N),
       swing/swing_horizontal, preset (none/boost) — synthetische Topics, Suppression der Einzel-Controls
 - [x] **erweiterte device_info** (model/sw_version/serial/mac-connections/configuration_url)
