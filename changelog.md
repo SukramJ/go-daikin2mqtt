@@ -1,3 +1,25 @@
+# Version 0.1.5 (2026-06-18)
+
+## What's Changed
+
+Home Assistant entity IDs are English again, independent of the display
+language.
+
+### Fixed
+
+- Home Assistant `entity_id`s are now always English, regardless of the
+  selected display language. The MQTT discovery configs seeded the entity ID
+  via the `object_id` field, which current Home Assistant no longer honors — it
+  was replaced by `default_entity_id`. Without it, HA derived the entity ID
+  from the device plus the (localized) entity name, producing e.g. German
+  `entity_id`s under the German locale. The discovery payloads now emit
+  `default_entity_id` (`<domain>.<object_id>`), so entity IDs stay English while
+  the display **name** remains localized (German under the `de` locale).
+
+  Note: Home Assistant does not rename already-created entities. To pick up the
+  English IDs on an existing install, delete the Daikin device (or the affected
+  entities) in HA and let them be re-discovered.
+
 # Version 0.1.4 (2026-06-17)
 
 ## What's Changed
