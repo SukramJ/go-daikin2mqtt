@@ -198,8 +198,9 @@ type configPayload struct {
 	// the older object_id discovery field with default_entity_id (a full
 	// "<domain>.<object_id>"); without it HA derives the entity_id from the
 	// device + entity name, which is localized — yielding e.g. a German id. We
-	// set it to the English, language-independent topic so entity_ids stay
-	// English (e.g. sensor.<device>_room_temperature) while Name is localized.
+	// build it from the device name plus the English, language-independent
+	// topic (see entityObjectID) so entity_ids stay English (e.g.
+	// sensor.galerie_room_temperature) while Name is localized for display.
 	DefaultEntityID   string   `json:"default_entity_id"`
 	UniqueID          string   `json:"unique_id"`
 	EntityCategory    string   `json:"entity_category,omitempty"`
@@ -282,7 +283,7 @@ func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos m
 func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic string, payload []byte, ok bool) {
 	cfg := configPayload{
 		Name:                p.Entry.LocalizedName(d.lang),
-		DefaultEntityID:     p.Entry.Platform + "." + uid,
+		DefaultEntityID:     p.Entry.Platform + "." + entityObjectID(dev.Name, p.Topic),
 		UniqueID:            uid,
 		EntityCategory:      p.Entry.Category,
 		StateTopic:          d.StateTopic(p),
@@ -328,6 +329,58 @@ func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic 
 		return "", nil, false
 	}
 	return topic, payload, true
+}
+
+// umlautReplacer transliterates German umlauts so a device name like
+// "Außengerät" slugs to "aussengerat" (matching Home Assistant's slugify)
+// rather than dropping the non-ASCII runes.
+var umlautReplacer = strings.NewReplacer(
+	"ä", "a", "ö", "o", "ü", "u", "ß", "ss",
+)
+
+// slugify lowercases, transliterates umlauts and reduces any run of
+// non-alphanumeric characters to a single underscore (trimmed at the ends),
+// mirroring how HA derives an object_id from a name.
+func slugify(s string) string {
+	s = umlautReplacer.Replace(strings.ToLower(s))
+	var b strings.Builder
+	pendingSep := false
+	for _, r := range s {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			if pendingSep && b.Len() > 0 {
+				b.WriteByte('_')
+			}
+			pendingSep = false
+			b.WriteRune(r)
+		} else {
+			pendingSep = true
+		}
+	}
+	return b.String()
+}
+
+// collapseTokens drops adjacent duplicate underscore-separated tokens, so a
+// "Gateway Galerie" device combined with a "gateway_..." topic does not repeat
+// "gateway" (e.g. gateway_galerie_gateway_... is left as-is, but
+// galerie_gateway + gateway_... collapses to galerie_gateway_...).
+func collapseTokens(s string) string {
+	parts := strings.Split(s, "_")
+	out := parts[:0]
+	for _, p := range parts {
+		if p == "" || (len(out) > 0 && out[len(out)-1] == p) {
+			continue
+		}
+		out = append(out, p)
+	}
+	return strings.Join(out, "_")
+}
+
+// entityObjectID builds a clean, English, language-independent object id from
+// the device name (a stable room/label prefix) and the English topic (the
+// measurement), e.g. "galerie_room_temperature". It seeds default_entity_id so
+// HA entity_ids stay English while the display name is localized.
+func entityObjectID(deviceName, topic string) string {
+	return collapseTokens(slugify(deviceName + "_" + topic))
 }
 
 // sanitize keeps only characters valid in HA object/unique ids.
