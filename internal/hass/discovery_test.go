@@ -64,10 +64,11 @@ func TestDiscoveryEnglishEntityIDLocalizedName(t *testing.T) {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		t.Fatal(err)
 	}
-	// default_entity_id is the full English, device-unique entity_id so the HA
-	// entity_id is English regardless of the (possibly German) device name.
-	if got := cfg["default_entity_id"]; got != "sensor.daikin_dev-1_room_temperature" {
-		t.Errorf("default_entity_id = %v, want sensor.daikin_dev-1_room_temperature (English)", got)
+	// default_entity_id keeps the device-name prefix but uses the English topic
+	// for the measurement, so the HA entity_id stays English even though the
+	// display name (and the German locale) is set.
+	if got := cfg["default_entity_id"]; got != "sensor.wohnzimmer_room_temperature" {
+		t.Errorf("default_entity_id = %v, want sensor.wohnzimmer_room_temperature (English)", got)
 	}
 	if got := cfg["name"]; got != "Raumtemperatur" {
 		t.Errorf("name = %v, want Raumtemperatur (localized)", got)
@@ -133,6 +134,24 @@ func TestDiscoverySelectLocalizedOptions(t *testing.T) {
 	// Round-trip: the localized label maps back to the raw API code.
 	if code, ok := entry.CodeForLabel("Kühlen"); !ok || code != "cooling" {
 		t.Errorf("CodeForLabel(Kühlen) = (%q,%v), want (cooling,true)", code, ok)
+	}
+}
+
+func TestEntityObjectID(t *testing.T) {
+	cases := []struct {
+		device, topic, want string
+	}{
+		{"Galerie", "room_temperature", "galerie_room_temperature"},
+		{"Schlafzimmer", "outdoor_temperature", "schlafzimmer_outdoor_temperature"},
+		{"Daikin Außengerät", "outdoor_unit_model", "daikin_aussengerat_outdoor_unit_model"},
+		// Adjacent duplicate token ("gateway") is collapsed.
+		{"Galerie Gateway", "gateway_firmware_version", "galerie_gateway_firmware_version"},
+		{"Wohnzimmer", "powerful_mode", "wohnzimmer_powerful_mode"},
+	}
+	for _, c := range cases {
+		if got := entityObjectID(c.device, c.topic); got != c.want {
+			t.Errorf("entityObjectID(%q, %q) = %q, want %q", c.device, c.topic, got, c.want)
+		}
 	}
 }
 

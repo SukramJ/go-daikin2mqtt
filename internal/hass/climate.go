@@ -189,7 +189,7 @@ func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInf
 
 	cfg := climatePayload{
 		Name:                    "Thermostat",
-		DefaultEntityID:         "climate." + uid,
+		DefaultEntityID:         "climate." + entityObjectID(info.Name, "thermostat"),
 		UniqueID:                uid,
 		Modes:                   modes,
 		ModeStateTopic:          modeBase + "/state",

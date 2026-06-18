@@ -1,3 +1,24 @@
+# Version 0.1.6 (2026-06-18)
+
+## What's Changed
+
+Cleaner, room-prefixed English Home Assistant entity IDs.
+
+### Changed
+
+- The MQTT discovery `default_entity_id` is now built from the device name plus
+  the English topic (e.g. `sensor.galerie_room_temperature`,
+  `switch.galerie_powerful_mode`) instead of the raw
+  `daikin_<device-id>_<topic>` form. Entity IDs stay English and
+  language-independent while keeping the human-friendly room/label prefix; the
+  display **name** remains localized. German umlauts in device names are
+  transliterated (ä→a, ö→o, ü→u, ß→ss) and adjacent duplicate tokens are
+  collapsed.
+
+  Note (as in 0.1.5): Home Assistant does not rename already-created entities.
+  Delete the affected entities (or the device) and let them be re-discovered to
+  adopt the new IDs.
+
 # Version 0.1.5 (2026-06-18)
 
 ## What's Changed
