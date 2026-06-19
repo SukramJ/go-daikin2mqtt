@@ -22,7 +22,7 @@ import (
 func (c *Coordinator) setCharacteristic(ctx context.Context, deviceID, embeddedID, characteristic string, value any, path string) error {
 	if host, ok := c.localHost(deviceID); ok {
 		if suffix, payload, ok := faikinCommand(characteristic, value); ok {
-			topic := faikin.CommandTopic(c.deps.Cfg.LocalFaikinPrefix, host, suffix)
+			topic := faikin.CommandTopic(host, suffix)
 			return c.deps.FaikinMQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, false)
 		}
 		// Not locally controllable → fall through to the cloud below.
@@ -50,16 +50,19 @@ var daikinToS21Mode = map[string]string{
 }
 
 // faikinCommand translates a single ONECTA characteristic write into a Faikin
-// command — the dedicated `command/<suffix>` topic and its payload (switches use
-// "1"/"0", matching the firmware's own HA discovery). ok is false for
+// command — the dedicated `command/<host>/<suffix>` topic's suffix and its
+// payload (switches use `true`/`false`, matching the firmware's own HA
+// discovery; the firmware also accepts "1"/"on"). ok is false for
 // characteristics the local firmware does not model, so the caller falls back to
 // the cloud.
 func faikinCommand(characteristic string, value any) (suffix, payload string, ok bool) {
+	// Faikin switches use a boolean payload (matching the firmware's own HA
+	// discovery, pl_on/pl_off = true/false; checkbool also accepts "1"/"on").
 	onoff := func(v any) string {
 		if truthy(v) {
-			return "1"
+			return "true"
 		}
-		return "0"
+		return "false"
 	}
 	switch characteristic {
 	case "onOffMode":

@@ -1,3 +1,27 @@
+# Version 0.2.8 (2026-06-19)
+
+## What's Changed
+
+This release aligns the local Faikin read and write paths with the firmware's
+actual MQTT interface (verified against the revk/ESP32-Faikout source and the
+firmware's own Home Assistant discovery), replacing earlier guesses.
+
+### Fixed
+
+- **Writes** now reach Faikin: the command topic is `command/<host>/<suffix>`
+  (e.g. `command/Klima WZ/quiet`) — the firmware convention, with no app name in
+  the path (just like the `state/<host>` topic), matching Faikin's own HA
+  discovery. The previous `<prefix>/<host>/command/<suffix>` form (with the
+  "Faikout" prefix) was never received by the firmware, so toggles had no effect.
+  Switch payloads are now `true`/`false` (the firmware also accepts `1`/`on`).
+- **Reads** now use the firmware's canonical state topic `state/<host>` (the app
+  document every entity in Faikin's own HA discovery reads from: `mode` as a
+  word, `temp` = room temperature, `target` = setpoint) instead of the
+  non-standard `state/<host>/status` (S21) topic. `state/<host>` is retained and
+  published on change; OS/heartbeat documents lacking `power` are still ignored.
+- `LOCAL_FAIKIN_PREFIX` / `local_faikin_prefix` is **deprecated and ignored**
+  (the command topic is fixed); existing configs keep loading.
+
 # Version 0.2.7 (2026-06-19)
 
 ## What's Changed

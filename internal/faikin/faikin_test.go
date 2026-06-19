@@ -72,7 +72,7 @@ func TestTopics(t *testing.T) {
 	if got := StateTopic("Klima SZ"); got != "state/Klima SZ" {
 		t.Errorf("StateTopic = %q", got)
 	}
-	if got := CommandTopic("Faikout", "Klima SZ", "quiet"); got != "Faikout/Klima SZ/command/quiet" {
+	if got := CommandTopic("Klima SZ", "quiet"); got != "command/Klima SZ/quiet" {
 		t.Errorf("CommandTopic = %q", got)
 	}
 }
@@ -88,39 +88,5 @@ func TestParseStateSkipsOSHeartbeat(t *testing.T) {
 	}
 	if s.HasAC {
 		t.Error("OS heartbeat must set HasAC=false (no AC fields)")
-	}
-}
-
-// realStatus is a verbatim `state/Klima SZ/status` (S21) payload captured live.
-const realStatus = `{"protocol":"S21","online":true,"home":21.0,"heat":false,"outside":26.5,"hum":67.0,"Whheating":71000,"Whcooling":117300,"power":true,"mode":"C","temp":22.5,"demand":100,"fan":"A","swingh":false,"swingv":false,"econo":true,"powerful":false,"comfort":false,"streamer":false,"sensor":false,"quiet":false}`
-
-func TestParseStatus(t *testing.T) {
-	s, err := ParseStatus("Klima SZ", []byte(realStatus))
-	if err != nil {
-		t.Fatal(err)
-	}
-	cases := map[string]struct{ got, want any }{
-		"HasAC":   {s.HasAC, true},
-		"power":   {s.Power, true},
-		"mode":    {s.Mode, "cool"}, // S21 "C" -> app "cool"
-		"target":  {s.Target, 22.5}, // /status temp = setpoint
-		"temp":    {s.Temp, 21.0},   // /status home = room temp
-		"outside": {s.Outside, 26.5},
-		"hum":     {s.Hum, 67.0},
-		"quiet":   {s.Quiet, false},
-		"econo":   {s.Econo, true},
-		"demand":  {s.Demand, 100},
-		"hamode":  {s.HAMode(), "cool"},
-	}
-	for name, c := range cases {
-		if c.got != c.want {
-			t.Errorf("%s = %v, want %v", name, c.got, c.want)
-		}
-	}
-}
-
-func TestStatusTopic(t *testing.T) {
-	if got := StatusTopic("Klima SZ"); got != "state/Klima SZ/status" {
-		t.Errorf("StatusTopic = %q", got)
 	}
 }
