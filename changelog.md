@@ -1,3 +1,18 @@
+# Version 0.2.1 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Local-only settings now appear in Home Assistant in local mode. HA discovery
+  is driven by the cloud poll, so settings the ONECTA cloud does not expose for
+  a unit (e.g. econo, streamer, outdoor silent, demand on the FTXA range, which
+  Faikin reads off the serial bus) previously published their local state but no
+  discovery config — so no entity was created. In local mode the daemon now
+  synthesizes discovery points for these topics (per mapped device, skipping any
+  the cloud already resolves), so `econo_mode`, `streamer`, `outdoor_silent` and
+  `demand_control` show up and are fed by the Faikin read path.
+
 # Version 0.2.0 (2026-06-19)
 
 ## What's Changed

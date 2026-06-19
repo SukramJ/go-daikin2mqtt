@@ -153,6 +153,12 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	c.updateOutdoorGroups(devices)
 	points := process.ResolveAt(devices, c.deps.Catalog, c.deps.Clock())
 
+	// In local mode, surface settings Faikin provides but the cloud does not
+	// expose (their live state arrives via the Faikin read path).
+	if c.deps.Cfg.LocalEnabled() {
+		points = append(points, c.localOnlyPoints(devices, points)...)
+	}
+
 	if c.deps.HASS != nil {
 		c.maybePublishDiscovery(ctx, points, deviceInfos(devices), climateInfos(devices, c.deps.Cfg.Language))
 	}
