@@ -9,10 +9,19 @@ import (
 	"log/slog"
 	"strconv"
 
+	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 	"github.com/SukramJ/go-daikin2mqtt/internal/mqtt"
+	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 )
+
+// localOnlyTopics are catalog topics the local Faikin interface provides but
+// that the ONECTA cloud does not expose for some units (econo/streamer/outdoor
+// silent/demand on the FTXA range, read off the serial bus locally). In local
+// mode the daemon synthesizes discovery points for them so the entities appear
+// in Home Assistant even though the cloud poll cannot resolve them.
+var localOnlyTopics = []string{"econo_mode", "streamer", "outdoor_silent", "demand_control"}
 
 // faikinToDaikinMode is the inverse of [daikinToFaikinMode]: it maps a Faikin
 // app mode back to the ONECTA operationMode code, so a local state update can
@@ -47,6 +56,54 @@ var localTopics = map[string]bool{
 func (c *Coordinator) localActiveFor(deviceID string) bool {
 	_, ok := c.localHost(deviceID)
 	return ok
+}
+
+// localOnlyPoints synthesizes discovery points for the local-only topics of
+// every mapped device, skipping any the cloud already resolved (so cloud-backed
+// units are unaffected). These points seed HA discovery only — their live state
+// comes from the Faikin read path, and the cloud poll skips them via
+// [localTopics]. resolved is the current cloud-resolved point set.
+func (c *Coordinator) localOnlyPoints(devices []model.Device, resolved []process.Point) []process.Point {
+	have := make(map[string]bool, len(resolved))
+	for i := range resolved {
+		have[resolved[i].DeviceID+"|"+resolved[i].Topic] = true
+	}
+	var out []process.Point
+	for _, d := range devices {
+		if _, ok := c.localHost(d.ID); !ok {
+			continue
+		}
+		emb, ok := c.climateEmbeddedID(d.ID)
+		if !ok {
+			continue
+		}
+		for _, topic := range localOnlyTopics {
+			if have[d.ID+"|"+topic] {
+				continue
+			}
+			entry, ok := c.deps.Catalog.ByTopic(topic)
+			if !ok {
+				continue
+			}
+			p := process.Point{
+				DeviceID:   d.ID,
+				EmbeddedID: emb,
+				MPType:     "climateControl",
+				Topic:      topic,
+				Entry:      *entry,
+				Settable:   entry.Settable,
+				Unit:       entry.Unit,
+			}
+			// demand_control is a number; give HA sensible bounds (Faikin
+			// reports a 0..100 % limit, settable in 5 % steps from 40 %).
+			if entry.Platform == "number" {
+				mn, mx, st := 40.0, 100.0, 5.0
+				p.Min, p.Max, p.Step = &mn, &mx, &st
+			}
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // subscribeLocal subscribes to the `state/<host>` topic of every mapped Faikin

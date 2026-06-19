@@ -6,10 +6,14 @@ package coordinator
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"testing"
 
+	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
+	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
+	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 )
 
 // realFaikinState is a verbatim `state/Klima SZ` payload from a live module.
@@ -96,5 +100,69 @@ func TestSubscribeLocalRoutesStateMessages(t *testing.T) {
 	faikinMQTT.handler("state/Klima SZ", []byte(realFaikinState))
 	if _, ok := main.get("daikin/dev1/climateControl/hvac_mode/state"); !ok {
 		t.Error("inbound Faikin state was not republished to the main broker")
+	}
+}
+
+func TestLocalOnlyPoints(t *testing.T) {
+	const cy = `
+- match: {managementPointType: climateControl, characteristic: econoMode}
+  topic: econo_mode
+  platform: switch
+  settable: true
+- match: {managementPointType: climateControl, characteristic: streamerMode}
+  topic: streamer
+  platform: switch
+  settable: true
+- match: {managementPointType: climateControl, characteristic: outdoorSilentMode}
+  topic: outdoor_silent
+  platform: switch
+  settable: true
+  scope: outdoor
+- match: {managementPointType: climateControl, characteristic: demandControl}
+  topic: demand_control
+  platform: number
+  settable: true
+  scope: outdoor
+`
+	cat, err := catalog.Load(strings.NewReader(cy))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{
+		MQTTTopic: "daikin", Language: "de", LocalMode: true,
+		LocalFaikinPrefix: "Faikout", LocalDeviceMap: map[string]string{"dev1": "Klima SZ"},
+	}
+	c := New(Deps{
+		Cfg: cfg, Client: &stubCloud{}, MQTT: newStubMQTT(), FaikinMQTT: newStubMQTT(),
+		Catalog: cat, Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
+	})
+	c.climateEmbedded["dev1"] = "climateControl"
+
+	devs := []model.Device{{ID: "dev1"}}
+	pts := c.localOnlyPoints(devs, nil)
+
+	got := map[string]process.Point{}
+	for _, p := range pts {
+		got[p.Topic] = p
+	}
+	for _, want := range []string{"econo_mode", "streamer", "outdoor_silent", "demand_control"} {
+		if _, ok := got[want]; !ok {
+			t.Errorf("missing synthesized point %q", want)
+		}
+	}
+	// demand_control (number) gets HA bounds.
+	if d := got["demand_control"]; d.Min == nil || d.Max == nil || *d.Min != 40 || *d.Max != 100 {
+		t.Errorf("demand_control bounds = %v/%v, want 40/100", d.Min, d.Max)
+	}
+	// Unmapped device → nothing.
+	if n := len(c.localOnlyPoints([]model.Device{{ID: "other"}}, nil)); n != 0 {
+		t.Errorf("unmapped device synthesized %d points, want 0", n)
+	}
+	// A topic already resolved from the cloud is skipped.
+	resolved := []process.Point{{DeviceID: "dev1", Topic: "econo_mode"}}
+	for _, p := range c.localOnlyPoints(devs, resolved) {
+		if p.Topic == "econo_mode" {
+			t.Error("econo_mode should be skipped when already cloud-resolved")
+		}
 	}
 }
