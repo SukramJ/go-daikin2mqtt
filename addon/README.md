@@ -49,8 +49,6 @@ port `8080` (unmapped by default, since Ingress needs no open port) — then
 point your proxy at `http://<ha-host>:8080` and register the *same* URL with
 the portal.
 
-See `docs/konzept.md` (§11, §12.4) for the full redirect-URI guidance.
-
 ## Image build paths
 
 There are two ways the add-on image can be produced. The add-on is

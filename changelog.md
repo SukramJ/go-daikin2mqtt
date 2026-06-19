@@ -1,3 +1,41 @@
+# Version 0.2.0 (2026-06-19)
+
+## What's Changed
+
+Local-first control through the indoor units' Faikin modules, multi-split
+outdoor-unit handling, and new comfort/air entities.
+
+### Added
+
+- **Local-first mode** (`LOCAL_MODE`): read and control the indoor units through
+  their local Faikin / Faikout (revk/ESP32-Faikout) MQTT interface instead of
+  the ONECTA cloud. State is sourced from `state/<host>` and commands are sent
+  to `<prefix>/<host>/command/control`; the cloud still serves what Faikin does
+  not expose. `LOCAL_DEVICE_MAP` maps each ONECTA device to a Faikin host and
+  accepts a YAML map or an `id=host,…` string. The Faikin broker defaults to the
+  main MQTT broker (shared connection) or can be separate (`LOCAL_FAIKIN_SERVER`,
+  credentials falling back to the main MQTT login). Unmapped devices and
+  settings Faikin does not model fall back to the cloud.
+- **Outdoor-shared settings** surface as a single entity per outdoor unit with
+  write fan-out to every member indoor unit: **Outdoor silent** (Außen
+  Geräuscharm) and **Demand limit**. New per-indoor-unit entities **Econo mode**
+  and **Streamer**.
+- **Home Assistant add-on**: local-first and multi-split options (`local_mode`,
+  `local_faikin_*`, `local_device_map`, `multisplit_*`, `enforce_mutual_exclusive`)
+  in the add-on schema, wired through `run.sh`.
+
+### Changed
+
+- **Multi-split outdoor-unit constraints** (on by default, each configurable):
+  a heat/cool mode change propagates to the other indoor units of the same
+  outdoor unit (`MULTISPLIT_MODE_SYNC`) — a standard multi-split cannot cool and
+  heat simultaneously, so conflicting units would otherwise drop to standby; the
+  mutually-exclusive **Powerful** and **Econo** clear each other
+  (`ENFORCE_MUTUAL_EXCLUSIVE`).
+- **Gateways** now appear nested under their respective indoor unit (`via_device`)
+  instead of as standalone devices. Their `unique_id`s are unchanged, so Home
+  Assistant re-parents the existing devices automatically on the next discovery.
+
 # Version 0.1.6 (2026-06-18)
 
 ## What's Changed

@@ -155,6 +155,59 @@ func TestEntityObjectID(t *testing.T) {
 	}
 }
 
+func outdoorSilentPoint(dev string) process.Point {
+	return process.Point{
+		DeviceID:   dev,
+		EmbeddedID: "climateControl",
+		MPType:     "climateControl",
+		Topic:      "outdoor_silent",
+		Entry: catalog.Entry{
+			Topic:    "outdoor_silent",
+			Name:     "Outdoor silent",
+			NameDE:   "Außen Geräuscharm",
+			Platform: "switch",
+			Settable: true,
+			Scope:    "outdoor",
+		},
+		Value: "off",
+	}
+}
+
+// TestDiscoveryOutdoorScopedDedup verifies a scope:outdoor setting collapses to
+// a single entity on the outdoor device, regardless of how many indoor units
+// expose it.
+func TestDiscoveryOutdoorScopedDedup(t *testing.T) {
+	pub := &capturePub{}
+	d := New("homeassistant", "daikin", "de", pub)
+	infos := map[string]DeviceInfo{
+		"dev-1": {Name: "Galerie", Outdoor: &SubDevice{SerialNumber: "OD1"}},
+		"dev-2": {Name: "Wohnzimmer", Outdoor: &SubDevice{SerialNumber: "OD1"}},
+	}
+	if err := d.Publish(context.Background(),
+		[]process.Point{outdoorSilentPoint("dev-1"), outdoorSilentPoint("dev-2")}, infos, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	const wantTopic = "homeassistant/switch/daikin_outdoor_OD1_outdoor_silent/config"
+	raw, ok := pub.msgs[wantTopic]
+	if !ok {
+		t.Fatalf("missing outdoor-scoped config %q; got %v", wantTopic, keys(pub.msgs))
+	}
+	if _, ok := pub.msgs["homeassistant/switch/daikin_dev-2_outdoor_silent/config"]; ok {
+		t.Error("per-device outdoor_silent should have been deduplicated away")
+	}
+	var cfg map[string]any
+	_ = json.Unmarshal(raw, &cfg)
+	dev, _ := cfg["device"].(map[string]any)
+	ids, _ := dev["identifiers"].([]any)
+	if len(ids) != 1 || ids[0] != "daikin_outdoor_OD1" {
+		t.Errorf("device identifiers = %v, want [daikin_outdoor_OD1]", ids)
+	}
+	if cfg["name"] != "Außen Geräuscharm" {
+		t.Errorf("name = %v, want localized 'Außen Geräuscharm'", cfg["name"])
+	}
+}
+
 func keys(m map[string][]byte) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {

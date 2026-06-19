@@ -103,6 +103,21 @@ func Validate(c *Config) error {
 		add("LANGUAGE must be one of [de en], got %q", c.Language)
 	}
 
+	// --- Local-first control ---
+	// Only enforced when LOCAL_MODE is on; an unused local config shouldn't
+	// block a pure-cloud deployment.
+	if c.LocalMode {
+		if c.LocalFaikinPort < 1 || c.LocalFaikinPort > 65535 {
+			add("LOCAL_FAIKIN_PORT must be 1..65535, got %d", c.LocalFaikinPort)
+		}
+		if c.LocalFaikinServer == "" && c.MQTTServer == "" {
+			add("LOCAL_MODE is on but neither LOCAL_FAIKIN_SERVER nor MQTT_SERVER is set")
+		}
+		if len(c.LocalDeviceMap) == 0 {
+			add("LOCAL_MODE is on but LOCAL_DEVICE_MAP is empty (no device → Faikin host mapping)")
+		}
+	}
+
 	if len(issues) > 0 {
 		return &ValidationError{Issues: issues}
 	}

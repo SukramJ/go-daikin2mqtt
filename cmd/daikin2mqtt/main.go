@@ -114,6 +114,41 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 		_ = lifecycle.Stop(stopCtx)
 	}()
 
+	// --- Local Faikin broker (optional) ---
+	// In local mode the daemon reads/writes the indoor units through their
+	// Faikin modules' MQTT broker. When that is the same broker as the main one
+	// (the common case) the existing connection is reused; otherwise a second
+	// connection is opened.
+	var faikinClient mqtt.Client
+	if cfg.LocalEnabled() {
+		if cfg.FaikinSharesMainBroker() {
+			faikinClient = mqttClient
+			logger.Info("daikin2mqtt.local_mode",
+				slog.String("faikin_broker", cfg.FaikinBrokerAddress()), slog.Bool("shared_connection", true))
+		} else {
+			fc := mqtt.NewTCPClient(mqtt.TCPConfig{
+				BrokerURL:    "tcp://" + cfg.FaikinBrokerAddress(),
+				ClientID:     config.MQTTClientID + "-faikin",
+				Username:     cfg.FaikinLogin(),
+				Password:     cfg.FaikinPassword(),
+				CleanSession: true,
+				Logger:       logger,
+			})
+			flife := mqtt.NewLifecycle(mqtt.LifecycleConfig{Logger: logger}, fc)
+			if err := flife.Start(ctx); err != nil {
+				return fmt.Errorf("faikin mqtt: %w", err)
+			}
+			defer func() {
+				stopCtx, stop := context.WithTimeout(context.Background(), 3*time.Second)
+				defer stop()
+				_ = flife.Stop(stopCtx)
+			}()
+			faikinClient = fc
+			logger.Info("daikin2mqtt.local_mode",
+				slog.String("faikin_broker", cfg.FaikinBrokerAddress()), slog.Bool("shared_connection", false))
+		}
+	}
+
 	// --- HA discovery (optional) ---
 	var discovery *hass.Discovery
 	if cfg.HASSEnable {
@@ -122,12 +157,13 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 
 	// --- Coordinator ---
 	coord := coordinator.New(coordinator.Deps{
-		Cfg:     cfg,
-		Client:  cloud,
-		MQTT:    mqttClient,
-		Catalog: cat,
-		HASS:    discovery,
-		Logger:  logger,
+		Cfg:        cfg,
+		Client:     cloud,
+		MQTT:       mqttClient,
+		FaikinMQTT: faikinClient,
+		Catalog:    cat,
+		HASS:       discovery,
+		Logger:     logger,
 	})
 	// Re-announce availability after every (re)connect.
 	lifecycle.OnConnect(func(cctx context.Context) { coord.PublishOnline(cctx) })

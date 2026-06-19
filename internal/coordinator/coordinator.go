@@ -45,6 +45,10 @@ type Deps struct {
 	HASS    *hass.Discovery // optional; nil disables discovery
 	Logger  *slog.Logger
 	Clock   func() time.Time
+	// FaikinMQTT is the connection to the indoor units' local Faikin broker,
+	// used for local-first reads/writes. Optional; nil disables local mode
+	// regardless of LOCAL_MODE.
+	FaikinMQTT mqtt.Client
 }
 
 // Coordinator owns the poll/publish/write loops.
@@ -54,9 +58,11 @@ type Coordinator struct {
 
 	writes chan writeReq
 
-	mu          sync.Mutex
-	modeCache   map[string]string // deviceID/embeddedID -> current operationMode
-	lastDiscSig string            // signature of the last published discovery set
+	mu              sync.Mutex
+	modeCache       map[string]string // deviceID/embeddedID -> current operationMode
+	climateEmbedded map[string]string // deviceID -> climateControl embeddedID (for local routing)
+	outdoorSerial   map[string]string // deviceID -> outdoor-unit serial (for multi-split grouping)
+	lastDiscSig     string            // signature of the last published discovery set
 }
 
 type writeReq struct {
@@ -73,10 +79,12 @@ func New(d Deps) *Coordinator {
 		d.Clock = time.Now
 	}
 	return &Coordinator{
-		deps:      d,
-		topicRoot: d.Cfg.MQTTTopic,
-		writes:    make(chan writeReq, 64),
-		modeCache: map[string]string{},
+		deps:            d,
+		topicRoot:       d.Cfg.MQTTTopic,
+		writes:          make(chan writeReq, 64),
+		modeCache:       map[string]string{},
+		climateEmbedded: map[string]string{},
+		outdoorSerial:   map[string]string{},
 	}
 }
 
@@ -88,6 +96,7 @@ func (c *Coordinator) Run(ctx context.Context) error {
 	if err := c.subscribeWrites(ctx); err != nil {
 		c.deps.Logger.Warn("coordinator.subscribe_failed", slog.String("err", err.Error()))
 	}
+	c.subscribeLocal(ctx)
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return c.pollLoop(gctx) })
@@ -141,6 +150,7 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	}
 
 	c.updateModeCache(devices)
+	c.updateOutdoorGroups(devices)
 	points := process.ResolveAt(devices, c.deps.Catalog, c.deps.Clock())
 
 	if c.deps.HASS != nil {
@@ -150,6 +160,11 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	published := 0
 	for i := range points {
 		p := points[i]
+		// In local mode the Faikin path owns these per-unit topics for mapped
+		// devices; skip them here to avoid redundant (and slower) cloud writes.
+		if localTopics[p.Topic] && c.localActiveFor(p.DeviceID) {
+			continue
+		}
 		topic := fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, p.DeviceID, p.EmbeddedID, p.Topic)
 		if err := c.deps.MQTT.Publish(ctx, topic, []byte(c.formatValue(p)), mqtt.QoS0, true); err != nil {
 			c.deps.Logger.Warn("coordinator.publish_failed",
@@ -239,6 +254,10 @@ func (c *Coordinator) updateModeCache(devices []model.Device) {
 				if s, ok := ch.String(); ok {
 					c.modeCache[d.ID+"/"+mp.EmbeddedID] = s
 				}
+				// The presence of operationMode marks the climateControl point;
+				// remember its embeddedID so the local read path can route
+				// Faikin state onto the same per-unit topics.
+				c.climateEmbedded[d.ID] = mp.EmbeddedID
 			}
 		}
 	}
@@ -348,7 +367,7 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 		path = strings.ReplaceAll(path, "{mode}", mode)
 	}
 
-	if err := c.deps.Client.Patch(ctx, req.deviceID, req.embeddedID, entry.Match.Characteristic, value, path); err != nil {
+	if err := c.setCharacteristic(ctx, req.deviceID, req.embeddedID, entry.Match.Characteristic, value, path); err != nil {
 		c.deps.Logger.Warn("coordinator.patch_failed",
 			slog.String("topic", req.topic), slog.String("err", err.Error()))
 		return
@@ -356,6 +375,13 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 	c.deps.Logger.Info("coordinator.patched",
 		slog.String("device", req.deviceID), slog.String("characteristic", entry.Match.Characteristic),
 		slog.String("value", req.payload))
+
+	// Outdoor-shared settings apply to every indoor unit of the outdoor unit.
+	if entry.Scope == "outdoor" && c.deps.Cfg.OutdoorAggregateEnabled() {
+		c.fanOutToGroup(ctx, req.deviceID, entry.Match.Characteristic, value, path)
+	}
+	// Mutually-exclusive partners (powerful ⇄ econo) are cleared on enable.
+	c.enforceMutualExclusive(ctx, req.deviceID, req.embeddedID, entry.Match.Characteristic, value)
 }
 
 // handleHVACModeWrite applies an HA climate hvac-mode command: "off" turns
@@ -363,7 +389,7 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 func (c *Coordinator) handleHVACModeWrite(ctx context.Context, req writeReq) {
 	ha := strings.TrimSpace(req.payload)
 	patch := func(characteristic string, value any) bool {
-		if err := c.deps.Client.Patch(ctx, req.deviceID, req.embeddedID, characteristic, value, ""); err != nil {
+		if err := c.setCharacteristic(ctx, req.deviceID, req.embeddedID, characteristic, value, ""); err != nil {
 			c.deps.Logger.Warn("coordinator.patch_failed",
 				slog.String("topic", req.topic), slog.String("characteristic", characteristic),
 				slog.String("err", err.Error()))
@@ -393,6 +419,8 @@ func (c *Coordinator) handleHVACModeWrite(ctx context.Context, req writeReq) {
 		c.deps.Logger.Info("coordinator.patched",
 			slog.String("device", req.deviceID), slog.String("hvac_mode", ha),
 			slog.String("operationMode", daikinMode))
+		// Keep the whole outdoor unit on one mode (multi-split constraint).
+		c.syncModeToGroup(ctx, req.deviceID, daikinMode)
 	}
 }
 

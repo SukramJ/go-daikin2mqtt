@@ -4,8 +4,8 @@
 # characteristics) to MQTT topics and Home Assistant entities. It is the
 # single source of truth for which characteristics are published and how
 # they are exposed — only entries listed here are mapped (deterministic,
-# curated coverage). See docs/konzept.md §9 for the full schema and §8 for
-# the i18n model (English canonical, German optional, per-item fallback).
+# curated coverage). The i18n model is English-canonical with optional German
+# overrides applied per item (a missing German value never hides the English).
 #
 # Each entry has the shape:
 #
@@ -416,3 +416,49 @@
   name_de: Hydro-Inneneinheit-Softwareversion
   platform: sensor
   category: diagnostic
+
+# --- Per-unit comfort/air settings ---
+- match: {managementPointType: climateControl, characteristic: econoMode}
+  topic: econo_mode
+  name: Econo mode
+  name_de: Eco-Modus
+  platform: switch
+  settable: true
+  values:
+    - {value: "on", label: "On", label_de: "An"}
+    - {value: "off", label: "Off", label_de: "Aus"}
+
+- match: {managementPointType: climateControl, characteristic: streamerMode}
+  topic: streamer
+  name: Streamer
+  name_de: Streamer
+  platform: switch
+  settable: true
+  values:
+    - {value: "on", label: "On", label_de: "An"}
+    - {value: "off", label: "Off", label_de: "Aus"}
+
+# --- Outdoor-shared settings (one entity per outdoor unit; writes fan out) ---
+- match: {managementPointType: climateControl, characteristic: outdoorSilentMode}
+  topic: outdoor_silent
+  name: Outdoor silent
+  name_de: Außen Geräuscharm
+  platform: switch
+  settable: true
+  scope: outdoor
+  values:
+    - {value: "on", label: "On", label_de: "An"}
+    - {value: "off", label: "Off", label_de: "Aus"}
+
+- match: {managementPointType: climateControl, characteristic: demandControl}
+  topic: demand_control
+  name: Demand limit
+  name_de: Leistungsbegrenzung
+  platform: number
+  unit: "%"
+  settable: true
+  scope: outdoor
+  # Local (Faikin) uses the plain "demand" int. The cloud nested path is
+  # best-effort and should be verified against a live `points` dump.
+  value_path: modes/fixed
+  path: /demandControl/modes/fixed

@@ -15,9 +15,9 @@
 // (management-point type + characteristic name) so the catalog can evolve
 // independently of the JSON parsing layer.
 //
-// Localisation follows the project i18n pattern (see docs/konzept.md §8):
-// English is the canonical fallback and German overrides are optional and
-// applied per item. A missing German value never hides the English one.
+// Localisation follows the project i18n pattern: English is the canonical
+// fallback and German overrides are optional and applied per item. A missing
+// German value never hides the English one.
 package catalog
 
 // Match identifies which Daikin management-point characteristic an [Entry]
@@ -68,6 +68,11 @@ type Entry struct {
 	Scale     float64 `yaml:"scale"`     // optional, 0 means none
 	Precision int     `yaml:"precision"` //
 	Enabled   *bool   `yaml:"enabled"`   // default true when nil
+	// Scope marks where a setting physically applies. "outdoor" settings (e.g.
+	// outdoor silent, demand control) are shared across all indoor units on one
+	// outdoor unit: they surface as a single entity per outdoor unit and writes
+	// fan out to every member. Empty or "indoor" (the default) is per-unit.
+	Scope string `yaml:"scope"`
 
 	// Kind selects special resolution. "energy" reads consumptionData arrays
 	// and sums the period slice (see EnergyMode/EnergyPeriod/Consumption).

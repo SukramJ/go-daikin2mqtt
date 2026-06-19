@@ -142,8 +142,8 @@ func TestSubDevicesDedupBySerial(t *testing.T) {
 		t.Error("dev-2 gateway should have been deduplicated away")
 	}
 
-	// The shared gateway device is serial-identified, standalone (no via_device),
-	// diagnostic, and carries the MAC connection.
+	// The gateway is serial-identified, nests under its indoor unit (the first
+	// one when a serial is shared), is diagnostic, and carries the MAC connection.
 	var gwcfg map[string]any
 	_ = json.Unmarshal(pub.msgs["homeassistant/sensor/daikin_gateway_GW1_gateway_ip_address/config"], &gwcfg)
 	if gwcfg["entity_category"] != "diagnostic" {
@@ -154,10 +154,19 @@ func TestSubDevicesDedupBySerial(t *testing.T) {
 	if len(ids) != 1 || ids[0] != "daikin_gateway_GW1" {
 		t.Errorf("gateway identifiers = %v, want [daikin_gateway_GW1]", ids)
 	}
-	if _, hasVia := dev["via_device"]; hasVia {
-		t.Errorf("shared gateway should be standalone (no via_device), got %v", dev["via_device"])
+	if dev["via_device"] != "daikin_dev-1" {
+		t.Errorf("gateway should nest under its indoor unit, via_device = %v, want daikin_dev-1", dev["via_device"])
 	}
 	if conns, _ := dev["connections"].([]any); len(conns) != 1 {
 		t.Errorf("gateway device should carry a mac connection, got %v", conns)
+	}
+
+	// The outdoor unit, by contrast, stays standalone (shared across indoor
+	// units, no single parent).
+	var odcfg map[string]any
+	_ = json.Unmarshal(pub.msgs["homeassistant/sensor/daikin_outdoor_OD1_outdoor_unit_model/config"], &odcfg)
+	oddev, _ := odcfg["device"].(map[string]any)
+	if _, hasVia := oddev["via_device"]; hasVia {
+		t.Errorf("shared outdoor unit should be standalone (no via_device), got %v", oddev["via_device"])
 	}
 }
