@@ -178,3 +178,23 @@ func TestPublishLocalStateSkipsOSHeartbeat(t *testing.T) {
 		t.Errorf("OS heartbeat published %d topics, want 0", main.count())
 	}
 }
+
+func TestFlushLocalStatesAfterEmbeddedID(t *testing.T) {
+	main := newStubMQTT()
+	c := localReadCoordinator(t, newStubMQTT(), main)
+	st, _ := faikin.ParseState("Klima SZ", []byte(realFaikinState))
+
+	// Before the embeddedID is known, the state is cached but not published
+	// (mirrors the retained Faikin state arriving at subscribe, pre-poll).
+	c.publishLocalState(context.Background(), "dev1", st)
+	if main.count() != 0 {
+		t.Fatalf("expected no publish before embeddedID, got %d", main.count())
+	}
+
+	// After the cloud poll populates the embeddedID, the flush publishes it.
+	c.climateEmbedded["dev1"] = "climateControl"
+	c.flushLocalStates(context.Background())
+	if _, ok := main.get("daikin/dev1/climateControl/room_temperature/state"); !ok {
+		t.Error("flush did not publish the cached Faikin state once embeddedID was known")
+	}
+}
