@@ -67,26 +67,6 @@ func ParseState(host string, payload []byte) (*State, error) {
 	return &s, nil
 }
 
-// Control is a partial command for `<prefix>/<host>/command/control`. Only the
-// non-nil fields are emitted; the firmware applies just the supplied keys, so
-// a command never disturbs settings it does not mention.
-type Control struct {
-	Power    *bool    `json:"power,omitempty"`
-	Mode     *string  `json:"mode,omitempty"`
-	Temp     *float64 `json:"temp,omitempty"`
-	Fan      *string  `json:"fan,omitempty"`
-	Swing    *string  `json:"swing,omitempty"`
-	Quiet    *bool    `json:"quiet,omitempty"`
-	Econo    *bool    `json:"econo,omitempty"`
-	Powerful *bool    `json:"powerful,omitempty"`
-	Streamer *bool    `json:"streamer,omitempty"`
-	Comfort  *bool    `json:"comfort,omitempty"`
-	Demand   *int     `json:"demand,omitempty"` // demand-control limit % (40..100)
-}
-
-// JSON renders the command payload.
-func (c Control) JSON() ([]byte, error) { return json.Marshal(c) }
-
 // StateTopic returns the app-level state topic for a host (`state/<host>`).
 // Faikin floods this topic with OS/heartbeat documents and publishes the full
 // AC document only occasionally — prefer [StatusTopic] as the AC source.
@@ -162,14 +142,14 @@ func ParseStatus(host string, payload []byte) (*State, error) {
 	return s, nil
 }
 
-// CommandTopic returns the control command topic for a host
-// (`<prefix>/<host>/command/control`, e.g. "Faikout/Klima SZ/command/control").
-func CommandTopic(prefix, host string) string {
-	return prefix + "/" + host + "/command/control"
+// CommandTopic returns a Faikin command topic for a host and setting suffix
+// (`<prefix>/<host>/command/<suffix>`, e.g. "Faikout/Klima SZ/command/quiet").
+// Faikin applies the dedicated per-setting command topics (payload "1"/"0" for
+// switches) reliably; the combined `command/control` JSON does not take effect
+// for outdoor silent on multi-split units.
+func CommandTopic(prefix, host, suffix string) string {
+	return prefix + "/" + host + "/command/" + suffix
 }
-
-// HVAC mode mapping mirrors internal/coordinator's daikinToHA so local and
-// cloud paths surface the same Home Assistant hvac_mode values.
 
 // HAMode maps the Faikin power flag + app mode to an HA climate hvac_mode.
 func (s *State) HAMode() string {
@@ -188,28 +168,4 @@ var faikinToHA = map[string]string{
 	"auto": "heat_cool",
 	"dry":  "dry",
 	"fan":  "fan_only",
-}
-
-var haToFaikin = map[string]string{
-	"cool":      "cool",
-	"heat":      "heat",
-	"heat_cool": "auto",
-	"dry":       "dry",
-	"fan_only":  "fan",
-}
-
-// ControlForHAMode builds the control needed to apply an HA hvac_mode: "off"
-// powers the unit down; any mapped mode powers it on and selects the Faikin
-// mode. ok is false for an unrecognized value.
-func ControlForHAMode(haMode string) (c Control, ok bool) {
-	if haMode == "off" {
-		off := false
-		return Control{Power: &off}, true
-	}
-	fm, ok := haToFaikin[haMode]
-	if !ok {
-		return Control{}, false
-	}
-	on := true
-	return Control{Power: &on, Mode: &fm}, true
 }
