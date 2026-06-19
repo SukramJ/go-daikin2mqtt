@@ -177,8 +177,10 @@ func coerceEnvValue(s string) any {
 	case "false":
 		return false
 	}
-	if i, err := strconv.ParseInt(s, 10, 64); err == nil {
-		return int(i)
+	// Atoi parses straight into a platform-width int (no int64→int narrowing,
+	// which CodeQL flags as go/incorrect-integer-conversion).
+	if i, err := strconv.Atoi(s); err == nil {
+		return i
 	}
 	if f, err := strconv.ParseFloat(s, 64); err == nil {
 		return f

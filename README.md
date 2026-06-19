@@ -8,8 +8,7 @@ write-back commands from Home Assistant.
 
 > **Status: beta.** The daemon works end-to-end (read + control) and has
 > been validated against live ONECTA devices. Topic layout and the
-> characteristic catalog may still evolve. See [`docs/todo.md`](./docs/todo.md)
-> for the roadmap and [`docs/konzept.md`](./docs/konzept.md) for the design.
+> characteristic catalog may still evolve.
 
 ## Features
 
@@ -32,9 +31,6 @@ write-back commands from Home Assistant.
   multi-arch GHCR images, and a Home Assistant add-on.
 
 ## Quickstart
-
-> Quickstart commands below are placeholders until the first release is
-> cut. Track progress in [`docs/todo.md`](./docs/todo.md).
 
 ### Linux (curl | bash)
 
@@ -86,7 +82,7 @@ Set `WEB_ENABLE: true` (default bind `127.0.0.1:8080`) to serve a small
 diagnostic UI that shows the OAuth status, offers a "Connect to Daikin"
 button, browses devices / data points, sends test PATCHes, and shows the
 rate-limit budget. The same server hosts the OAuth `/callback`, so no
-inbound port forwarding is required (see [`docs/konzept.md`](./docs/konzept.md) §4.1).
+inbound port forwarding is required.
 
 ## Helper CLI (`daikin2mqtt-util`)
 
@@ -121,8 +117,8 @@ Bool / int / float values are coerced; everything else stays a string.
 
 ## Documentation
 
-- [`docs/konzept.md`](./docs/konzept.md) — architecture and design concept.
-- [`docs/todo.md`](./docs/todo.md) — roadmap and milestones.
+- [`docs/design.md`](./docs/design.md) — local-first (Faikin) control and
+  multi-split outdoor-unit handling.
 
 ## License
 

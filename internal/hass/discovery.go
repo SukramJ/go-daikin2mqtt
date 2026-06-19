@@ -123,11 +123,13 @@ func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName 
 	return dev
 }
 
-// sharedSubDevice builds a standalone HA device for a component that is shared
-// across several API devices (gateway / outdoor unit), keyed by its serial so
-// it is deduplicated to a single HA device. No via_device is set because the
-// component has no single parent.
-func (d *Discovery) sharedSubDevice(identifier, labelEN, labelDE, baseName string, sub *SubDevice) device {
+// sharedSubDevice builds an HA device for an auxiliary component (gateway /
+// outdoor unit), keyed by its serial so identical serials across the API
+// devices of a multi-split system deduplicate to a single HA device. viaDevice
+// links it under a parent device when it belongs to one (per-unit gateways
+// nest under their indoor unit); pass "" for genuinely shared components with
+// no single parent (e.g. one outdoor unit serving several indoor units).
+func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, baseName string, sub *SubDevice) device {
 	label := labelEN
 	if d.lang == "de" && labelDE != "" {
 		label = labelDE
@@ -143,6 +145,7 @@ func (d *Discovery) sharedSubDevice(identifier, labelEN, labelDE, baseName strin
 		Identifiers:      []string{identifier},
 		Name:             name,
 		Manufacturer:     "Daikin",
+		ViaDevice:        viaDevice,
 		ConfigurationURL: configurationURL,
 	}
 	if sub != nil {
@@ -159,18 +162,30 @@ func (d *Discovery) sharedSubDevice(identifier, labelEN, labelDE, baseName strin
 
 // entityIdentity returns the HA unique_id and device block for a point.
 //
-// Gateway and outdoor-unit components are shared across the multiple API
-// devices of a multi-split system (identical serial numbers), so when a
-// serial is known they are keyed by serial — yielding a single deduplicated
-// HA device and one set of entities. Without a serial they fall back to a
+// Gateways have per-unit serials (one per indoor unit), so they are keyed by
+// serial and nested under their indoor unit (via_device → main). Outdoor units
+// are commonly shared across the indoor units of a multi-split system
+// (identical serials), so when a serial is known they deduplicate to a single
+// standalone HA device with no parent; without a serial they fall back to a
 // per-device nested sub-device (via_device → main).
 func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string, dev device) {
+	// Outdoor-shared settings (scope: outdoor, e.g. outdoor silent) are a single
+	// knob on the outdoor unit exposed per indoor unit. Key them by the outdoor
+	// serial and attach them to the outdoor device so all the indoor units'
+	// points collapse to one entity (deduplicated by the shared uid).
+	if p.Entry.Scope == "outdoor" && info.Outdoor != nil && info.Outdoor.SerialNumber != "" {
+		base := "daikin_outdoor_" + info.Outdoor.SerialNumber
+		return sanitize(base + "_" + p.Topic),
+			d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
+	}
 	switch p.MPType {
 	case "gateway":
 		if info.Gateway != nil && info.Gateway.SerialNumber != "" {
-			// Gateways have per-unit serials, so name each after its unit.
+			// Per-unit gateway: name it after its unit and nest it under the
+			// indoor unit so it appears as a sub-device rather than standalone.
 			base := "daikin_gateway_" + info.Gateway.SerialNumber
-			return sanitize(base + "_" + p.Topic), d.sharedSubDevice(base, "Gateway", "Gateway", info.Name, info.Gateway)
+			return sanitize(base + "_" + p.Topic),
+				d.sharedSubDevice(base, mainIdentifier(p.DeviceID), "Gateway", "Gateway", info.Name, info.Gateway)
 		}
 		// No gateway serial (e.g. a Home Hub that is itself the gateway):
 		// attach the entity to the main device so it appears as one device
@@ -181,7 +196,7 @@ func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string
 			// Outdoor units are commonly shared across indoor units; keep a
 			// generic name so it is not tied to one room.
 			base := "daikin_outdoor_" + info.Outdoor.SerialNumber
-			return sanitize(base + "_" + p.Topic), d.sharedSubDevice(base, "Outdoor unit", "Außengerät", "", info.Outdoor)
+			return sanitize(base + "_" + p.Topic), d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
 		}
 		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic),
 			d.subDeviceBlock(p.DeviceID, "outdoor", "Outdoor unit", "Außengerät", info.Name, info.Outdoor)

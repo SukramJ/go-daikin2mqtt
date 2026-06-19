@@ -37,6 +37,12 @@ const (
 
 	// DefaultLanguage is the fallback UI / HA display language.
 	DefaultLanguage = "en"
+
+	// DefaultLocalFaikinPort / DefaultLocalFaikinPrefix match the revk Faikin
+	// firmware defaults: plain MQTT on 1883 and the "Faikout" app prefix on the
+	// command topics.
+	DefaultLocalFaikinPort   = 1883
+	DefaultLocalFaikinPrefix = "Faikout"
 )
 
 // applyDefaults fills in any field whose YAML+env round left it at its
@@ -78,5 +84,11 @@ func applyDefaults(c *Config) {
 	}
 	if c.Language == "" {
 		c.Language = DefaultLanguage
+	}
+	if c.LocalFaikinPort == 0 {
+		c.LocalFaikinPort = DefaultLocalFaikinPort
+	}
+	if c.LocalFaikinPrefix == "" {
+		c.LocalFaikinPrefix = DefaultLocalFaikinPrefix
 	}
 }

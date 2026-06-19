@@ -1,0 +1,159 @@
+// SPDX-License-Identifier: MIT
+// Copyright (C) 2026 SukramJ
+
+package coordinator
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"strconv"
+
+	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
+	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
+	"github.com/SukramJ/go-daikin2mqtt/internal/mqtt"
+)
+
+// faikinToDaikinMode is the inverse of [daikinToFaikinMode]: it maps a Faikin
+// app mode back to the ONECTA operationMode code, so a local state update can
+// reuse the catalog's localized select label.
+var faikinToDaikinMode = map[string]string{
+	"cool": "cooling",
+	"heat": "heating",
+	"auto": "auto",
+	"dry":  "dry",
+	"fan":  "fanOnly",
+}
+
+// localTopics is the set of per-unit state topics the local Faikin path
+// publishes. In local mode the cloud poll skips these for mapped devices to
+// avoid redundant publishes (the synthetic hvac_mode is handled separately).
+var localTopics = map[string]bool{
+	"power":                true,
+	"operation_mode":       true,
+	"room_temperature":     true,
+	"room_humidity":        true,
+	"outdoor_temperature":  true,
+	"temperature_setpoint": true,
+	"powerful_mode":        true,
+	"econo_mode":           true,
+	"streamer":             true,
+	"outdoor_silent":       true,
+	"demand_control":       true,
+}
+
+// localActiveFor reports whether reads/writes for a device run through the
+// local Faikin interface.
+func (c *Coordinator) localActiveFor(deviceID string) bool {
+	_, ok := c.localHost(deviceID)
+	return ok
+}
+
+// subscribeLocal subscribes to the `state/<host>` topic of every mapped Faikin
+// module and republishes each update to the daemon's per-unit state topics.
+// No-op when local mode is off or no Faikin connection is configured.
+func (c *Coordinator) subscribeLocal(ctx context.Context) {
+	if c.deps.FaikinMQTT == nil || !c.deps.Cfg.LocalEnabled() {
+		return
+	}
+	for deviceID, host := range c.deps.Cfg.LocalDeviceMap {
+		topic := faikin.StateTopic(host)
+		err := c.deps.FaikinMQTT.Subscribe(ctx, topic, mqtt.QoS0, func(_ string, payload []byte) {
+			st, err := faikin.ParseState(host, payload)
+			if err != nil {
+				c.deps.Logger.Warn("coordinator.local_parse_failed",
+					slog.String("host", host), slog.String("err", err.Error()))
+				return
+			}
+			c.publishLocalState(ctx, deviceID, st)
+		})
+		if err != nil {
+			c.deps.Logger.Warn("coordinator.local_subscribe_failed",
+				slog.String("host", host), slog.String("err", err.Error()))
+			continue
+		}
+		c.deps.Logger.Info("coordinator.local_subscribed",
+			slog.String("device", deviceID), slog.String("host", host))
+	}
+}
+
+// publishLocalState renders a Faikin state document onto the daemon's per-unit
+// state topics. The embeddedID is taken from the cloud-derived cache, so a
+// device must have been seen by at least one cloud poll (which also publishes
+// HA discovery) before its local state can be routed.
+func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st *faikin.State) {
+	emb, ok := c.climateEmbeddedID(deviceID)
+	if !ok {
+		c.deps.Logger.Debug("coordinator.local_no_embedded_id",
+			slog.String("device", deviceID), slog.String("hint", "awaiting first cloud poll"))
+		return
+	}
+	for suffix, payload := range c.localStateMessages(st) {
+		topic := fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, deviceID, emb, suffix)
+		if err := c.deps.MQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, true); err != nil {
+			c.deps.Logger.Warn("coordinator.local_publish_failed",
+				slog.String("topic", topic), slog.String("err", err.Error()))
+		}
+	}
+}
+
+// localStateMessages maps a Faikin state to {topic-suffix: payload}, matching
+// the cloud path's topics and value formats so HA sees identical entities
+// whichever backend is active.
+func (c *Coordinator) localStateMessages(st *faikin.State) map[string]string {
+	out := map[string]string{
+		"power":                onOff(st.Power),
+		hass.HVACModeTopic:     st.HAMode(),
+		"room_temperature":     c.fmtFloat("room_temperature", st.Temp),
+		"room_humidity":        c.fmtFloat("room_humidity", st.Hum),
+		"outdoor_temperature":  c.fmtFloat("outdoor_temperature", st.Outside),
+		"temperature_setpoint": c.fmtFloat("temperature_setpoint", st.Target),
+		"powerful_mode":        onOff(st.Powerful),
+		"econo_mode":           onOff(st.Econo),
+		"streamer":             onOff(st.Streamer),
+		"outdoor_silent":       onOff(st.Quiet),
+		"demand_control":       strconv.Itoa(st.Demand),
+	}
+	if label, ok := c.localOperationModeLabel(st.Mode); ok {
+		out["operation_mode"] = label
+	}
+	return out
+}
+
+// localOperationModeLabel maps a Faikin mode to the localized select label the
+// cloud path publishes for the operation_mode entity (e.g. "cool" → "Kühlen").
+func (c *Coordinator) localOperationModeLabel(faikinMode string) (string, bool) {
+	dk, ok := faikinToDaikinMode[faikinMode]
+	if !ok {
+		return "", false
+	}
+	if e, ok := c.deps.Catalog.ByTopic("operation_mode"); ok {
+		return e.LocalizedLabel(dk, c.deps.Cfg.Language), true
+	}
+	return dk, true
+}
+
+// fmtFloat formats v with the precision the catalog entry for topic declares,
+// so local values render exactly like the cloud path's.
+func (c *Coordinator) fmtFloat(topic string, v float64) string {
+	prec := 1
+	if e, ok := c.deps.Catalog.ByTopic(topic); ok {
+		prec = e.Precision
+	}
+	return strconv.FormatFloat(v, 'f', prec, 64)
+}
+
+// climateEmbeddedID returns the cached climateControl embeddedID for a device.
+func (c *Coordinator) climateEmbeddedID(deviceID string) (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	id, ok := c.climateEmbedded[deviceID]
+	return id, ok
+}
+
+func onOff(b bool) string {
+	if b {
+		return "on"
+	}
+	return "off"
+}

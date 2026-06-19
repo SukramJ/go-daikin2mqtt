@@ -168,3 +168,91 @@ func TestResolveTokenStorePathXDG(t *testing.T) {
 		t.Errorf("ResolveTokenStorePath = %q, want %q", got, want)
 	}
 }
+
+func TestLocalModeDefaultsAndFallbacks(t *testing.T) {
+	y := minimalYAML + `
+MQTT_LOGIN: ha
+MQTT_PASSWORD: pw
+LOCAL_MODE: true
+LOCAL_FAIKIN_SERVER: 172.18.4.22
+LOCAL_DEVICE_MAP:
+  cfcbab3e: Klima GA
+  1921496f: Klima SZ
+`
+	cfg, err := Load(strings.NewReader(y), mapEnv{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.LocalEnabled() {
+		t.Error("LocalEnabled should be true")
+	}
+	if cfg.LocalFaikinPort != DefaultLocalFaikinPort || cfg.LocalFaikinPrefix != DefaultLocalFaikinPrefix {
+		t.Errorf("defaults not applied: port=%d prefix=%q", cfg.LocalFaikinPort, cfg.LocalFaikinPrefix)
+	}
+	if got := cfg.FaikinBrokerAddress(); got != "172.18.4.22:1883" {
+		t.Errorf("FaikinBrokerAddress = %q", got)
+	}
+	// Credentials fall back to the main MQTT creds when unset.
+	if cfg.FaikinLogin() != "ha" || cfg.FaikinPassword() != "pw" {
+		t.Errorf("creds fallback = %q/%q, want ha/pw", cfg.FaikinLogin(), cfg.FaikinPassword())
+	}
+	if h, ok := cfg.FaikinHost("cfcbab3e"); !ok || h != "Klima GA" {
+		t.Errorf("FaikinHost(cfcbab3e) = %q,%v", h, ok)
+	}
+	if _, ok := cfg.FaikinHost("unmapped"); ok {
+		t.Error("unmapped device should not resolve")
+	}
+}
+
+func TestLocalModeEmptyMapRejected(t *testing.T) {
+	_, err := Load(strings.NewReader(minimalYAML+"\nLOCAL_MODE: true\n"), mapEnv{})
+	if err == nil || !strings.Contains(err.Error(), "LOCAL_DEVICE_MAP") {
+		t.Fatalf("want LOCAL_DEVICE_MAP validation error, got %v", err)
+	}
+}
+
+func TestFaikinBrokerDefaultsToMQTTServer(t *testing.T) {
+	// LOCAL_FAIKIN_SERVER empty → host falls back to MQTT_SERVER.
+	cfg := &Config{MQTTServer: "broker.local", LocalFaikinPort: 1883}
+	if got := cfg.FaikinBrokerAddress(); got != "broker.local:1883" {
+		t.Errorf("FaikinBrokerAddress = %q", got)
+	}
+}
+
+func TestLocalDeviceMapStringForm(t *testing.T) {
+	// Inline string form (as the add-on / env would deliver it).
+	y := minimalYAML + `
+LOCAL_MODE: true
+LOCAL_FAIKIN_SERVER: 172.18.4.22
+LOCAL_DEVICE_MAP: "id1=Klima GA, id2=Klima SZ"
+`
+	cfg, err := Load(strings.NewReader(y), mapEnv{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h, ok := cfg.FaikinHost("id1"); !ok || h != "Klima GA" {
+		t.Errorf("id1 -> %q,%v (host keeps internal space)", h, ok)
+	}
+	if h, _ := cfg.FaikinHost("id2"); h != "Klima SZ" {
+		t.Errorf("id2 -> %q", h)
+	}
+}
+
+func TestLocalDeviceMapFromEnv(t *testing.T) {
+	// The HA add-on passes the map via DAIKIN_LOCAL_DEVICE_MAP (a scalar).
+	env := mapEnv{
+		"DAIKIN_LOCAL_MODE":          "true",
+		"DAIKIN_LOCAL_FAIKIN_SERVER": "172.18.4.22",
+		"DAIKIN_LOCAL_DEVICE_MAP":    "abc=Klima WZ",
+	}
+	cfg, err := Load(strings.NewReader(minimalYAML), env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.LocalEnabled() {
+		t.Fatal("LocalEnabled should be true")
+	}
+	if h, _ := cfg.FaikinHost("abc"); h != "Klima WZ" {
+		t.Errorf("env map abc -> %q", h)
+	}
+}

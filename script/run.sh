@@ -67,6 +67,36 @@ if bashio::config.has_value 'redirect_uri'; then
   export DAIKIN_REDIRECT_URI="$(bashio::config 'redirect_uri')"
 fi
 
+# --- Local-first control (Faikin / Faikout) ---
+export DAIKIN_LOCAL_MODE="$(bashio::config 'local_mode')"
+if bashio::config.true 'local_mode'; then
+  export DAIKIN_LOCAL_FAIKIN_PORT="$(bashio::config 'local_faikin_port')"
+  if bashio::config.has_value 'local_faikin_server'; then
+    export DAIKIN_LOCAL_FAIKIN_SERVER="$(bashio::config 'local_faikin_server')"
+  fi
+  if bashio::config.has_value 'local_faikin_login'; then
+    export DAIKIN_LOCAL_FAIKIN_LOGIN="$(bashio::config 'local_faikin_login')"
+  fi
+  if bashio::config.has_value 'local_faikin_password'; then
+    export DAIKIN_LOCAL_FAIKIN_PASSWORD="$(bashio::config 'local_faikin_password')"
+  fi
+  if bashio::config.has_value 'local_faikin_prefix'; then
+    export DAIKIN_LOCAL_FAIKIN_PREFIX="$(bashio::config 'local_faikin_prefix')"
+  fi
+  # Join the "id=host" option list into the scalar "id=host,id=host" the daemon
+  # parses (a map cannot ride a single env var).
+  device_map="$(jq -r '.local_device_map // [] | join(",")' /data/options.json)"
+  if [ -n "${device_map}" ]; then
+    export DAIKIN_LOCAL_DEVICE_MAP="${device_map}"
+  fi
+  bashio::log.info "Local-first mode on; Faikin broker: ${DAIKIN_LOCAL_FAIKIN_SERVER:-<same as MQTT>}"
+fi
+
+# --- Multi-split outdoor-unit constraints ---
+export DAIKIN_MULTISPLIT_MODE_SYNC="$(bashio::config 'multisplit_mode_sync')"
+export DAIKIN_MULTISPLIT_OUTDOOR_AGGREGATE="$(bashio::config 'multisplit_outdoor_aggregate')"
+export DAIKIN_ENFORCE_MUTUAL_EXCLUSIVE="$(bashio::config 'enforce_mutual_exclusive')"
+
 # --- Persistent state ---
 # Store the rotated refresh token on the add-on's /data volume so it
 # survives add-on restarts and updates.

@@ -3,7 +3,7 @@
 # version MUST equal the published image tag (ghcr.io/sukramj/go-daikin2mqtt-addon-{arch})
 # and is bumped in the release commit that cuts the matching git tag.
 name: go-daikin2mqtt
-version: "0.1.6"
+version: "0.2.0"
 slug: go-daikin2mqtt
 description: >-
   Bridges Daikin ONECTA cloud climate devices to MQTT with Home Assistant
@@ -60,6 +60,16 @@ options:
   web_enable: true
   refresh_day_interval: 600
   refresh_night_interval: 1800
+  local_mode: false
+  local_faikin_server: ""
+  local_faikin_port: 1883
+  local_faikin_login: ""
+  local_faikin_password: ""
+  local_faikin_prefix: Faikout
+  local_device_map: []
+  multisplit_mode_sync: true
+  multisplit_outdoor_aggregate: true
+  enforce_mutual_exclusive: true
 
 schema:
   client_id: "str?"
@@ -75,3 +85,14 @@ schema:
   web_enable: bool
   refresh_day_interval: int(1,)
   refresh_night_interval: int(1,)
+  local_mode: bool
+  local_faikin_server: "str?"
+  local_faikin_port: int(1,65535)
+  local_faikin_login: "str?"
+  local_faikin_password: "password?"
+  local_faikin_prefix: "str?"
+  local_device_map:
+    - str
+  multisplit_mode_sync: bool
+  multisplit_outdoor_aggregate: bool
+  enforce_mutual_exclusive: bool

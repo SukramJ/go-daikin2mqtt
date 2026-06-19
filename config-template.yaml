@@ -29,7 +29,7 @@ MQTT_SERVER: localhost
 MQTT_PORT: 1883
 MQTT_LOGIN: ""
 MQTT_PASSWORD: ""
-MQTT_TOPIC: daikin
+MQTT_TOPIC: daikin2mqtt
 
 # --- Home Assistant ---
 HASS_ENABLE: true
@@ -40,6 +40,33 @@ WEB_ENABLE: false
 WEB_BIND: "127.0.0.1:8080"
 WEB_USER: ""
 WEB_PASSWORD: ""
+
+# --- Local-first control (Faikin / Faikout ESP32 modules; optional) ---
+# When on, reads/writes for mapped indoor units go through their local Faikin
+# MQTT interface instead of the ONECTA cloud (the cloud still serves what Faikin
+# does not expose, e.g. hardware info). Off by default.
+LOCAL_MODE: false
+# Broker the Faikin modules publish to. Empty -> same host/port as MQTT_SERVER
+# (the common case: the modules share the daemon's broker).
+LOCAL_FAIKIN_SERVER: ""
+LOCAL_FAIKIN_PORT: 1883
+# Credentials for that broker. Empty -> fall back to MQTT_LOGIN / MQTT_PASSWORD.
+LOCAL_FAIKIN_LOGIN: ""
+LOCAL_FAIKIN_PASSWORD: ""
+# Firmware "app" name that prefixes the command topics
+# (<prefix>/<host>/command/control), e.g. "Faikout".
+LOCAL_FAIKIN_PREFIX: Faikout
+# Map each ONECTA device ID to its Faikin host name. Only mapped devices are
+# driven locally; unmapped devices stay cloud-only even in local mode.
+LOCAL_DEVICE_MAP: {}
+#  cfcbab3e-7e55-42b4-9af7-21bb1feb2bbd: "Klima GA"
+
+# --- Multi-split outdoor-unit constraints (all default on) ---
+# These govern settings ONECTA exposes per indoor unit but that are physically
+# shared across all indoor units on one outdoor unit.
+MULTISPLIT_MODE_SYNC: true          # propagate heat/cool to all units of an outdoor unit
+MULTISPLIT_OUTDOOR_AGGREGATE: true  # one entity per outdoor unit for outdoor-shared settings
+ENFORCE_MUTUAL_EXCLUSIVE: true      # turning powerful on clears econo (and vice versa)
 
 # --- Misc ---
 LANGUAGE: en   # en | de

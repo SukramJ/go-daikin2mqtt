@@ -324,9 +324,10 @@ func (c *Coordinator) mode(req writeReq) string {
 	return m
 }
 
-// patchClimate issues a PATCH and logs the outcome.
+// patchClimate applies a climate sub-setting via the active backend (local
+// Faikin or cloud) and logs the outcome.
 func (c *Coordinator) patchClimate(ctx context.Context, req writeReq, characteristic, path string, value any) {
-	if err := c.deps.Client.Patch(ctx, req.deviceID, req.embeddedID, characteristic, value, path); err != nil {
+	if err := c.setCharacteristic(ctx, req.deviceID, req.embeddedID, characteristic, value, path); err != nil {
 		c.deps.Logger.Warn("coordinator.patch_failed",
 			slog.String("topic", req.topic), slog.String("characteristic", characteristic),
 			slog.String("err", err.Error()))
