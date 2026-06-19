@@ -1,3 +1,16 @@
+# Version 0.2.7 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Toggling an outdoor-shared setting (outdoor silent, demand) no longer snaps
+  back. The optimistic value published on write was immediately overwritten by
+  the group aggregate computed from a still-stale Faikin status (the active
+  indoor unit reports the change only on its next, sparse status). The
+  just-written value is now **held** until a status confirms it (or a 2-minute
+  timeout), so Home Assistant shows the change immediately and stably.
+
 # Version 0.2.6 (2026-06-19)
 
 ## What's Changed

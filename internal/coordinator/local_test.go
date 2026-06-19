@@ -230,3 +230,27 @@ func TestPublishOutdoorSharedAggregates(t *testing.T) {
 		}
 	}
 }
+
+func TestOutdoorHold(t *testing.T) {
+	c := newCoordinator(t, &stubCloud{}, newStubMQTT())
+	c.outdoorSerial = map[string]string{"dev1": "OD1"}
+
+	// Write ON: the value is held even though the aggregate is still "off"
+	// (the active indoor unit has not reported the change yet) → no snap-back.
+	c.holdOutdoor("dev1", "outdoor_silent", "on")
+	if got := c.heldOutdoorValue("OD1", "outdoor_silent", "off"); got != "on" {
+		t.Errorf("held = %q, want on (held while unconfirmed)", got)
+	}
+	// A status that matches the held value confirms and clears the hold.
+	if got := c.heldOutdoorValue("OD1", "outdoor_silent", "on"); got != "on" {
+		t.Errorf("confirm = %q, want on", got)
+	}
+	// Hold cleared → the raw aggregate passes through again.
+	if got := c.heldOutdoorValue("OD1", "outdoor_silent", "off"); got != "off" {
+		t.Errorf("after confirm raw should pass through, got %q", got)
+	}
+	// No pending → raw is returned unchanged.
+	if got := c.heldOutdoorValue("OD2", "demand_control", "80"); got != "80" {
+		t.Errorf("no pending should return raw, got %q", got)
+	}
+}
