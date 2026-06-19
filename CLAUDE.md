@@ -7,6 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A pure-Go daemon that bridges the **Daikin ONECTA cloud API** to **MQTT** with optional
 **Home Assistant** auto-discovery and a diagnostic web UI. It polls Daikin devices through
 the cloud, publishes their state to MQTT, and applies HA commands back as ONECTA PATCHes.
+An optional **local-first mode** instead reads/writes the indoor units over their local
+**Faikin/Faikout** MQTT interface (see "Local-first & multi-split" below and `docs/design.md`).
 Two binaries: `daikin2mqtt` (the daemon) and `daikin2mqtt-util` (auth/diagnostics CLI).
 
 ## Commands
@@ -89,7 +91,8 @@ config/env, never the token store.
 Coverage is **curated and deterministic**: only characteristics with an explicit `match` entry
 are published. An `Entry` maps one ONECTA characteristic → MQTT/HA (`topic`, `name`/`name_de`,
 `platform`, `device_class`, `unit`, `settable`, enum `values` with `label`/`label_de`,
-optional nested `value_path`/`path` with a `{mode}` token, `precision`, energy `kind`). Lookups:
+optional nested `value_path`/`path` with a `{mode}` token, `precision`, energy `kind`, and
+`scope` (`outdoor` = one entity per outdoor unit with write fan-out; see below)). Lookups:
 `ByTopic` (write path), `Match(mpType, char)` (read path). `daikin2mqtt-util catalog-check`
 reports live characteristics missing from the catalog.
 
@@ -112,6 +115,32 @@ adjacent duplicate tokens collapsed) — HA otherwise derives the entity_id from
 display name, producing German IDs. Only the HA display `name` is localized. HA does **not**
 rename already-registered entities, so an entity-ID scheme change requires deleting/recreating
 (or renaming via the registry API) the existing entities.
+
+### Local-first & multi-split (`internal/faikin/`, `internal/coordinator/{backend,local,outdoor}.go`)
+Opt-in via `LOCAL_MODE` + `LOCAL_DEVICE_MAP` (ONECTA device ID → Faikin host; accepts a YAML map
+or an `id=host,…` string). Three concerns, all sitting on top of the existing cloud path:
+
+- **Control backend seam** (`backend.go`, `setCharacteristic`): every write routes to the local
+  Faikin command (`<prefix>/<host>/command/control` JSON, built by `faikinControlFor`) when the
+  device is mapped AND the characteristic is locally controllable; otherwise the cloud PATCH.
+  Anything Faikin does not model falls back to the cloud.
+- **Local reads** (`local.go`): subscribe `state/<host>` per mapped device, translate and
+  republish onto the **same** per-unit state topics (so HA sees identical entities); the cloud
+  poll skips those topics (`localTopics`). Faikin interleaves **OS/heartbeat docs** (no AC fields)
+  on `state/<host>` — `faikin.ParseState` sets `HasAC` (presence of `power`) and the read path
+  **skips** them, else every entity would reset to its zero value. For settings the cloud does not
+  expose for a unit (econo/streamer/outdoor silent/demand on the FTXA range), `localOnlyPoints`
+  **synthesizes discovery points** so the entities still appear (state fed from Faikin).
+- **Multi-split / dependency engine** (`outdoor.go`): outdoor groups keyed by outdoor serial
+  (`groupMembers`). `scope: outdoor` catalog entries (`outdoor_silent`, `demand_control`) dedup to
+  **one entity per outdoor unit** (in `hass.entityIdentity`) and **fan out** writes to all members.
+  Mode sync propagates heat/cool across the group (a standard multi-split can't cool+heat at once);
+  powerful ⇄ econo are mutually exclusive. On by default; gated by `MULTISPLIT_MODE_SYNC` /
+  `MULTISPLIT_OUTDOOR_AGGREGATE` / `ENFORCE_MUTUAL_EXCLUSIVE`.
+
+The Faikin broker defaults to the main MQTT broker (connection reused); a distinct
+`LOCAL_FAIKIN_SERVER` opens a second connection. The dependency engine runs **above** the backend
+seam, so fan-out works through either cloud or local.
 
 ### i18n rules (`internal/catalog/localize.go`, `internal/web/assets/i18n/`)
 `LANGUAGE` is `en` (default/fallback) or `de`. **Localized:** catalog/entity display names,
@@ -146,6 +175,10 @@ Flat YAML (`config-template.yaml` documents every key). Every key is overridable
 `DAIKIN_<KEY>` env var (bool/int/float coerced; else string). Loader pipeline: file → env
 override → defaults → validate. Required: `DAIKIN_CLIENT_ID`/`SECRET`, `MQTT_SERVER`. With
 credentials missing the daemon starts **idle** (web UI reachable for setup) rather than crashing.
+Local-first / multi-split keys (`LOCAL_MODE`, `LOCAL_FAIKIN_*`, `LOCAL_DEVICE_MAP`,
+`MULTISPLIT_*`, `ENFORCE_MUTUAL_EXCLUSIVE`) are validated only when `LOCAL_MODE` is on; the
+add-on surfaces them as options and `script/run.sh` maps them to env (`local_device_map` as a
+list joined into the `id=host,…` scalar form).
 
 ## Testing conventions
 

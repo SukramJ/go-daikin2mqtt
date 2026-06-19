@@ -1,9 +1,9 @@
 # Design: local-first control & multi-split outdoor-unit handling
 
-This document describes the architecture added in 0.2.0: a second control
-backend that drives the indoor units through their **local Faikin interface**,
-and the handling of settings that ONECTA exposes per indoor unit but that are
-physically shared across one **multi-split outdoor unit**.
+This document describes the architecture added in the 0.2.x series: a second
+control backend that drives the indoor units through their **local Faikin
+interface**, and the handling of settings that ONECTA exposes per indoor unit
+but that are physically shared across one **multi-split outdoor unit**.
 
 It complements the package-level doc comments; read those for exact signatures.
 
@@ -77,6 +77,22 @@ cloud poll — so the cloud bootstraps device structure and HA discovery once,
 then local state takes over. The cloud poll **skips** the locally-owned topics
 for mapped devices (`localTopics`) to avoid redundant writes.
 
+Two refinements are essential here:
+
+- **OS/heartbeat filtering** — Faikin interleaves OS/heartbeat documents on
+  `state/<host>` (uptime, rssi, mem, … with **no AC fields**) between full
+  state documents. Parsing those would decode to the `State` zero value and
+  publish `power off`, `temp 0`, `outdoor_silent off`, … resetting every
+  entity. `ParseState` sets `State.HasAC` from the presence of `power`, and the
+  read path skips messages where it is false.
+- **Synthesized discovery for local-only settings** — HA discovery is driven by
+  the cloud poll, so settings the cloud does not expose for a unit (econo,
+  streamer, outdoor silent, demand on the FTXA range — Faikin reads them off the
+  serial bus) would publish local state but get no discovery config, and no
+  entity would appear. `localOnlyPoints` synthesizes discovery points for these
+  topics per mapped device (skipping any the cloud already resolves); their live
+  state still comes from the Faikin read path.
+
 ### Device mapping & broker
 
 `LOCAL_DEVICE_MAP` maps each ONECTA device ID to a Faikin host. It accepts a
@@ -109,12 +125,16 @@ side it triggers fan-out; on the discovery side
 and attached to the outdoor device, so all indoor units' copies deduplicate to a
 **single entity per outdoor unit** (`outdoor_silent`, `demand_control`).
 
-## Catalog additions (0.2.0)
+## Catalog additions
 
 Per-unit switches `econo_mode`, `streamer`; outdoor-shared `outdoor_silent`
-(switch) and `demand_control` (number). Faikin exposes all of them locally;
-`demand_control`'s cloud-side nested PATCH is best-effort and should be verified
-against a live `daikin2mqtt-util points <id>` dump.
+(switch) and `demand_control` (number). Faikin exposes all of them locally. On
+the FTXA range these characteristics are **absent from the ONECTA cloud JSON**
+(confirmed via the device browser — only as nested `schedule` action types), so
+in cloud mode they never resolve; in local mode they appear via
+`localOnlyPoints` (above). `demand_control`'s cloud-side nested PATCH is
+best-effort and should be verified against a live `daikin2mqtt-util points <id>`
+dump.
 
 ## Configuration reference
 
@@ -149,6 +169,11 @@ State topic `state/<host>` (relevant fields):
 Command topic `<prefix>/<host>/command/control` takes a partial of the same
 keys, e.g. `{"power":true,"mode":"cool","temp":22.5,"quiet":true}`.
 
+The firmware also publishes **OS/heartbeat** documents to the same `state/<host>`
+topic — e.g. `{"ts":…,"id":…,"uptime":…,"rssi":-54,"mem":…}` with no AC fields.
+These are frequent (the full AC document is published only on change/occasionally),
+so they must be filtered out (see OS/heartbeat filtering above).
+
 ## Testing
 
 Pure layers are table-tested against the real captured Faikin payload
@@ -159,8 +184,15 @@ the outdoor-scoped discovery dedup (`internal/hass`).
 
 ## Limitations / future work
 
-- `demand_control` cloud-side write needs verification against live device JSON.
-- Local mode bootstraps device structure + HA discovery from one cloud poll; a
-  fully cloud-free local mode (local-driven discovery) is out of scope here.
+- Local mode still needs the cloud to **bootstrap** device structure (the
+  `embeddedID` cache) and the device-registry metadata; it is not fully
+  cloud-free. Local-only *settings* do get synthesized discovery, but the base
+  device/entity scaffolding comes from one cloud poll.
+- `demand_control` cloud-side write needs verification against live device JSON
+  (the value is nested `value.modes.fixed.value`; local Faikin `{"demand":N}`
+  works).
 - Fan/swing writes still route to the cloud (not yet modelled in
   `faikinControlFor`).
+- Faikin publishes its own HA discovery for some settings; enabling both creates
+  duplicate entities. Set `{"ha":false}` in the Faikin firmware to let
+  go-daikin2mqtt own them.
