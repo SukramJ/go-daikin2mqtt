@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
+	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
 )
 
 const fanControlJSON = `{"operationModes":{"cooling":{` +
@@ -238,5 +239,80 @@ func TestHandleHVACModeWriteUnknown(t *testing.T) {
 	})
 	if cloud.patchCount() != 0 {
 		t.Errorf("patch count = %d, want 0 for unknown mode", cloud.patchCount())
+	}
+}
+
+func TestCloudFanFaikinMapping(t *testing.T) {
+	fwd := map[string]string{"auto": "A", "quiet": "Q", "1": "1", "3": "3", "5": "5"}
+	for cloud, want := range fwd {
+		if got, ok := cloudFanToFaikin(cloud); !ok || got != want {
+			t.Errorf("cloudFanToFaikin(%q) = %q,%v want %q", cloud, got, ok, want)
+		}
+	}
+	if _, ok := cloudFanToFaikin("windnice"); ok {
+		t.Error("unmappable fan value should return ok=false (cloud fallback)")
+	}
+	rev := map[string]string{"auto": "auto", "low": "1", "medium": "3", "high": "5", "night": "quiet"}
+	for fa, want := range rev {
+		if got := faikinFanToCloud[fa]; got != want {
+			t.Errorf("faikinFanToCloud[%q] = %q want %q", fa, got, want)
+		}
+	}
+}
+
+func TestFaikinSwingMapping(t *testing.T) {
+	axes := []struct{ s, v, h string }{
+		{"off", "stop", "stop"},
+		{"V", "swing", "stop"},
+		{"H", "stop", "swing"},
+		{"H+V", "swing", "swing"},
+		{"C", "windnice", "stop"},
+	}
+	for _, c := range axes {
+		if v, h := faikinSwingAxes(c.s); v != c.v || h != c.h {
+			t.Errorf("faikinSwingAxes(%q) = %q,%q want %q,%q", c.s, v, h, c.v, c.h)
+		}
+	}
+	comb := []struct{ v, h, want string }{
+		{"stop", "stop", "off"},
+		{"swing", "stop", "V"},
+		{"stop", "swing", "H"},
+		{"swing", "swing", "H+V"},
+		{"windnice", "stop", "C"},
+		{"windnice", "swing", "C"},
+	}
+	for _, c := range comb {
+		if got := faikinSwingCombine(c.v, c.h); got != c.want {
+			t.Errorf("faikinSwingCombine(%q,%q) = %q want %q", c.v, c.h, got, c.want)
+		}
+	}
+}
+
+func TestHandleFanModeWriteLocal(t *testing.T) {
+	cloud := &stubCloud{}
+	fk := newStubMQTT()
+	c := localCoordinator(cloud, newStubMQTT(), fk) // dev1 -> Klima SZ
+	c.handleFanModeWrite(context.Background(), writeReq{
+		deviceID: "dev1", embeddedID: "climateControl", topic: "fan_mode", payload: "3",
+	})
+	if msg, ok := fk.get("command/Klima SZ/fan"); !ok || msg.payload != "3" {
+		t.Errorf("expected command/Klima SZ/fan=3, got %v", fk.published)
+	}
+	if cloud.patchCount() != 0 {
+		t.Errorf("cloud should not be patched in local mode, got %d", cloud.patchCount())
+	}
+}
+
+func TestHandleSwingWriteLocalCombines(t *testing.T) {
+	cloud := &stubCloud{}
+	fk := newStubMQTT()
+	c := localCoordinator(cloud, newStubMQTT(), fk)
+	// Horizontal swing currently on; setting vertical swing must combine to H+V.
+	c.lastLocal = map[string]*faikin.State{"dev1": {HasAC: true, Swing: "H"}}
+	c.handleSwingWrite(context.Background(), writeReq{
+		deviceID: "dev1", embeddedID: "climateControl", topic: "swing_mode", payload: "swing",
+	}, "vertical")
+	if msg, ok := fk.get("command/Klima SZ/swing"); !ok || msg.payload != "H+V" {
+		t.Errorf("expected command/Klima SZ/swing=H+V, got %v", fk.published)
 	}
 }

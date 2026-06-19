@@ -325,6 +325,15 @@ func (c *Coordinator) localStateMessages(st *faikin.State) map[string]string {
 	if label, ok := c.localOperationModeLabel(st.Mode); ok {
 		out["operation_mode"] = label
 	}
+	// Synthetic climate fan/swing topics (localized labels, like publishClimateAux),
+	// translated from Faikin's vocabulary to the cloud values HA's lists use.
+	lang := c.deps.Cfg.Language
+	if cloud, ok := faikinFanToCloud[st.Fan]; ok {
+		out[hass.FanModeTopic] = localizeAux(cloud, lang, fanModeDE)
+	}
+	v, h := faikinSwingAxes(st.Swing)
+	out[hass.SwingModeTopic] = localizeAux(v, lang, swingModeDE)
+	out[hass.SwingHModeTopic] = localizeAux(h, lang, swingModeDE)
 	return out
 }
 

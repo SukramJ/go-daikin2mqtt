@@ -12,9 +12,83 @@ import (
 	"strings"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
+	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 	"github.com/SukramJ/go-daikin2mqtt/internal/mqtt"
 )
+
+// --- Local Faikin fan/swing translation -----------------------------------
+//
+// Faikin and the ONECTA cloud use different fan/swing vocabularies, so local
+// fan/swing control needs an explicit mapping (not a passthrough):
+//   - Fan: the cloud uses `auto`/`quiet`/`1`..`5`; Faikin's `command/<host>/fan`
+//     matches its own names but falls back to the first character, so the
+//     single-char codes `A`/`Q`/`1`..`5` work for any unit (3- or 5-speed).
+//   - Swing: the cloud has two axes (vertical `swing_mode`, horizontal
+//     `swing_h_mode`); Faikin has one combined `swing` (off/H/V/H+V/C). A
+//     per-axis write is combined with the other axis's current state.
+
+// cloudFanToFaikin maps a canonical cloud fan value to a `command/<host>/fan`
+// payload (a single Faikin fan character). ok is false for values Faikin cannot
+// express, so the caller falls back to the cloud.
+func cloudFanToFaikin(v string) (string, bool) {
+	switch v {
+	case "auto":
+		return "A", true
+	case "quiet":
+		return "Q", true
+	case "1", "2", "3", "4", "5":
+		return v, true
+	}
+	return "", false
+}
+
+// faikinFanToCloud maps the Faikin state `fan` name back to the canonical cloud
+// fan value the climate fan_mode entity expects.
+var faikinFanToCloud = map[string]string{
+	"auto": "auto", "low": "1", "lowMedium": "2", "medium": "3",
+	"mediumHigh": "4", "high": "5", "night": "quiet", "quiet": "quiet",
+}
+
+// faikinSwingAxes derives the (vertical, horizontal) cloud swing states from
+// Faikin's combined `swing` value.
+func faikinSwingAxes(s string) (vertical, horizontal string) {
+	switch s {
+	case "V":
+		return "swing", "stop"
+	case "H":
+		return "stop", "swing"
+	case "H+V", "on":
+		return "swing", "swing"
+	case "C":
+		return "windnice", "stop" // comfort airflow is vertical
+	default: // "off"
+		return "stop", "stop"
+	}
+}
+
+// faikinSwingCombine builds Faikin's combined `swing` command from the desired
+// vertical+horizontal cloud states.
+func faikinSwingCombine(vertical, horizontal string) string {
+	if vertical == "windnice" {
+		return "C" // comfort airflow
+	}
+	switch v, h := vertical == "swing", horizontal == "swing"; {
+	case v && h:
+		return "H+V"
+	case v:
+		return "V"
+	case h:
+		return "H"
+	default:
+		return "off"
+	}
+}
+
+// faikinAux publishes a per-setting Faikin command (`command/<host>/<suffix>`).
+func (c *Coordinator) faikinAux(ctx context.Context, host, suffix, value string) error {
+	return c.deps.FaikinMQTT.Publish(ctx, faikin.CommandTopic(host, suffix), []byte(value), mqtt.QoS0, false)
+}
 
 // climateAux holds the fan / swing / preset option lists and current values
 // extracted from a climateControl management point's fanControl (and
@@ -231,16 +305,19 @@ func (c *Coordinator) publishClimateAux(ctx context.Context, devices []model.Dev
 			pub := func(suffix, val string) {
 				_ = c.deps.MQTT.Publish(ctx, base+"/"+suffix+"/state", []byte(val), mqtt.QoS0, true)
 			}
+			// In local mode the Faikin read path owns fan/swing (the cloud poll's
+			// values are stale for a locally-controlled unit), so skip them here.
+			localFanSwing := c.localActiveFor(d.ID)
 			// State payloads carry the localized label so the HA dropdown (whose
 			// options are localized) highlights the current selection; the write
 			// path reverses the label back to the raw value.
-			if len(a.fanModes) > 0 {
+			if len(a.fanModes) > 0 && !localFanSwing {
 				pub(hass.FanModeTopic, localizeAux(a.fanMode, lang, fanModeDE))
 			}
-			if len(a.swingModes) > 0 {
+			if len(a.swingModes) > 0 && !localFanSwing {
 				pub(hass.SwingModeTopic, localizeAux(a.swing, lang, swingModeDE))
 			}
-			if len(a.swingHModes) > 0 {
+			if len(a.swingHModes) > 0 && !localFanSwing {
 				pub(hass.SwingHModeTopic, localizeAux(a.swingH, lang, swingModeDE))
 			}
 			if len(a.presetModes) > 0 {
@@ -265,14 +342,25 @@ func currentMode(mp model.ManagementPoint) string {
 // handleFanModeWrite sets the fan speed. A numeric mode switches fanSpeed to
 // "fixed" and sets the fixed value; named modes (auto/quiet) set currentMode.
 func (c *Coordinator) handleFanModeWrite(ctx context.Context, req writeReq) {
+	// Reverse a localized label back to the raw value; numeric speeds and
+	// English values pass through unchanged.
+	payload := canonicalAux(strings.TrimSpace(req.payload), c.deps.Cfg.Language, fanModeDE)
+	// Local-first: route to Faikin's command/<host>/fan when mapped.
+	if host, ok := c.localHost(req.deviceID); ok {
+		if fv, ok := cloudFanToFaikin(payload); ok {
+			if err := c.faikinAux(ctx, host, "fan", fv); err != nil {
+				c.deps.Logger.Warn("coordinator.local_fan_failed",
+					slog.String("topic", req.topic), slog.String("err", err.Error()))
+			}
+			return
+		}
+		// Unmappable fan value → fall through to the cloud.
+	}
 	mode := c.mode(req)
 	if mode == "" {
 		return
 	}
 	base := "/operationModes/" + mode + "/fanSpeed"
-	// Reverse a localized label back to the raw value; numeric speeds and
-	// English values pass through unchanged.
-	payload := canonicalAux(strings.TrimSpace(req.payload), c.deps.Cfg.Language, fanModeDE)
 	if n, err := strconv.Atoi(payload); err == nil {
 		c.patchClimate(ctx, req, "fanControl", base+"/currentMode", "fixed")
 		c.patchClimate(ctx, req, "fanControl", base+"/modes/fixed", n)
@@ -283,13 +371,29 @@ func (c *Coordinator) handleFanModeWrite(ctx context.Context, req writeReq) {
 
 // handleSwingWrite sets a swing direction (vertical / horizontal).
 func (c *Coordinator) handleSwingWrite(ctx context.Context, req writeReq, direction string) {
+	// Reverse a localized label to the canonical lower-cased value.
+	daikinVal := canonicalAux(req.payload, c.deps.Cfg.Language, swingModeDE)
+	// Local-first: combine this axis with the other axis's current state into
+	// Faikin's single `swing` command. floorheatingairflow has no Faikin
+	// equivalent, so it still goes to the cloud.
+	if host, ok := c.localHost(req.deviceID); ok && daikinVal != "floorheatingairflow" {
+		v, h := faikinSwingAxes(c.currentFaikinSwing(req.deviceID))
+		if direction == "vertical" {
+			v = daikinVal
+		} else {
+			h = daikinVal
+		}
+		if err := c.faikinAux(ctx, host, "swing", faikinSwingCombine(v, h)); err != nil {
+			c.deps.Logger.Warn("coordinator.local_swing_failed",
+				slog.String("topic", req.topic), slog.String("err", err.Error()))
+		}
+		return
+	}
 	mode := c.mode(req)
 	if mode == "" {
 		return
 	}
-	// Reverse a localized label to the canonical lower-cased value, then
-	// restore the known mixed-case Daikin spellings (the API is case-sensitive).
-	daikinVal := canonicalAux(req.payload, c.deps.Cfg.Language, swingModeDE)
+	// Restore the known mixed-case Daikin spellings (the cloud API is case-sensitive).
 	switch daikinVal {
 	case "windnice":
 		daikinVal = "windNice"
@@ -298,6 +402,17 @@ func (c *Coordinator) handleSwingWrite(ctx context.Context, req writeReq, direct
 	}
 	path := "/operationModes/" + mode + "/fanDirection/" + direction + "/currentMode"
 	c.patchClimate(ctx, req, "fanControl", path, daikinVal)
+}
+
+// currentFaikinSwing returns the device's last-seen combined Faikin swing value
+// (default "off"), used to combine a per-axis write with the other axis.
+func (c *Coordinator) currentFaikinSwing(deviceID string) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if st, ok := c.lastLocal[deviceID]; ok && st != nil {
+		return st.Swing
+	}
+	return "off"
 }
 
 // handlePresetWrite maps the HA preset to powerfulMode (boost/none).

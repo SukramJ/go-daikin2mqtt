@@ -196,8 +196,10 @@ the outdoor-scoped discovery dedup (`internal/hass`).
 - `demand_control` cloud-side write needs verification against live device JSON
   (the value is nested `value.modes.fixed.value`; local Faikin `{"demand":N}`
   works).
-- Fan/swing writes still route to the cloud (not yet modelled in
-  `faikinControlFor`).
+- Fan and swing now route locally too (`handleFanModeWrite` /
+  `handleSwingWrite`): fan via single-char codes on `command/<host>/fan`, swing
+  by combining the cloud's two axes into Faikin's single `command/<host>/swing`.
+  `floorheatingairflow` has no Faikin equivalent and still uses the cloud.
 - Faikin publishes its own HA discovery for some settings; enabling both creates
   duplicate entities. Set `{"ha":false}` in the Faikin firmware to let
   go-daikin2mqtt own them.
