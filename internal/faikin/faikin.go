@@ -87,8 +87,80 @@ type Control struct {
 // JSON renders the command payload.
 func (c Control) JSON() ([]byte, error) { return json.Marshal(c) }
 
-// StateTopic returns the retained state topic for a host (`state/<host>`).
+// StateTopic returns the app-level state topic for a host (`state/<host>`).
+// Faikin floods this topic with OS/heartbeat documents and publishes the full
+// AC document only occasionally — prefer [StatusTopic] as the AC source.
 func StateTopic(host string) string { return "state/" + host }
+
+// StatusTopic returns the S21 status topic (`state/<host>/status`), which
+// carries the AC state (including quiet/econo/…) reliably on every poll. Its
+// field names differ from the app-level document (see [ParseStatus]).
+func StatusTopic(host string) string { return "state/" + host + "/status" }
+
+// s21ToAppMode maps the single-letter S21 mode used on the /status topic to the
+// app-level mode the rest of the daemon expects.
+var s21ToAppMode = map[string]string{
+	"C": "cool",
+	"H": "heat",
+	"A": "auto",
+	"D": "dry",
+	"F": "fan",
+}
+
+// statusDoc is the subset of the `state/<host>/status` (S21) document we map.
+// Note the field-name differences vs the app document: `home` is the room
+// temperature, `temp` is the setpoint, `mode` is a single letter, and energy is
+// `Whheating`/`Whcooling`.
+type statusDoc struct {
+	Power     bool    `json:"power"`
+	Mode      string  `json:"mode"` // S21 letter: C/H/A/D/F
+	Temp      float64 `json:"temp"` // setpoint
+	Home      float64 `json:"home"` // room temperature
+	Outside   float64 `json:"outside"`
+	Hum       float64 `json:"hum"`
+	Fan       string  `json:"fan"`
+	Quiet     bool    `json:"quiet"`
+	Econo     bool    `json:"econo"`
+	Powerful  bool    `json:"powerful"`
+	Streamer  bool    `json:"streamer"`
+	Comfort   bool    `json:"comfort"`
+	Demand    int     `json:"demand"`
+	Whheating int64   `json:"Whheating"`
+	Whcooling int64   `json:"Whcooling"`
+}
+
+// ParseStatus decodes a `state/<host>/status` (S21) payload into a [State],
+// remapping the differing field names/forms. Like [ParseState] it sets HasAC
+// from the presence of "power" so callers skip non-AC messages.
+func ParseStatus(host string, payload []byte) (*State, error) {
+	var d statusDoc
+	if err := json.Unmarshal(payload, &d); err != nil {
+		return nil, fmt.Errorf("faikin: parse status %q: %w", host, err)
+	}
+	s := &State{
+		Host:       host,
+		Power:      d.Power,
+		Mode:       s21ToAppMode[d.Mode], // "" for an unknown letter → HAMode "off"
+		Fan:        d.Fan,
+		Quiet:      d.Quiet,
+		Econo:      d.Econo,
+		Powerful:   d.Powerful,
+		Streamer:   d.Streamer,
+		Comfort:    d.Comfort,
+		Target:     d.Temp, // /status `temp` is the setpoint
+		Temp:       d.Home, // /status `home` is the room temperature
+		Outside:    d.Outside,
+		Hum:        d.Hum,
+		Demand:     d.Demand,
+		EnergyHeat: d.Whheating,
+		EnergyCool: d.Whcooling,
+	}
+	var probe map[string]json.RawMessage
+	if json.Unmarshal(payload, &probe) == nil {
+		_, s.HasAC = probe["power"]
+	}
+	return s, nil
+}
 
 // CommandTopic returns the control command topic for a host
 // (`<prefix>/<host>/command/control`, e.g. "Faikout/Klima SZ/command/control").

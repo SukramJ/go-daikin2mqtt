@@ -1,3 +1,19 @@
+# Version 0.2.3 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Local mode now reads the AC state from the Faikin S21 status topic
+  (`state/<host>/status`), which reliably carries every field (power, mode,
+  setpoint, quiet, econo, streamer, demand, …) on each poll. The app-level
+  `state/<host>` topic publishes the full document only occasionally and is
+  otherwise flooded with OS heartbeats, so entities (e.g. outdoor silent)
+  showed stale values and toggles snapped back. The status document uses S21
+  field forms — `home` = room temperature, `temp` = setpoint, single-letter
+  `mode` (C/H/A/D/F) — mapped by the new `ParseStatus`. Both topics are still
+  subscribed for robustness across firmware variants.
+
 # Version 0.2.2 (2026-06-19)
 
 ## What's Changed

@@ -114,23 +114,34 @@ func (c *Coordinator) subscribeLocal(ctx context.Context) {
 		return
 	}
 	for deviceID, host := range c.deps.Cfg.LocalDeviceMap {
-		topic := faikin.StateTopic(host)
-		err := c.deps.FaikinMQTT.Subscribe(ctx, topic, mqtt.QoS0, func(_ string, payload []byte) {
-			st, err := faikin.ParseState(host, payload)
-			if err != nil {
-				c.deps.Logger.Warn("coordinator.local_parse_failed",
-					slog.String("host", host), slog.String("err", err.Error()))
-				return
-			}
-			c.publishLocalState(ctx, deviceID, st)
-		})
-		if err != nil {
-			c.deps.Logger.Warn("coordinator.local_subscribe_failed",
-				slog.String("host", host), slog.String("err", err.Error()))
-			continue
-		}
+		// The S21 /status topic carries the AC state reliably on every poll; the
+		// app-level state topic is sparse and heartbeat-heavy but parsed too for
+		// robustness across firmware variants. Both feed publishLocalState,
+		// which ignores non-AC (OS heartbeat) messages.
+		c.subscribeFaikin(ctx, deviceID, host, faikin.StatusTopic(host), faikin.ParseStatus)
+		c.subscribeFaikin(ctx, deviceID, host, faikin.StateTopic(host), faikin.ParseState)
 		c.deps.Logger.Info("coordinator.local_subscribed",
 			slog.String("device", deviceID), slog.String("host", host))
+	}
+}
+
+// subscribeFaikin subscribes to one Faikin topic, parsing each message with the
+// given parser and republishing the AC state.
+func (c *Coordinator) subscribeFaikin(ctx context.Context, deviceID, host, topic string,
+	parse func(host string, payload []byte) (*faikin.State, error),
+) {
+	err := c.deps.FaikinMQTT.Subscribe(ctx, topic, mqtt.QoS0, func(_ string, payload []byte) {
+		st, err := parse(host, payload)
+		if err != nil {
+			c.deps.Logger.Warn("coordinator.local_parse_failed",
+				slog.String("topic", topic), slog.String("err", err.Error()))
+			return
+		}
+		c.publishLocalState(ctx, deviceID, st)
+	})
+	if err != nil {
+		c.deps.Logger.Warn("coordinator.local_subscribe_failed",
+			slog.String("topic", topic), slog.String("err", err.Error()))
 	}
 }
 
