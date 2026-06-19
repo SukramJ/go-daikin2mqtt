@@ -172,8 +172,9 @@ type Config struct {
 	// Faikin modules share the daemon's broker credentials.
 	LocalFaikinLogin    string `yaml:"LOCAL_FAIKIN_LOGIN"`
 	LocalFaikinPassword string `yaml:"LOCAL_FAIKIN_PASSWORD"`
-	// LocalFaikinPrefix is the Faikin firmware "app" name that prefixes the
-	// command topics (`<prefix>/<host>/command/control`), e.g. "Faikout".
+	// LocalFaikinPrefix is deprecated and ignored: the Faikin command topic is
+	// always `command/<host>/<suffix>` (the firmware convention), with no app
+	// name in the path. Retained only so existing configs don't fail to load.
 	LocalFaikinPrefix string `yaml:"LOCAL_FAIKIN_PREFIX"`
 	// LocalDeviceMap maps an ONECTA device ID to the Faikin host name that
 	// controls it (e.g. "cfcbab3e-…": "Klima GA"). Only mapped devices can be

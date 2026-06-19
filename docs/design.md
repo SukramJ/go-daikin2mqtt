@@ -42,15 +42,16 @@ powerful, econo, streamer, on/off.
 ```
 setCharacteristic(deviceID, embeddedID, characteristic, value, path)
   ├─ device mapped to a Faikin host AND characteristic locally controllable?
-  │     → publish Faikout/<host>/command/control  {translated JSON}   (local)
+  │     → publish command/<host>/<suffix>  (e.g. command/<host>/quiet "true")  (local)
   └─ otherwise                                     → client.Patch(...)  (cloud)
 ```
 
-`faikinControlFor` translates an ONECTA characteristic write into a partial
-Faikin `Control` (e.g. `operationMode "cooling"` → `{"mode":"cool"}`). Anything
-Faikin does not model returns `ok=false` and **falls back to the cloud**, so
-local mode degrades gracefully rather than dropping a command. Unmapped devices
-always use the cloud, even in local mode.
+`faikinCommand` translates an ONECTA characteristic write into a dedicated
+per-setting command — topic suffix + payload (e.g. `operationMode "cooling"` →
+`command/<host>/mode "C"`; `outdoorSilentMode "on"` → `command/<host>/quiet
+"1"`). Anything Faikin does not model returns `ok=false` and **falls back to the
+cloud**, so local mode degrades gracefully rather than dropping a command.
+Unmapped devices always use the cloud, even in local mode.
 
 ## Local-first path
 
@@ -60,10 +61,11 @@ Faikin/Faikout firmware:
 - **State** — a retained JSON document on `state/<host>` (see the reference
   below). `ParseState` decodes it; `State.HAMode()` maps `power`+`mode` to an HA
   `hvac_mode`.
-- **Command** — a partial JSON `Control` published to
-  `<prefix>/<host>/command/control` (`prefix` = the firmware "app" name, e.g.
-  `Faikout`). Only the set fields are emitted, so a command never disturbs other
-  settings.
+- **Command** — a dedicated per-setting topic `command/<host>/<suffix>` (e.g.
+  `command/<host>/quiet`, `/power`, `/mode`, `/temp`, `/demand`), with a
+  `true`/`false` payload for switches. This mirrors the firmware's own HA
+  discovery; the combined `command/control` JSON does not take effect for outdoor
+  silent on multi-split units.
 
 ### Reads (`internal/coordinator/local.go`)
 
@@ -144,7 +146,7 @@ LOCAL_FAIKIN_SERVER: ""            # empty -> same broker as MQTT_SERVER
 LOCAL_FAIKIN_PORT: 1883
 LOCAL_FAIKIN_LOGIN: ""             # empty -> MQTT_LOGIN
 LOCAL_FAIKIN_PASSWORD: ""          # empty -> MQTT_PASSWORD
-LOCAL_FAIKIN_PREFIX: Faikout       # firmware app name (command-topic prefix)
+LOCAL_FAIKIN_PREFIX: Faikout       # deprecated/ignored (command topic is command/<host>/<suffix>)
 LOCAL_DEVICE_MAP: {}               # {deviceID: host} or "id=host,id=host"
 MULTISPLIT_MODE_SYNC: true
 MULTISPLIT_OUTDOOR_AGGREGATE: true
@@ -166,8 +168,11 @@ State topic `state/<host>` (relevant fields):
  "energy":772600,"energyheat":71000,"energycool":117300}
 ```
 
-Command topic `<prefix>/<host>/command/control` takes a partial of the same
-keys, e.g. `{"power":true,"mode":"cool","temp":22.5,"quiet":true}`.
+Commands use dedicated per-setting topics `command/<host>/<suffix>` (the app
+name is **not** in the path), e.g. `command/<host>/quiet` `true`,
+`command/<host>/mode` `C`, `command/<host>/temp` `22.5`,
+`command/<host>/demand` `80`. (The combined `command/control` JSON exists but
+does not apply outdoor silent on multi-split units.)
 
 The firmware also publishes **OS/heartbeat** documents to the same `state/<host>`
 topic — e.g. `{"ts":…,"id":…,"uptime":…,"rssi":-54,"mem":…}` with no AC fields.

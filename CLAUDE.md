@@ -121,12 +121,15 @@ Opt-in via `LOCAL_MODE` + `LOCAL_DEVICE_MAP` (ONECTA device ID → Faikin host; 
 or an `id=host,…` string). Three concerns, all sitting on top of the existing cloud path:
 
 - **Control backend seam** (`backend.go`, `setCharacteristic`): every write routes to the local
-  Faikin command (`<prefix>/<host>/command/control` JSON, built by `faikinControlFor`) when the
-  device is mapped AND the characteristic is locally controllable; otherwise the cloud PATCH.
-  Anything Faikin does not model falls back to the cloud.
-- **Local reads** (`local.go`): subscribe `state/<host>` per mapped device, translate and
+  Faikin per-setting command topic (`command/<host>/<suffix>`, payload `true`/`false` for switches,
+  built by `faikinCommand`) when the device is mapped AND the characteristic is locally
+  controllable; otherwise the cloud PATCH. Anything Faikin does not model falls back to the cloud.
+  (The combined `command/control` JSON does not take effect for outdoor silent on multi-split units.)
+- **Local reads** (`local.go`): subscribe `state/<host>` per mapped device (the firmware's
+  canonical state topic — the one its own HA discovery reads from; app form: `mode` word,
+  `temp`=room, `target`=setpoint), translate and
   republish onto the **same** per-unit state topics (so HA sees identical entities); the cloud
-  poll skips those topics (`localTopics`). Faikin interleaves **OS/heartbeat docs** (no AC fields)
+  poll skips those topics (`localTopics`). Faikin may interleave **OS/heartbeat docs** (no AC fields)
   on `state/<host>` — `faikin.ParseState` sets `HasAC` (presence of `power`) and the read path
   **skips** them, else every entity would reset to its zero value. For settings the cloud does not
   expose for a unit (econo/streamer/outdoor silent/demand on the FTXA range), `localOnlyPoints`

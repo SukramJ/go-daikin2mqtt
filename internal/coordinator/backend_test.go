@@ -17,16 +17,16 @@ func TestFaikinCommand(t *testing.T) {
 		value           any
 		suffix, payload string // "" suffix means not controllable
 	}{
-		{"onOffMode", "on", "power", "1"},
-		{"onOffMode", "off", "power", "0"},
+		{"onOffMode", "on", "power", "true"},
+		{"onOffMode", "off", "power", "false"},
 		{"operationMode", "cooling", "mode", "C"},
 		{"operationMode", "heating", "mode", "H"},
 		{"operationMode", "fanOnly", "mode", "F"},
 		{"temperatureControl", 22.5, "temp", "22.5"},
-		{"powerfulMode", "on", "powerful", "1"},
-		{"econoMode", "off", "econo", "0"},
-		{"streamerMode", "on", "streamer", "1"},
-		{"outdoorSilentMode", "on", "quiet", "1"},
+		{"powerfulMode", "on", "powerful", "true"},
+		{"econoMode", "off", "econo", "false"},
+		{"streamerMode", "on", "streamer", "true"},
+		{"outdoorSilentMode", "on", "quiet", "true"},
 		{"demandControl", 80.0, "demand", "80"},
 		{"operationMode", "bogus", "", ""}, // unknown mode → not controllable
 		{"fanControl", "auto", "", ""},     // not modelled → cloud fallback
@@ -70,12 +70,12 @@ func TestSetCharacteristicRoutesLocal(t *testing.T) {
 	if err := c.setCharacteristic(context.Background(), "dev1", "climateControl", "outdoorSilentMode", "on", ""); err != nil {
 		t.Fatal(err)
 	}
-	msg, ok := faikin.get("Faikout/Klima SZ/command/quiet")
+	msg, ok := faikin.get("command/Klima SZ/quiet")
 	if !ok {
-		t.Fatalf("expected publish to command/quiet; got %v", faikin.published)
+		t.Fatalf("expected publish to command/<host>/quiet; got %v", faikin.published)
 	}
-	if msg.payload != "1" {
-		t.Errorf("quiet payload = %q, want \"1\"", msg.payload)
+	if msg.payload != "true" {
+		t.Errorf("quiet payload = %q, want \"true\"", msg.payload)
 	}
 	if cloud.patchCount() != 0 {
 		t.Errorf("cloud should not be patched in local mode, got %d", cloud.patchCount())

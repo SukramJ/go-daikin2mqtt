@@ -43,7 +43,7 @@ Everything else has sensible defaults; use the reference below to fine-tune.
 | `local_faikin_port` | int | `1883` | Faikin broker port. Only used when `local_faikin_server` is set. |
 | `local_faikin_login` | str | `""` | Faikin broker username. Empty → falls back to the main MQTT username. |
 | `local_faikin_password` | password | `""` | Faikin broker password. Empty → falls back to the main MQTT password. |
-| `local_faikin_prefix` | str | `Faikout` | Faikin firmware "app" name that prefixes the command topics (`<prefix>/<host>/command/<setting>`). |
+| `local_faikin_prefix` | str | `Faikout` | **Deprecated and ignored.** The Faikin command topic is always `command/<host>/<setting>` (the firmware convention). |
 | `local_device_map` | list(str) | `[]` | Maps each ONECTA device to its Faikin host as `deviceID=Faikin host` entries (e.g. `cfcbab3e-…=Klima GA`). Only mapped devices are driven locally. See below. |
 | `multisplit_mode_sync` | bool | `true` | Propagate a heat/cool change to the other indoor units of the same outdoor unit (a standard multi-split cannot cool and heat at once). |
 | `multisplit_outdoor_aggregate` | bool | `true` | Surface outdoor-shared settings (outdoor silent, demand) as one entity per outdoor unit, fanning writes out to every member unit. |

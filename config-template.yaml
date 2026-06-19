@@ -53,8 +53,8 @@ LOCAL_FAIKIN_PORT: 1883
 # Credentials for that broker. Empty -> fall back to MQTT_LOGIN / MQTT_PASSWORD.
 LOCAL_FAIKIN_LOGIN: ""
 LOCAL_FAIKIN_PASSWORD: ""
-# Firmware "app" name that prefixes the command topics
-# (<prefix>/<host>/command/control), e.g. "Faikout".
+# Deprecated and ignored: the Faikin command topic is always
+# command/<host>/<suffix> (the firmware convention).
 LOCAL_FAIKIN_PREFIX: Faikout
 # Map each ONECTA device ID to its Faikin host name. Only mapped devices are
 # driven locally; unmapped devices stay cloud-only even in local mode.

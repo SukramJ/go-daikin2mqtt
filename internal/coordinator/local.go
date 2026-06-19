@@ -115,11 +115,10 @@ func (c *Coordinator) subscribeLocal(ctx context.Context) {
 		return
 	}
 	for deviceID, host := range c.deps.Cfg.LocalDeviceMap {
-		// The S21 /status topic carries the AC state reliably on every poll; the
-		// app-level state topic is sparse and heartbeat-heavy but parsed too for
-		// robustness across firmware variants. Both feed publishLocalState,
-		// which ignores non-AC (OS heartbeat) messages.
-		c.subscribeFaikin(ctx, deviceID, host, faikin.StatusTopic(host), faikin.ParseStatus)
+		// `state/<host>` is the firmware's canonical state topic — the one its own
+		// HA discovery points every entity at (app form: mode "cool", temp = room
+		// temperature, target = setpoint). It is retained and published on change.
+		// Non-AC (OS heartbeat) messages lacking `power` are ignored downstream.
 		c.subscribeFaikin(ctx, deviceID, host, faikin.StateTopic(host), faikin.ParseState)
 		c.deps.Logger.Info("coordinator.local_subscribed",
 			slog.String("device", deviceID), slog.String("host", host))
