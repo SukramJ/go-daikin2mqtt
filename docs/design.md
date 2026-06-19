@@ -1,9 +1,9 @@
 # Design: local-first control & multi-split outdoor-unit handling
 
-This document describes the architecture added in 0.2.0: a second control
-backend that drives the indoor units through their **local Faikin interface**,
-and the handling of settings that ONECTA exposes per indoor unit but that are
-physically shared across one **multi-split outdoor unit**.
+This document describes the architecture added in the 0.2.x series: a second
+control backend that drives the indoor units through their **local Faikin
+interface**, and the handling of settings that ONECTA exposes per indoor unit
+but that are physically shared across one **multi-split outdoor unit**.
 
 It complements the package-level doc comments; read those for exact signatures.
 
@@ -184,8 +184,15 @@ the outdoor-scoped discovery dedup (`internal/hass`).
 
 ## Limitations / future work
 
-- `demand_control` cloud-side write needs verification against live device JSON.
-- Local mode bootstraps device structure + HA discovery from one cloud poll; a
-  fully cloud-free local mode (local-driven discovery) is out of scope here.
+- Local mode still needs the cloud to **bootstrap** device structure (the
+  `embeddedID` cache) and the device-registry metadata; it is not fully
+  cloud-free. Local-only *settings* do get synthesized discovery, but the base
+  device/entity scaffolding comes from one cloud poll.
+- `demand_control` cloud-side write needs verification against live device JSON
+  (the value is nested `value.modes.fixed.value`; local Faikin `{"demand":N}`
+  works).
 - Fan/swing writes still route to the cloud (not yet modelled in
   `faikinControlFor`).
+- Faikin publishes its own HA discovery for some settings; enabling both creates
+  duplicate entities. Set `{"ha":false}` in the Faikin firmware to let
+  go-daikin2mqtt own them.
