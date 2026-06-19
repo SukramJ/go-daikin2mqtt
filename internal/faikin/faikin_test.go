@@ -20,6 +20,9 @@ func TestParseState(t *testing.T) {
 	if s.Host != "Klima SZ" {
 		t.Errorf("Host = %q", s.Host)
 	}
+	if !s.HasAC {
+		t.Error("full document should set HasAC=true")
+	}
 	cases := map[string]struct{ got, want any }{
 		"power":      {s.Power, true},
 		"mode":       {s.Mode, "cool"},
@@ -99,5 +102,19 @@ func TestTopics(t *testing.T) {
 	}
 	if got := CommandTopic("Faikout", "Klima SZ"); got != "Faikout/Klima SZ/command/control" {
 		t.Errorf("CommandTopic = %q", got)
+	}
+}
+
+// osHeartbeat is a verbatim OS/heartbeat document Faikin interleaves on
+// state/<host> — it carries no AC fields and must not be treated as state.
+const osHeartbeat = `{"ts":"2026-06-19T15:00:00Z","id":"1020BA304320","up":true,"uptime":332961,"mqtt-up":16744,"mem":87788,"spi":2086892,"rssi":-54}`
+
+func TestParseStateSkipsOSHeartbeat(t *testing.T) {
+	s, err := ParseState("Klima GA", []byte(osHeartbeat))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.HasAC {
+		t.Error("OS heartbeat must set HasAC=false (no AC fields)")
 	}
 }

@@ -139,6 +139,11 @@ func (c *Coordinator) subscribeLocal(ctx context.Context) {
 // device must have been seen by at least one cloud poll (which also publishes
 // HA discovery) before its local state can be routed.
 func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st *faikin.State) {
+	// Faikin interleaves OS/heartbeat documents (no AC fields) on state/<host>;
+	// processing them would reset every entity to its zero value, so skip them.
+	if !st.HasAC {
+		return
+	}
 	emb, ok := c.climateEmbeddedID(deviceID)
 	if !ok {
 		c.deps.Logger.Debug("coordinator.local_no_embedded_id",
