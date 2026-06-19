@@ -1,3 +1,19 @@
+# Version 0.2.9 (2026-06-19)
+
+## What's Changed
+
+### Added
+
+- Local-first now also covers the climate **fan speed** and **swing** controls.
+  Previously `fan_mode` and `swing_mode`/`swing_h_mode` always fell back to the
+  cloud (rate-limited, slower); they now read from and write to the local Faikin
+  interface for mapped devices, like the rest of the climate entity. The cloud
+  and Faikin vocabularies are mapped explicitly: fan via single-character codes
+  (`A`/`Q`/`1`..`5`, robust to 3- vs 5-speed units); swing combines the cloud's
+  two axes (vertical/horizontal) into Faikin's single `command/<host>/swing`,
+  including comfort airflow (`C`). `floorheatingairflow` has no Faikin equivalent
+  and still uses the cloud.
+
 # Version 0.2.8 (2026-06-19)
 
 ## What's Changed
