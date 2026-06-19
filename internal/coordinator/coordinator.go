@@ -64,7 +64,16 @@ type Coordinator struct {
 	climateEmbedded map[string]string        // deviceID -> climateControl embeddedID (for local routing)
 	outdoorSerial   map[string]string        // deviceID -> outdoor-unit serial (for multi-split grouping)
 	lastLocal       map[string]*faikin.State // deviceID -> last AC state received from Faikin
+	pendingOutdoor  map[string]outdoorHold   // "<group>|<topic>" -> just-written value, held until confirmed
 	lastDiscSig     string                   // signature of the last published discovery set
+}
+
+// outdoorHold remembers a just-written outdoor-shared value so a stale Faikin
+// status (the active indoor unit has not reported the change yet) cannot revert
+// it before it is confirmed.
+type outdoorHold struct {
+	value string
+	until time.Time
 }
 
 type writeReq struct {
@@ -88,6 +97,7 @@ func New(d Deps) *Coordinator {
 		climateEmbedded: map[string]string{},
 		outdoorSerial:   map[string]string{},
 		lastLocal:       map[string]*faikin.State{},
+		pendingOutdoor:  map[string]outdoorHold{},
 	}
 }
 
@@ -393,10 +403,12 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 	// Outdoor-shared settings apply to every indoor unit of the outdoor unit.
 	if entry.Scope == "outdoor" && c.deps.Cfg.OutdoorAggregateEnabled() {
 		c.fanOutToGroup(ctx, req.deviceID, entry.Match.Characteristic, value, path)
-		// Reflect the change on every member immediately (optimistic), so HA
-		// shows it without waiting for the sparse Faikin status — otherwise the
-		// toggle snaps back. The next status update confirms the real value.
+		// Reflect the change on every member immediately (optimistic) and hold it
+		// until a Faikin status confirms it, so the sparse/lagging status from the
+		// idle indoor units cannot snap the toggle back before the active unit
+		// reports the new value.
 		if c.localActiveFor(req.deviceID) {
+			c.holdOutdoor(req.deviceID, req.topic, req.payload)
 			c.publishOptimistic(ctx, req.deviceID, req.topic, req.payload)
 		}
 	}

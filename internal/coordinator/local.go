@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
@@ -186,9 +187,10 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 // members means the single HA entity (which reads one fixed member) reflects it.
 func (c *Coordinator) publishOutdoorShared(ctx context.Context, deviceID string) {
 	quiet, demand := c.localOutdoorAgg(deviceID)
+	group := c.groupKey(deviceID)
 	vals := map[string]string{
-		"outdoor_silent": onOff(quiet),
-		"demand_control": strconv.Itoa(demand),
+		"outdoor_silent": c.heldOutdoorValue(group, "outdoor_silent", onOff(quiet)),
+		"demand_control": c.heldOutdoorValue(group, "demand_control", strconv.Itoa(demand)),
 	}
 	for _, member := range c.groupMembers(deviceID) {
 		emb, ok := c.climateEmbeddedID(member)
@@ -220,6 +222,49 @@ func (c *Coordinator) publishOptimistic(ctx context.Context, deviceID, topic, va
 				slog.String("topic", t), slog.String("err", err.Error()))
 		}
 	}
+}
+
+// outdoorHoldDuration is how long a just-written outdoor-shared value is held
+// before a status report may revert it (the active indoor unit reports the
+// change only on its next, sparse status publish).
+const outdoorHoldDuration = 2 * time.Minute
+
+// groupKey returns the cache key for a device's outdoor group: its outdoor
+// serial, or the device id when it has none.
+func (c *Coordinator) groupKey(deviceID string) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if s := c.outdoorSerial[deviceID]; s != "" {
+		return s
+	}
+	return deviceID
+}
+
+// holdOutdoor records a just-written outdoor-shared value so heldOutdoorValue
+// keeps returning it until a status confirms it (or the hold expires).
+func (c *Coordinator) holdOutdoor(deviceID, suffix, value string) {
+	group := c.groupKey(deviceID)
+	c.mu.Lock()
+	c.pendingOutdoor[group+"|"+suffix] = outdoorHold{value: value, until: c.deps.Clock().Add(outdoorHoldDuration)}
+	c.mu.Unlock()
+}
+
+// heldOutdoorValue returns the value to publish for an outdoor-shared topic: the
+// held (just-written) value while a write is pending and unconfirmed, otherwise
+// the raw aggregate. The hold clears once the aggregate matches it or it expires.
+func (c *Coordinator) heldOutdoorValue(group, suffix, raw string) string {
+	key := group + "|" + suffix
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	h, ok := c.pendingOutdoor[key]
+	if !ok {
+		return raw
+	}
+	if raw == h.value || c.deps.Clock().After(h.until) {
+		delete(c.pendingOutdoor, key) // confirmed or expired
+		return raw
+	}
+	return h.value
 }
 
 // localOutdoorAgg aggregates the outdoor-shared values across a device's outdoor
