@@ -155,6 +155,13 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 	if !st.HasAC {
 		return
 	}
+	// Remember the latest AC state so it can be (re)published once the embeddedID
+	// is known — the retained Faikin state often arrives at subscribe time,
+	// before the first cloud poll has populated the embeddedID cache.
+	c.mu.Lock()
+	c.lastLocal[deviceID] = st
+	c.mu.Unlock()
+
 	emb, ok := c.climateEmbeddedID(deviceID)
 	if !ok {
 		c.deps.Logger.Debug("coordinator.local_no_embedded_id",
@@ -167,6 +174,22 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 			c.deps.Logger.Warn("coordinator.local_publish_failed",
 				slog.String("topic", topic), slog.String("err", err.Error()))
 		}
+	}
+}
+
+// flushLocalStates republishes the last AC state received for each mapped
+// device. Called after a cloud poll has populated the embeddedID cache so the
+// retained Faikin state (received at subscribe time, before any poll) and any
+// state seen between the sparse cloud polls reaches Home Assistant.
+func (c *Coordinator) flushLocalStates(ctx context.Context) {
+	c.mu.Lock()
+	pending := make(map[string]*faikin.State, len(c.lastLocal))
+	for dev, st := range c.lastLocal {
+		pending[dev] = st
+	}
+	c.mu.Unlock()
+	for deviceID, st := range pending {
+		c.publishLocalState(ctx, deviceID, st)
 	}
 }
 

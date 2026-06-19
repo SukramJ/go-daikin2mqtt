@@ -25,6 +25,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
+	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 	"github.com/SukramJ/go-daikin2mqtt/internal/mqtt"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
@@ -59,10 +60,11 @@ type Coordinator struct {
 	writes chan writeReq
 
 	mu              sync.Mutex
-	modeCache       map[string]string // deviceID/embeddedID -> current operationMode
-	climateEmbedded map[string]string // deviceID -> climateControl embeddedID (for local routing)
-	outdoorSerial   map[string]string // deviceID -> outdoor-unit serial (for multi-split grouping)
-	lastDiscSig     string            // signature of the last published discovery set
+	modeCache       map[string]string        // deviceID/embeddedID -> current operationMode
+	climateEmbedded map[string]string        // deviceID -> climateControl embeddedID (for local routing)
+	outdoorSerial   map[string]string        // deviceID -> outdoor-unit serial (for multi-split grouping)
+	lastLocal       map[string]*faikin.State // deviceID -> last AC state received from Faikin
+	lastDiscSig     string                   // signature of the last published discovery set
 }
 
 type writeReq struct {
@@ -85,6 +87,7 @@ func New(d Deps) *Coordinator {
 		modeCache:       map[string]string{},
 		climateEmbedded: map[string]string{},
 		outdoorSerial:   map[string]string{},
+		lastLocal:       map[string]*faikin.State{},
 	}
 }
 
@@ -151,6 +154,11 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 
 	c.updateModeCache(devices)
 	c.updateOutdoorGroups(devices)
+	// The embeddedID cache is now populated; (re)publish any Faikin state that
+	// arrived before this (e.g. the retained state at subscribe time).
+	if c.deps.Cfg.LocalEnabled() {
+		c.flushLocalStates(ctx)
+	}
 	points := process.ResolveAt(devices, c.deps.Catalog, c.deps.Clock())
 
 	// In local mode, surface settings Faikin provides but the cloud does not

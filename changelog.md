@@ -1,3 +1,18 @@
+# Version 0.2.4 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Local mode showed no values until a live Faikin update happened to arrive.
+  `subscribeLocal` runs before the first cloud poll, so the **retained** Faikin
+  state delivered at subscribe time was dropped — the `embeddedID` needed to
+  route it onto the daemon's topics is only learned from a cloud poll. Since
+  Faikin publishes the AC state infrequently, entities stayed empty/stale. The
+  latest AC state per device is now cached and (re)published after each cloud
+  poll once the `embeddedID` is known, so the retained Faikin state reaches Home
+  Assistant promptly.
+
 # Version 0.2.3 (2026-06-19)
 
 ## What's Changed
