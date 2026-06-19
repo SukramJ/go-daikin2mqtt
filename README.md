@@ -3,7 +3,8 @@
 A pure-Go bridge between the **Daikin ONECTA cloud API** and an **MQTT
 broker**, with optional **Home Assistant** auto-discovery. It polls
 your Daikin devices (heat pumps, air-to-air units, …) through the
-official ONECTA cloud, publishes their state to MQTT, and accepts
+official ONECTA cloud — or, in **local-first mode**, through the indoor
+units' local Faikin modules — publishes their state to MQTT, and accepts
 write-back commands from Home Assistant.
 
 > **Status: beta.** The daemon works end-to-end (read + control) and has
@@ -21,9 +22,18 @@ write-back commands from Home Assistant.
 - Curated characteristic catalog ([`characteristics.yaml`](./characteristics.yaml))
   mapping ONECTA data points (incl. nested `sensoryData` /
   `temperatureControl` and `consumptionData` energy) to MQTT and HA.
-- Home Assistant MQTT auto-discovery for sensor / binary_sensor / number /
-  select / switch. **English `entity_id`s with localized (en/de) display
-  names**; localized select options that map back to API codes.
+- Home Assistant MQTT auto-discovery for climate / sensor / binary_sensor /
+  number / select / switch. **English `entity_id`s with localized (en/de)
+  display names**; localized select options that map back to API codes.
+- **Local-first mode** (optional): read and control the indoor units over their
+  local **Faikin / Faikout** (revk/ESP32) MQTT interface instead of the
+  rate-limited cloud, keeping the same HA entities. Surfaces settings the cloud
+  does not expose for a unit (econo, streamer, outdoor silent, demand). See
+  [`docs/design.md`](./docs/design.md).
+- **Multi-split aware**: settings shared across one outdoor unit (operation
+  mode, outdoor silent, demand) are surfaced once per outdoor unit and fanned
+  out to all indoor units; heat/cool mode is kept consistent across the group;
+  powerful ⇄ econo are mutually exclusive.
 - Optional diagnostic **web UI** with integrated OAuth (HA-ingress ready).
 - `daikin2mqtt-util` helper CLI (auth, devices, points, set, ratelimit,
   catalog-check) and a `--mock` mode using the ONECTA mock endpoint.
@@ -47,7 +57,7 @@ curl -sSfL https://raw.githubusercontent.com/SukramJ/go-daikin2mqtt/main/script/
 Pin a specific version:
 
 ```bash
-curl -sSfL https://raw.githubusercontent.com/SukramJ/go-daikin2mqtt/main/script/install.sh | sudo bash -s -- 0.1.0
+curl -sSfL https://raw.githubusercontent.com/SukramJ/go-daikin2mqtt/main/script/install.sh | sudo bash -s -- 0.2.2
 ```
 
 ### Docker

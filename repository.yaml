@@ -3,4 +3,4 @@
 # Supervisor then discovers the add-on in the addon/ subdirectory.
 name: go-daikin2mqtt Add-ons
 url: https://github.com/SukramJ/go-daikin2mqtt
-maintainer: SukramJ <markus@mm-jankowski.de>
+maintainer: SukramJ <sukramj@icloud.com>
