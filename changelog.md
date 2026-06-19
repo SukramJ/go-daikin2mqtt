@@ -1,3 +1,19 @@
+# Version 0.2.6 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- The single outdoor-shared entities (outdoor silent, demand limit) now reflect
+  the whole outdoor unit instead of one fixed indoor unit. On a multi-split only
+  the **active** indoor unit applies an outdoor-unit setting and reports it back,
+  so a toggle changed one unit while the entity (reading another) appeared not to
+  react. The state is now **aggregated across the outdoor group** (silent on if
+  any member reports it; demand the most restrictive) and published to every
+  member, and a write is reflected **optimistically** on all members at once for
+  immediate Home Assistant feedback. The command was already fanned out to all
+  units (it must be uniform across the outdoor unit).
+
 # Version 0.2.5 (2026-06-19)
 
 ## What's Changed

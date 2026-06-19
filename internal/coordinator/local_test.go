@@ -198,3 +198,35 @@ func TestFlushLocalStatesAfterEmbeddedID(t *testing.T) {
 		t.Error("flush did not publish the cached Faikin state once embeddedID was known")
 	}
 }
+
+func TestPublishOutdoorSharedAggregates(t *testing.T) {
+	main := newStubMQTT()
+	cfg := &config.Config{
+		MQTTTopic: "daikin", Language: "de", LocalMode: true, LocalFaikinPrefix: "Faikout",
+		LocalDeviceMap: map[string]string{"a": "Klima A", "b": "Klima B"},
+	}
+	c := New(Deps{
+		Cfg: cfg, Client: &stubCloud{}, MQTT: main, FaikinMQTT: newStubMQTT(),
+		Catalog: loadTestCatalog(t), Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
+	})
+	// Same outdoor unit; a is idle (quiet off), b (active) reports quiet on.
+	c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1"}
+	c.climateEmbedded = map[string]string{"a": "climateControl", "b": "climateControl"}
+	c.lastLocal = map[string]*faikin.State{
+		"a": {HasAC: true, Quiet: false, Demand: 100},
+		"b": {HasAC: true, Quiet: true, Demand: 80},
+	}
+
+	c.publishOutdoorShared(context.Background(), "a")
+
+	// The aggregate (any-on / most-restrictive) is published to BOTH members,
+	// so the single HA entity reflects it whichever member it reads.
+	for _, dev := range []string{"a", "b"} {
+		if got, _ := main.get("daikin/" + dev + "/climateControl/outdoor_silent/state"); got.payload != "on" {
+			t.Errorf("%s outdoor_silent = %q, want on (OR across group)", dev, got.payload)
+		}
+		if got, _ := main.get("daikin/" + dev + "/climateControl/demand_control/state"); got.payload != "80" {
+			t.Errorf("%s demand_control = %q, want 80 (min across group)", dev, got.payload)
+		}
+	}
+}

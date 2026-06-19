@@ -393,6 +393,12 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 	// Outdoor-shared settings apply to every indoor unit of the outdoor unit.
 	if entry.Scope == "outdoor" && c.deps.Cfg.OutdoorAggregateEnabled() {
 		c.fanOutToGroup(ctx, req.deviceID, entry.Match.Characteristic, value, path)
+		// Reflect the change on every member immediately (optimistic), so HA
+		// shows it without waiting for the sparse Faikin status — otherwise the
+		// toggle snaps back. The next status update confirms the real value.
+		if c.localActiveFor(req.deviceID) {
+			c.publishOptimistic(ctx, req.deviceID, req.topic, req.payload)
+		}
 	}
 	// Mutually-exclusive partners (powerful ⇄ econo) are cleared on enable.
 	c.enforceMutualExclusive(ctx, req.deviceID, req.embeddedID, entry.Match.Characteristic, value)

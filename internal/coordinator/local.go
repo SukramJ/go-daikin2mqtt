@@ -175,6 +175,74 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 				slog.String("topic", topic), slog.String("err", err.Error()))
 		}
 	}
+	c.publishOutdoorShared(ctx, deviceID)
+}
+
+// publishOutdoorShared publishes the group-aggregated outdoor-shared settings to
+// every member of the device's outdoor unit. On a multi-split only the active
+// indoor unit applies an outdoor-unit setting (outdoor silent, demand), so the
+// aggregate is what's actually in effect: outdoor silent is on if ANY member
+// reports it, demand is the most restrictive (lowest) value. Publishing to all
+// members means the single HA entity (which reads one fixed member) reflects it.
+func (c *Coordinator) publishOutdoorShared(ctx context.Context, deviceID string) {
+	quiet, demand := c.localOutdoorAgg(deviceID)
+	vals := map[string]string{
+		"outdoor_silent": onOff(quiet),
+		"demand_control": strconv.Itoa(demand),
+	}
+	for _, member := range c.groupMembers(deviceID) {
+		emb, ok := c.climateEmbeddedID(member)
+		if !ok {
+			continue
+		}
+		for suffix, payload := range vals {
+			topic := fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, member, emb, suffix)
+			if err := c.deps.MQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, true); err != nil {
+				c.deps.Logger.Warn("coordinator.local_publish_failed",
+					slog.String("topic", topic), slog.String("err", err.Error()))
+			}
+		}
+	}
+}
+
+// publishOptimistic immediately reflects a just-written value on every member of
+// the device's outdoor unit, so the single HA entity updates at once instead of
+// snapping back while waiting for the sparse Faikin status.
+func (c *Coordinator) publishOptimistic(ctx context.Context, deviceID, topic, value string) {
+	for _, member := range c.groupMembers(deviceID) {
+		emb, ok := c.climateEmbeddedID(member)
+		if !ok {
+			continue
+		}
+		t := fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, member, emb, topic)
+		if err := c.deps.MQTT.Publish(ctx, t, []byte(value), mqtt.QoS0, true); err != nil {
+			c.deps.Logger.Warn("coordinator.local_publish_failed",
+				slog.String("topic", t), slog.String("err", err.Error()))
+		}
+	}
+}
+
+// localOutdoorAgg aggregates the outdoor-shared values across a device's outdoor
+// group from the cached Faikin states: outdoor silent is on if any member is on;
+// demand is the lowest (most restrictive) reported value.
+func (c *Coordinator) localOutdoorAgg(deviceID string) (quiet bool, demand int) {
+	members := c.groupMembers(deviceID)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	demand = 100
+	for _, m := range members {
+		st, ok := c.lastLocal[m]
+		if !ok {
+			continue
+		}
+		if st.Quiet {
+			quiet = true
+		}
+		if st.Demand < demand {
+			demand = st.Demand
+		}
+	}
+	return quiet, demand
 }
 
 // flushLocalStates republishes the last AC state received for each mapped
@@ -207,9 +275,9 @@ func (c *Coordinator) localStateMessages(st *faikin.State) map[string]string {
 		"powerful_mode":        onOff(st.Powerful),
 		"econo_mode":           onOff(st.Econo),
 		"streamer":             onOff(st.Streamer),
-		"outdoor_silent":       onOff(st.Quiet),
-		"demand_control":       strconv.Itoa(st.Demand),
 	}
+	// outdoor_silent and demand_control are outdoor-shared (scope: outdoor) and
+	// published group-aggregated by publishOutdoorShared, not per unit.
 	if label, ok := c.localOperationModeLabel(st.Mode); ok {
 		out["operation_mode"] = label
 	}
