@@ -21,13 +21,9 @@ import (
 // gracefully rather than dropping a command.
 func (c *Coordinator) setCharacteristic(ctx context.Context, deviceID, embeddedID, characteristic string, value any, path string) error {
 	if host, ok := c.localHost(deviceID); ok {
-		if ctrl, ok := faikinControlFor(characteristic, value); ok {
-			payload, err := ctrl.JSON()
-			if err != nil {
-				return err
-			}
-			topic := faikin.CommandTopic(c.deps.Cfg.LocalFaikinPrefix, host)
-			return c.deps.FaikinMQTT.Publish(ctx, topic, payload, mqtt.QoS0, false)
+		if suffix, payload, ok := faikinCommand(characteristic, value); ok {
+			topic := faikin.CommandTopic(c.deps.Cfg.LocalFaikinPrefix, host, suffix)
+			return c.deps.FaikinMQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, false)
 		}
 		// Not locally controllable → fall through to the cloud below.
 	}
@@ -43,53 +39,59 @@ func (c *Coordinator) localHost(deviceID string) (string, bool) {
 	return c.deps.Cfg.FaikinHost(deviceID)
 }
 
-// daikinToFaikinMode maps an ONECTA operationMode value to a Faikin app mode.
-var daikinToFaikinMode = map[string]string{
-	"cooling": "cool",
-	"heating": "heat",
-	"auto":    "auto",
-	"dry":     "dry",
-	"fanOnly": "fan",
+// daikinToS21Mode maps an ONECTA operationMode value to the single-letter S21
+// mode the Faikin `command/mode` topic expects.
+var daikinToS21Mode = map[string]string{
+	"cooling": "C",
+	"heating": "H",
+	"auto":    "A",
+	"dry":     "D",
+	"fanOnly": "F",
 }
 
-// faikinControlFor translates a single ONECTA characteristic write into a
-// partial Faikin control command. ok is false for characteristics the local
-// firmware does not model, so the caller can fall back to the cloud.
-func faikinControlFor(characteristic string, value any) (faikin.Control, bool) {
-	b := func(v bool) *bool { return &v }
-	s := func(v string) *string { return &v }
+// faikinCommand translates a single ONECTA characteristic write into a Faikin
+// command — the dedicated `command/<suffix>` topic and its payload (switches use
+// "1"/"0", matching the firmware's own HA discovery). ok is false for
+// characteristics the local firmware does not model, so the caller falls back to
+// the cloud.
+func faikinCommand(characteristic string, value any) (suffix, payload string, ok bool) {
+	onoff := func(v any) string {
+		if truthy(v) {
+			return "1"
+		}
+		return "0"
+	}
 	switch characteristic {
 	case "onOffMode":
-		return faikin.Control{Power: b(truthy(value))}, true
+		return "power", onoff(value), true
+	case "powerfulMode":
+		return "powerful", onoff(value), true
+	case "econoMode":
+		return "econo", onoff(value), true
+	case "streamerMode":
+		return "streamer", onoff(value), true
+	case "outdoorSilentMode":
+		return "quiet", onoff(value), true
 	case "operationMode":
-		m, ok := daikinToFaikinMode[toStr(value)]
+		m, ok := daikinToS21Mode[toStr(value)]
 		if !ok {
-			return faikin.Control{}, false
+			return "", "", false
 		}
-		return faikin.Control{Mode: s(m)}, true
+		return "mode", m, true
 	case "temperatureControl":
 		f, ok := toFloat(value)
 		if !ok {
-			return faikin.Control{}, false
+			return "", "", false
 		}
-		return faikin.Control{Temp: &f}, true
-	case "powerfulMode":
-		return faikin.Control{Powerful: b(truthy(value))}, true
-	case "econoMode":
-		return faikin.Control{Econo: b(truthy(value))}, true
-	case "streamerMode":
-		return faikin.Control{Streamer: b(truthy(value))}, true
-	case "outdoorSilentMode":
-		return faikin.Control{Quiet: b(truthy(value))}, true
+		return "temp", strconv.FormatFloat(f, 'f', -1, 64), true
 	case "demandControl":
 		f, ok := toFloat(value)
 		if !ok {
-			return faikin.Control{}, false
+			return "", "", false
 		}
-		n := int(f)
-		return faikin.Control{Demand: &n}, true
+		return "demand", strconv.Itoa(int(f)), true
 	}
-	return faikin.Control{}, false
+	return "", "", false
 }
 
 // truthy interprets the on/off forms ONECTA and HA use as a boolean.

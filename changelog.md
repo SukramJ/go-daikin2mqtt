@@ -1,3 +1,18 @@
+# Version 0.2.5 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Local writes now use Faikin's dedicated per-setting command topics
+  (`<prefix>/<host>/command/<suffix>`, payload `1`/`0` for switches, matching
+  the firmware's own HA discovery) instead of the combined
+  `command/control` JSON. The JSON form did not take effect for outdoor silent
+  on multi-split units — the command was delivered but the unit never changed.
+  `onOffMode`→`power`, `operationMode`→`mode` (single-letter C/H/A/D/F),
+  `temperatureControl`→`temp`, `powerfulMode`/`econoMode`/`streamerMode`/
+  `outdoorSilentMode`→their switches, `demandControl`→`demand`.
+
 # Version 0.2.4 (2026-06-19)
 
 ## What's Changed

@@ -4,7 +4,6 @@
 package faikin
 
 import (
-	"encoding/json"
 	"testing"
 )
 
@@ -69,38 +68,11 @@ func TestHAMode(t *testing.T) {
 	}
 }
 
-func TestControlForHAMode(t *testing.T) {
-	// off → power:false only
-	c, ok := ControlForHAMode("off")
-	if !ok || c.Power == nil || *c.Power || c.Mode != nil {
-		t.Fatalf("off → %+v ok=%v", c, ok)
-	}
-	// heat_cool → power:true, mode:auto
-	c, ok = ControlForHAMode("heat_cool")
-	if !ok || c.Power == nil || !*c.Power || c.Mode == nil || *c.Mode != "auto" {
-		t.Fatalf("heat_cool → %+v ok=%v", c, ok)
-	}
-	if _, ok := ControlForHAMode("bogus"); ok {
-		t.Error("bogus mode should not map")
-	}
-
-	// Only the set fields are marshalled (partial command).
-	raw, _ := c.JSON()
-	var m map[string]any
-	_ = json.Unmarshal(raw, &m)
-	if _, has := m["temp"]; has {
-		t.Errorf("partial control must omit unset fields, got %s", raw)
-	}
-	if m["power"] != true || m["mode"] != "auto" {
-		t.Errorf("control JSON = %s", raw)
-	}
-}
-
 func TestTopics(t *testing.T) {
 	if got := StateTopic("Klima SZ"); got != "state/Klima SZ" {
 		t.Errorf("StateTopic = %q", got)
 	}
-	if got := CommandTopic("Faikout", "Klima SZ"); got != "Faikout/Klima SZ/command/control" {
+	if got := CommandTopic("Faikout", "Klima SZ", "quiet"); got != "Faikout/Klima SZ/command/quiet" {
 		t.Errorf("CommandTopic = %q", got)
 	}
 }

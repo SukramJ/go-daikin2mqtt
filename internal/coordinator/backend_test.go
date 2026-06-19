@@ -5,48 +5,43 @@ package coordinator
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"testing"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 )
 
-func TestFaikinControlFor(t *testing.T) {
+func TestFaikinCommand(t *testing.T) {
 	cases := []struct {
-		char  string
-		value any
-		want  string // expected control JSON, "" means not controllable
+		char            string
+		value           any
+		suffix, payload string // "" suffix means not controllable
 	}{
-		{"onOffMode", "on", `{"power":true}`},
-		{"onOffMode", "off", `{"power":false}`},
-		{"operationMode", "cooling", `{"mode":"cool"}`},
-		{"operationMode", "heating", `{"mode":"heat"}`},
-		{"operationMode", "fanOnly", `{"mode":"fan"}`},
-		{"temperatureControl", 22.5, `{"temp":22.5}`},
-		{"powerfulMode", "on", `{"powerful":true}`},
-		{"econoMode", "off", `{"econo":false}`},
-		{"streamerMode", "on", `{"streamer":true}`},
-		{"outdoorSilentMode", "on", `{"quiet":true}`},
-		{"demandControl", 80.0, `{"demand":80}`},
-		{"operationMode", "bogus", ""}, // unknown mode → not controllable
-		{"fanControl", "auto", ""},     // not modelled here → cloud fallback
+		{"onOffMode", "on", "power", "1"},
+		{"onOffMode", "off", "power", "0"},
+		{"operationMode", "cooling", "mode", "C"},
+		{"operationMode", "heating", "mode", "H"},
+		{"operationMode", "fanOnly", "mode", "F"},
+		{"temperatureControl", 22.5, "temp", "22.5"},
+		{"powerfulMode", "on", "powerful", "1"},
+		{"econoMode", "off", "econo", "0"},
+		{"streamerMode", "on", "streamer", "1"},
+		{"outdoorSilentMode", "on", "quiet", "1"},
+		{"demandControl", 80.0, "demand", "80"},
+		{"operationMode", "bogus", "", ""}, // unknown mode → not controllable
+		{"fanControl", "auto", "", ""},     // not modelled → cloud fallback
 	}
 	for _, tc := range cases {
-		ctrl, ok := faikinControlFor(tc.char, tc.value)
-		if tc.want == "" {
+		suffix, payload, ok := faikinCommand(tc.char, tc.value)
+		if tc.suffix == "" {
 			if ok {
 				t.Errorf("%s=%v: expected not controllable", tc.char, tc.value)
 			}
 			continue
 		}
-		if !ok {
-			t.Errorf("%s=%v: expected controllable", tc.char, tc.value)
-			continue
-		}
-		raw, _ := ctrl.JSON()
-		if string(raw) != tc.want {
-			t.Errorf("%s=%v → %s, want %s", tc.char, tc.value, raw, tc.want)
+		if !ok || suffix != tc.suffix || payload != tc.payload {
+			t.Errorf("%s=%v → command/%s %q (ok=%v), want command/%s %q",
+				tc.char, tc.value, suffix, payload, ok, tc.suffix, tc.payload)
 		}
 	}
 }
@@ -71,18 +66,16 @@ func TestSetCharacteristicRoutesLocal(t *testing.T) {
 	faikin := newStubMQTT()
 	c := localCoordinator(cloud, newStubMQTT(), faikin)
 
-	// Mapped device + supported characteristic → local publish, no cloud patch.
-	if err := c.setCharacteristic(context.Background(), "dev1", "climateControl", "operationMode", "cooling", ""); err != nil {
+	// Mapped device + outdoor silent → dedicated command/quiet topic, "1"/"0".
+	if err := c.setCharacteristic(context.Background(), "dev1", "climateControl", "outdoorSilentMode", "on", ""); err != nil {
 		t.Fatal(err)
 	}
-	msg, ok := faikin.get("Faikout/Klima SZ/command/control")
+	msg, ok := faikin.get("Faikout/Klima SZ/command/quiet")
 	if !ok {
-		t.Fatalf("expected local command publish; got %v", faikin.published)
+		t.Fatalf("expected publish to command/quiet; got %v", faikin.published)
 	}
-	var ctrl map[string]any
-	_ = json.Unmarshal([]byte(msg.payload), &ctrl)
-	if ctrl["mode"] != "cool" {
-		t.Errorf("local control = %s, want mode:cool", msg.payload)
+	if msg.payload != "1" {
+		t.Errorf("quiet payload = %q, want \"1\"", msg.payload)
 	}
 	if cloud.patchCount() != 0 {
 		t.Errorf("cloud should not be patched in local mode, got %d", cloud.patchCount())
