@@ -91,7 +91,8 @@ config/env, never the token store.
 Coverage is **curated and deterministic**: only characteristics with an explicit `match` entry
 are published. An `Entry` maps one ONECTA characteristic → MQTT/HA (`topic`, `name`/`name_de`,
 `platform`, `device_class`, `unit`, `settable`, enum `values` with `label`/`label_de`,
-optional nested `value_path`/`path` with a `{mode}` token, `precision`, energy `kind`). Lookups:
+optional nested `value_path`/`path` with a `{mode}` token, `precision`, energy `kind`, and
+`scope` (`outdoor` = one entity per outdoor unit with write fan-out; see below)). Lookups:
 `ByTopic` (write path), `Match(mpType, char)` (read path). `daikin2mqtt-util catalog-check`
 reports live characteristics missing from the catalog.
 
@@ -174,6 +175,10 @@ Flat YAML (`config-template.yaml` documents every key). Every key is overridable
 `DAIKIN_<KEY>` env var (bool/int/float coerced; else string). Loader pipeline: file → env
 override → defaults → validate. Required: `DAIKIN_CLIENT_ID`/`SECRET`, `MQTT_SERVER`. With
 credentials missing the daemon starts **idle** (web UI reachable for setup) rather than crashing.
+Local-first / multi-split keys (`LOCAL_MODE`, `LOCAL_FAIKIN_*`, `LOCAL_DEVICE_MAP`,
+`MULTISPLIT_*`, `ENFORCE_MUTUAL_EXCLUSIVE`) are validated only when `LOCAL_MODE` is on; the
+add-on surfaces them as options and `script/run.sh` maps them to env (`local_device_map` as a
+list joined into the `id=host,…` scalar form).
 
 ## Testing conventions
 
