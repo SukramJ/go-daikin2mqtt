@@ -1,3 +1,17 @@
+# Version 0.2.2 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Local mode no longer resets entities to off/zero between updates. Faikin
+  interleaves OS/heartbeat documents (uptime, rssi, …) on `state/<host>`
+  alongside the full AC state. The daemon parsed every message, so a heartbeat
+  (which carries no AC fields) published `power off`, `temp 0`, `outdoor_silent
+  off`, … overwriting the real values — entities flickered and a just-set
+  toggle (e.g. outdoor silent) snapped straight back. Heartbeat documents are
+  now detected (no `power` field) and skipped; only real AC state is published.
+
 # Version 0.2.1 (2026-06-19)
 
 ## What's Changed

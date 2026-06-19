@@ -22,6 +22,11 @@ import (
 // Only the fields the daemon maps are modelled; unknown keys are ignored.
 type State struct {
 	Host string `json:"-"` // set by the caller from the topic, not the payload
+	// HasAC reports whether the message actually carried the AC state. Faikin
+	// also publishes OS/heartbeat documents to state/<host> (uptime, rssi, …)
+	// with no AC fields; processing those would reset every entity to its zero
+	// value (power off, temp 0, …), so callers must skip when this is false.
+	HasAC bool `json:"-"`
 
 	Online   bool   `json:"online"`
 	Power    bool   `json:"power"`
@@ -46,13 +51,19 @@ type State struct {
 	EnergyCool int64 `json:"energycool"` // cooling Wh
 }
 
-// ParseState decodes a `state/<host>` payload, tagging it with its host.
+// ParseState decodes a `state/<host>` payload, tagging it with its host. It
+// also sets [State.HasAC] from the presence of the "power" key so callers can
+// ignore the OS/heartbeat documents Faikin interleaves on the same topic.
 func ParseState(host string, payload []byte) (*State, error) {
 	var s State
 	if err := json.Unmarshal(payload, &s); err != nil {
 		return nil, fmt.Errorf("faikin: parse state %q: %w", host, err)
 	}
 	s.Host = host
+	var probe map[string]json.RawMessage
+	if json.Unmarshal(payload, &probe) == nil {
+		_, s.HasAC = probe["power"]
+	}
 	return &s, nil
 }
 

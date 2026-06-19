@@ -166,3 +166,15 @@ func TestLocalOnlyPoints(t *testing.T) {
 		}
 	}
 }
+
+func TestPublishLocalStateSkipsOSHeartbeat(t *testing.T) {
+	main := newStubMQTT()
+	c := localReadCoordinator(t, newStubMQTT(), main)
+	c.climateEmbedded["dev1"] = "climateControl"
+	// An OS heartbeat (HasAC=false) must not publish anything (else every AC
+	// entity would be reset to its zero value).
+	c.publishLocalState(context.Background(), "dev1", &faikin.State{Host: "Klima SZ", HasAC: false})
+	if main.count() != 0 {
+		t.Errorf("OS heartbeat published %d topics, want 0", main.count())
+	}
+}
