@@ -5,6 +5,11 @@ daemon inside Home Assistant. It bridges Daikin climate devices (via the
 Daikin ONECTA cloud API) to MQTT, with optional Home Assistant MQTT
 discovery and a diagnostic web UI that also drives the OAuth2 login.
 
+It can optionally run **local-first** — reading and controlling the indoor
+units over their local Faikin / Faikout modules instead of the cloud — and is
+**multi-split aware** (outdoor-shared settings surface once per outdoor unit).
+See the "Local-first mode" and options sections in [DOCS.md](DOCS.md).
+
 ## Installation
 
 1. In Home Assistant go to **Settings → Add-ons → Add-on Store**.

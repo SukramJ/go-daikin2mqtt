@@ -38,8 +38,53 @@ Everything else has sensible defaults; use the reference below to fine-tune.
 | `web_enable` | bool | `true` | Enable the diagnostic web UI / OAuth flow (required for Ingress login). |
 | `refresh_day_interval` | int | `600` | Seconds between cloud polls during day hours. |
 | `refresh_night_interval` | int | `1800` | Seconds between cloud polls during night hours. |
+| `local_mode` | bool | `false` | Read and control the indoor units over their local **Faikin / Faikout** MQTT interface instead of the ONECTA cloud. Requires `local_device_map`. See "Local-first mode" below. |
+| `local_faikin_server` | str | `""` | MQTT broker the Faikin modules publish to. **Leave empty** to use the same broker as the daemon (the common case — the existing connection is reused). |
+| `local_faikin_port` | int | `1883` | Faikin broker port. Only used when `local_faikin_server` is set. |
+| `local_faikin_login` | str | `""` | Faikin broker username. Empty → falls back to the main MQTT username. |
+| `local_faikin_password` | password | `""` | Faikin broker password. Empty → falls back to the main MQTT password. |
+| `local_faikin_prefix` | str | `Faikout` | Faikin firmware "app" name that prefixes the command topics (`<prefix>/<host>/command/<setting>`). |
+| `local_device_map` | list(str) | `[]` | Maps each ONECTA device to its Faikin host as `deviceID=Faikin host` entries (e.g. `cfcbab3e-…=Klima GA`). Only mapped devices are driven locally. See below. |
+| `multisplit_mode_sync` | bool | `true` | Propagate a heat/cool change to the other indoor units of the same outdoor unit (a standard multi-split cannot cool and heat at once). |
+| `multisplit_outdoor_aggregate` | bool | `true` | Surface outdoor-shared settings (outdoor silent, demand) as one entity per outdoor unit, fanning writes out to every member unit. |
+| `enforce_mutual_exclusive` | bool | `true` | Turning powerful on clears econo, and vice versa. |
 
 Fixed by the add-on (not user-configurable): the token store lives at
 `/data/token-store.json` and the web UI binds to `0.0.0.0:8080` for Ingress.
 The OAuth callback is served on that same port; the externally registered
 address is the `redirect_uri` option above.
+
+## Local-first mode (optional)
+
+If your indoor units have local **Faikin / Faikout** (revk/ESP32) modules, the
+add-on can read and control them over their local MQTT interface instead of the
+rate-limited ONECTA cloud. This also surfaces settings the cloud does not expose
+for some units (econo, streamer, outdoor silent, demand).
+
+Enable it with:
+
+- `local_mode: true`
+- `local_faikin_server`: leave **empty** if the Faikin modules publish to the
+  same broker as the add-on (the common case); set it only for a separate broker
+  (then also set `local_faikin_login` / `local_faikin_password` if it differs).
+- `local_device_map`: one `deviceID=Faikin host` entry per unit, e.g.
+
+  ```yaml
+  local_device_map:
+    - "cfcbab3e-7e55-42b4-9af7-21bb1feb2bbd=Klima GA"
+    - "1921496f-5316-4555-b79a-2d3c96da202f=Klima SZ"
+  ```
+
+  Find each **device ID** in the diagnostic web UI's device browser; the
+  **Faikin host** is the module's hostname (its `state/<host>` topic).
+
+The cloud connection is still used to bootstrap the device list and Home
+Assistant discovery and for anything Faikin does not expose. The `multisplit_*`
+options govern settings physically shared across one outdoor unit (heat/cool
+mode consistency, outdoor silent / demand as one entity with write fan-out);
+leave them on for a multi-split.
+
+> **Note:** on a multi-split, an outdoor-unit setting (outdoor silent, demand)
+> is applied by the **active** indoor unit; the add-on fans the command out to
+> all units and shows the aggregated state, so the single entity reflects the
+> whole outdoor unit.
