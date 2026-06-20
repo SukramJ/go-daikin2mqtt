@@ -315,6 +315,41 @@ func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []proces
 		return
 	}
 	c.deps.Logger.Info("coordinator.discovery_published", slog.Int("entities", len(points)))
+	// Publish each entity's data_source (cloud vs local Faikin) alongside the
+	// (retained) discovery, so it shows as an entity attribute.
+	c.publishDataSources(ctx, points)
+}
+
+// publishDataSources publishes a {"data_source": "cloud"|"local"} JSON-attributes
+// document for every entity, so Home Assistant shows where each value comes from.
+func (c *Coordinator) publishDataSources(ctx context.Context, points []process.Point) {
+	climateSeen := map[string]bool{}
+	for i := range points {
+		p := points[i]
+		c.publishAttrs(ctx, c.deps.HASS.AttributesTopic(p), c.dataSource(p.DeviceID, p.Topic))
+		if p.MPType != "climateControl" {
+			continue
+		}
+		key := p.DeviceID + "|" + p.EmbeddedID
+		if climateSeen[key] {
+			continue
+		}
+		climateSeen[key] = true
+		src := "cloud"
+		if c.localActiveFor(p.DeviceID) {
+			src = "local"
+		}
+		c.publishAttrs(ctx, c.deps.HASS.ClimateAttributesTopic(p.DeviceID, p.EmbeddedID), src)
+	}
+}
+
+// publishAttrs publishes a retained data_source attributes document.
+func (c *Coordinator) publishAttrs(ctx context.Context, topic, source string) {
+	payload := `{"data_source":"` + source + `"}`
+	if err := c.deps.MQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, true); err != nil {
+		c.deps.Logger.Warn("coordinator.attrs_publish_failed",
+			slog.String("topic", topic), slog.String("err", err.Error()))
+	}
 }
 
 func (c *Coordinator) subscribeWrites(ctx context.Context) error {

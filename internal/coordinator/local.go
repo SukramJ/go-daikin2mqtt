@@ -65,6 +65,33 @@ func (c *Coordinator) localActiveFor(deviceID string) bool {
 	return ok
 }
 
+// localOwnedTopic reports whether the local Faikin read path publishes this
+// topic's state (so its data source is "local" for a locally-active device).
+func localOwnedTopic(topic string) bool {
+	if localTopics[topic] {
+		return true
+	}
+	switch topic {
+	case hass.HVACModeTopic, hass.FanModeTopic, hass.SwingModeTopic, hass.SwingHModeTopic, hass.PresetModeTopic:
+		return true
+	}
+	for _, t := range localOnlyTopics {
+		if t == topic {
+			return true
+		}
+	}
+	return false
+}
+
+// dataSource reports where an entity's value comes from: the local Faikin
+// interface for a locally-controlled, locally-owned topic, else the ONECTA cloud.
+func (c *Coordinator) dataSource(deviceID, topic string) string {
+	if c.localActiveFor(deviceID) && localOwnedTopic(topic) {
+		return "local"
+	}
+	return "cloud"
+}
+
 // applyFaikinConfigURLs points each locally-controlled device's HA configuration
 // URL at its Faikin module web UI (from the module's reported IP), mirroring
 // Faikin's own discovery. Cloud-only devices keep the default (ONECTA) link.

@@ -1,3 +1,23 @@
+# Version 0.2.18 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- Every entity now exposes a **`data_source`** attribute (`cloud` or `local`) so
+  you can see, per entity, whether its value comes from the ONECTA cloud or the
+  local Faikin interface. Published as retained JSON attributes alongside
+  discovery (`json_attributes_topic`).
+
+### Changed
+
+- Removed `gateway_firmware_version` and `gateway_mac_address` sensors — both are
+  already in the Home Assistant **device** info (`sw_version` / `connections`).
+  `gateway_ip_address` and `gateway_software_version` stay (not in device info).
+
+  **Migration:** the removed entities go unavailable in Home Assistant after the
+  update — delete them.
+
 # Version 0.2.17 (2026-06-20)
 
 ## What's Changed
