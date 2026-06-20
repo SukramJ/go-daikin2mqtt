@@ -129,6 +129,9 @@ Bool / int / float values are coerced; everything else stays a string.
 
 - [`docs/design.md`](./docs/design.md) — local-first (Faikin) control and
   multi-split outdoor-unit handling.
+- [`docs/faikin-home-assistant.md`](./docs/faikin-home-assistant.md) — running
+  local mode alongside the Faikin firmware without duplicate Home Assistant
+  entities (and why `ha.enable` must stay on).
 
 ## License
 

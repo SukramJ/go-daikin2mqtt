@@ -200,6 +200,10 @@ the outdoor-scoped discovery dedup (`internal/hass`).
   `handleSwingWrite`): fan via single-char codes on `command/<host>/fan`, swing
   by combining the cloud's two axes into Faikin's single `command/<host>/swing`.
   `floorheatingairflow` has no Faikin equivalent and still uses the cloud.
-- Faikin publishes its own HA discovery for some settings; enabling both creates
-  duplicate entities. Set `{"ha":false}` in the Faikin firmware to let
-  go-daikin2mqtt own them.
+- Faikin publishes its own HA discovery; running it alongside go-daikin2mqtt
+  creates duplicate entities. **Do not** disable it with `ha.enable = false` —
+  that flag also gates the AC state document the daemon reads (`revk_state_extra`
+  returns early when off), so local mode would lose its data feed. Instead keep
+  `ha.enable = true` and point Faikin's `topic.ha` at a prefix Home Assistant
+  does not scan (e.g. `homeassistant_disabled`). See
+  [faikin-home-assistant.md](./faikin-home-assistant.md).

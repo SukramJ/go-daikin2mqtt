@@ -88,3 +88,18 @@ leave them on for a multi-split.
 > is applied by the **active** indoor unit; the add-on fans the command out to
 > all units and shows the aggregated state, so the single entity reflects the
 > whole outdoor unit.
+
+### Avoiding duplicate entities (Faikin's own HA discovery)
+
+The Faikin firmware can publish its **own** Home Assistant discovery, which then
+duplicates the add-on's entities (an English set under separate *Klima …*
+devices next to the add-on's localized set). Do **not** turn Faikin's HA off to
+stop this — the same firmware flag also stops the AC data the add-on reads, so
+local mode would go blank.
+
+Instead, on each Faikin module keep HA **enabled** but change its discovery
+topic prefix (`topic.ha`) from `homeassistant` to a prefix Home Assistant does
+not scan, e.g. **`homeassistant_disabled`**. The state feed keeps working and the
+duplicate entities disappear. Then delete the leftover Faikin devices in Home
+Assistant (their old retained configs persist until removed). Full walkthrough:
+[docs/faikin-home-assistant.md](https://github.com/SukramJ/go-daikin2mqtt/blob/main/docs/faikin-home-assistant.md).

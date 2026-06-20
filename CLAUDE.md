@@ -136,7 +136,11 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   telemetry: energy totals, power draw, compressor/fan frequency, refrigerant temperature),
   `localOnlyPoints` **synthesizes discovery points** so the entities still appear (state fed from
   Faikin). These catalog entries match a synthetic characteristic (`faikinLocal`) the cloud never
-  reports, so they are only ever published via the local path.
+  reports, so they are only ever published via the local path. **Faikin dependency:** the firmware's
+  `ha.enable` gates *both* its own HA discovery *and* the AC fields in `state/<host>`
+  (`revk_state_extra` returns early when off), so local reads require `ha.enable = true`; duplicate
+  Faikin entities are avoided by redirecting its `topic.ha` prefix, not by disabling HA — see
+  `docs/faikin-home-assistant.md`.
 - **Multi-split / dependency engine** (`outdoor.go`): outdoor groups keyed by outdoor serial
   (`groupMembers`). `scope: outdoor` catalog entries (`outdoor_silent`, `demand_control`) dedup to
   **one entity per outdoor unit** (in `hass.entityIdentity`) and **fan out** writes to all members.
