@@ -413,3 +413,23 @@ func TestLocalPresetMirrorsPowerful(t *testing.T) {
 		t.Errorf("preset with powerful off = %q, want none", got.payload)
 	}
 }
+
+func TestDataSource(t *testing.T) {
+	c := localReadCoordinator(t, newStubMQTT(), newStubMQTT()) // dev1 -> Klima SZ (local)
+	cases := []struct {
+		dev, topic, want string
+	}{
+		{"dev1", "room_temperature", "local"},   // in localTopics
+		{"dev1", "energy_total", "local"},       // in localOnlyTopics
+		{"dev1", hass.HVACModeTopic, "local"},   // synthetic climate topic
+		{"dev1", hass.PresetModeTopic, "local"}, // preset mirrors local powerful
+		{"dev1", "error_code", "cloud"},         // cloud-only diagnostic
+		{"dev1", "gateway_ip_address", "cloud"}, // cloud-only
+		{"other", "room_temperature", "cloud"},  // device not mapped to Faikin
+	}
+	for _, tc := range cases {
+		if got := c.dataSource(tc.dev, tc.topic); got != tc.want {
+			t.Errorf("dataSource(%q, %q) = %q, want %q", tc.dev, tc.topic, got, tc.want)
+		}
+	}
+}

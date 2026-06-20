@@ -106,7 +106,11 @@ daily/weekly/monthly totals). Live min/max/step from the wrapper feed HA `number
 ### HA discovery (`internal/hass/discovery.go` + `climate.go`)
 Retained configs at `<baseTopic>/<platform>/<unique_id>/config`. Devices are grouped; gateway
 and outdoor units become sub-devices (`via_device`). The combined **climate** entity replaces
-the individual power/mode/setpoint controls.
+the individual power/mode/setpoint controls. Each entity also advertises a `json_attributes_topic`;
+the coordinator publishes `{"data_source":"cloud"|"local"}` there (`publishDataSources`/`dataSource`)
+so HA shows whether a value came from the ONECTA cloud or the local Faikin path. Static device
+identity (model, serial, sw/firmware version, MAC) lives in the HA `device` object (from
+`deviceInfos`), **not** as separate sensors.
 
 **Entity-ID invariant (do not break):** `unique_id` and `default_entity_id` are English and
 language-independent. `default_entity_id` is built by `entityObjectID(deviceName, topic)` =

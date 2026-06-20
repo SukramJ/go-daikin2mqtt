@@ -244,11 +244,19 @@ type configPayload struct {
 	PayloadAvailable    string `json:"payload_available"`
 	PayloadNotAvailable string `json:"payload_not_available"`
 
+	JSONAttributesTopic string `json:"json_attributes_topic,omitempty"`
+
 	Device device `json:"device"`
 }
 
 // BridgeStatusTopic returns the LWT/availability topic.
 func (d *Discovery) BridgeStatusTopic() string { return d.stateRoot + "/bridge/status" }
+
+// AttributesTopic returns the per-entity JSON-attributes topic (a sibling of the
+// state topic), used to expose the entity's data source (cloud vs local Faikin).
+func (d *Discovery) AttributesTopic(p process.Point) string {
+	return fmt.Sprintf("%s/%s/%s/%s/attributes", d.stateRoot, p.DeviceID, p.EmbeddedID, p.Topic)
+}
 
 // StateTopic returns the state topic for a point.
 func (d *Discovery) StateTopic(p process.Point) string {
@@ -312,6 +320,7 @@ func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic 
 		AvailabilityTopic:   d.BridgeStatusTopic(),
 		PayloadAvailable:    "online",
 		PayloadNotAvailable: "offline",
+		JSONAttributesTopic: d.AttributesTopic(p),
 		Device:              dev,
 	}
 

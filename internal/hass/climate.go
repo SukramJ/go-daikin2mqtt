@@ -99,7 +99,14 @@ type climatePayload struct {
 	PayloadAvailable    string `json:"payload_available"`
 	PayloadNotAvailable string `json:"payload_not_available"`
 
+	JSONAttributesTopic string `json:"json_attributes_topic,omitempty"`
+
 	Device device `json:"device"`
+}
+
+// ClimateAttributesTopic returns the climate entity's JSON-attributes topic.
+func (d *Discovery) ClimateAttributesTopic(deviceID, embeddedID string) string {
+	return fmt.Sprintf("%s/%s/%s/climate/attributes", d.stateRoot, deviceID, embeddedID)
 }
 
 // climateGroup collects the climateControl points relevant to one climate
@@ -202,6 +209,7 @@ func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInf
 		AvailabilityTopic:       d.BridgeStatusTopic(),
 		PayloadAvailable:        "online",
 		PayloadNotAvailable:     "offline",
+		JSONAttributesTopic:     d.ClimateAttributesTopic(g.deviceID, g.embeddedID),
 		Device:                  d.deviceBlock(g.deviceID, info),
 	}
 	if g.current != nil {

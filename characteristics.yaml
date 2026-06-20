@@ -143,24 +143,13 @@
   category: diagnostic
 
 # === gateway (read-only hardware info) =====================================
-- match: {managementPointType: gateway, characteristic: firmwareVersion}
-  topic: gateway_firmware_version
-  name: Gateway firmware version
-  name_de: Gateway-Firmwareversion
-  platform: sensor
-  category: diagnostic
+# Gateway firmware version and MAC address are carried in the HA `device` object
+# (sw_version / connections), not as separate sensors.
 
 - match: {managementPointType: gateway, characteristic: ipAddress}
   topic: gateway_ip_address
   name: Gateway IP address
   name_de: Gateway-IP-Adresse
-  platform: sensor
-  category: diagnostic
-
-- match: {managementPointType: gateway, characteristic: macAddress}
-  topic: gateway_mac_address
-  name: Gateway MAC address
-  name_de: Gateway-MAC-Adresse
   platform: sensor
   category: diagnostic
 
