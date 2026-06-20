@@ -1,3 +1,27 @@
+# Version 0.2.17 (2026-06-20)
+
+## What's Changed
+
+### Fixed
+
+- In local mode the climate **preset** (boost) now stays in sync with the
+  powerful state. It was published from the (stale) cloud value, so toggling
+  powerful — via the switch or the preset itself — left the preset showing
+  `none`, making boost impossible to turn off from the climate card. The preset
+  is now fed from the Faikin `powerful` state like the powerful switch, and the
+  cloud poll no longer overwrites it for locally-controlled units.
+
+### Changed
+
+- Model, serial number and (hydro) software version are kept in the Home
+  Assistant **device** info, not as separate sensors. Removed
+  `indoor_unit_model`, `indoor_unit_serial_number`, `outdoor_unit_model`,
+  `outdoor_unit_serial_number`, `gateway_serial_number`, `indoor_hydro_model`,
+  `indoor_hydro_software_version` — the same information is on the device page.
+
+  **Migration:** the removed entities go unavailable in Home Assistant after the
+  update — delete them.
+
 # Version 0.2.16 (2026-06-20)
 
 ## What's Changed

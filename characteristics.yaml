@@ -164,13 +164,6 @@
   platform: sensor
   category: diagnostic
 
-- match: {managementPointType: gateway, characteristic: serialNumber}
-  topic: gateway_serial_number
-  name: Gateway serial number
-  name_de: Gateway-Seriennummer
-  platform: sensor
-  category: diagnostic
-
 - match: {managementPointType: gateway, characteristic: softwareVersion}
   topic: gateway_software_version
   name: Gateway software version
@@ -186,34 +179,8 @@
   category: diagnostic
   device_class: problem
 
-# === indoorUnit / outdoorUnit (read-only hardware info) ====================
-- match: {managementPointType: indoorUnit, characteristic: modelInfo}
-  topic: indoor_unit_model
-  name: Indoor unit model
-  name_de: Innengerät-Modell
-  platform: sensor
-  category: diagnostic
-
-- match: {managementPointType: indoorUnit, characteristic: serialNumber}
-  topic: indoor_unit_serial_number
-  name: Indoor unit serial number
-  name_de: Innengerät-Seriennummer
-  platform: sensor
-  category: diagnostic
-
-- match: {managementPointType: outdoorUnit, characteristic: modelInfo}
-  topic: outdoor_unit_model
-  name: Outdoor unit model
-  name_de: Außengerät-Modell
-  platform: sensor
-  category: diagnostic
-
-- match: {managementPointType: outdoorUnit, characteristic: serialNumber}
-  topic: outdoor_unit_serial_number
-  name: Outdoor unit serial number
-  name_de: Außengerät-Seriennummer
-  platform: sensor
-  category: diagnostic
+# Indoor/outdoor unit model and serial number are carried in the HA `device`
+# object (model / serial_number, from deviceInfos), not as separate sensors.
 
 # === climateControl: Altherma air-to-water (leaving water) =================
 # Altherma units control leaving-water temperature instead of room
@@ -402,20 +369,8 @@
     - {value: antiPollen, label: Anti-pollen, label_de: Anti-Pollen}
     - {value: circulator, label: Circulator, label_de: Umluft}
 
-# === indoorUnitHydro (Altherma hardware info) ==============================
-- match: {managementPointType: indoorUnitHydro, characteristic: modelInfo}
-  topic: indoor_hydro_model
-  name: Indoor hydro unit model
-  name_de: Hydro-Inneneinheit-Modell
-  platform: sensor
-  category: diagnostic
-
-- match: {managementPointType: indoorUnitHydro, characteristic: softwareVersion}
-  topic: indoor_hydro_software_version
-  name: Indoor hydro unit software version
-  name_de: Hydro-Inneneinheit-Softwareversion
-  platform: sensor
-  category: diagnostic
+# Altherma hydro-unit model/version are carried in the HA `device` object
+# (model / sw_version, from deviceInfos for indoorUnitHydro), not as sensors.
 
 # --- Per-unit comfort/air settings ---
 - match: {managementPointType: climateControl, characteristic: econoMode}

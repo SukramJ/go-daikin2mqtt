@@ -112,11 +112,13 @@ func TestResolveAirPurifierMock(t *testing.T) {
 	}
 }
 
-// TestResolveHydroInfoMock verifies indoorUnitHydro info sensors (altherma).
+// TestResolveHydroInfoMock verifies the Altherma-specific leaving-water control
+// resolves. (Hydro unit model and software version are carried in the HA device
+// info, not as point sensors.)
 func TestResolveHydroInfoMock(t *testing.T) {
 	pts := resolveMock(t, "testdata/altherma-air-to-water-wlan.json")
-	if _, ok := pts["indoor_hydro_model"]; !ok {
-		t.Error("indoor_hydro_model missing for altherma")
+	if _, ok := pts["leaving_water_setpoint"]; !ok {
+		t.Error("leaving_water_setpoint missing for altherma")
 	}
 }
 
