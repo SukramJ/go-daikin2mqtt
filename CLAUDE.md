@@ -133,10 +133,14 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   on `state/<host>` — `faikin.ParseState` sets `HasAC` (presence of `power`) and the read path
   **skips** them, else every entity would reset to its zero value. For settings the cloud does not
   expose for a unit (econo/streamer/outdoor silent/demand on the FTXA range, plus local-only
-  telemetry: energy totals, power draw, compressor/fan frequency, refrigerant temperature),
-  `localOnlyPoints` **synthesizes discovery points** so the entities still appear (state fed from
-  Faikin). These catalog entries match a synthetic characteristic (`faikinLocal`) the cloud never
-  reports, so they are only ever published via the local path. **Faikin dependency:** the firmware's
+  telemetry), `localOnlyPoints` **synthesizes discovery points** so the entities still appear (state
+  fed from Faikin). These catalog entries match a synthetic characteristic (`faikinLocal`) the cloud
+  never reports, so they are only ever published via the local path. Telemetry splits by physics:
+  **outdoor-unit values** (power draw, compressor frequency, lifetime energy totals — `scope:
+  outdoor`) are reported only by the active member and surface as one entity per outdoor unit,
+  aggregated as the max across the group (energy never republished as 0, to protect the
+  `total_increasing` counter); **per-unit values** (fan frequency, refrigerant temperature) stay per
+  indoor unit. **Faikin dependency:** the firmware's
   `ha.enable` gates *both* its own HA discovery *and* the AC fields in `state/<host>`
   (`revk_state_extra` returns early when off), so local reads require `ha.enable = true`; duplicate
   Faikin entities are avoided by redirecting its `topic.ha` prefix, not by disabling HA — see

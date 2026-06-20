@@ -87,7 +87,10 @@ leave them on for a multi-split.
 > **Note:** on a multi-split, an outdoor-unit setting (outdoor silent, demand)
 > is applied by the **active** indoor unit; the add-on fans the command out to
 > all units and shows the aggregated state, so the single entity reflects the
-> whole outdoor unit.
+> whole outdoor unit. The outdoor-unit **readings** — power draw, compressor
+> frequency and lifetime energy totals — are likewise reported only by the active
+> unit, so they appear as **one sensor per outdoor unit** rather than per indoor
+> unit (fan frequency and refrigerant temperature stay per indoor unit).
 
 ### Avoiding duplicate entities (Faikin's own HA discovery)
 
