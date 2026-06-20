@@ -314,7 +314,9 @@ type outdoorAggregate struct {
 //   - Power and energy are reported per indoor unit, so the outdoor (system)
 //     total is the SUM across members. Power is instantaneous (an idle unit
 //     reports ~0, which is correct); energy uses the per-unit held value so an
-//     idle unit reporting 0 does not drop the monotonic total.
+//     idle unit reporting 0 does not drop the monotonic total. Energy uses
+//     [aggregateEnergy], which falls back to a shared value when every member
+//     reports the same counter (a single shared meter rather than per-unit).
 //   - Compressor frequency is a single outdoor value every member reports
 //     identically, so it is the MAX (any reporting member).
 func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
@@ -322,6 +324,7 @@ func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	agg := outdoorAggregate{demand: 100}
+	var totals, heats, cools []int64
 	for _, m := range members {
 		st, ok := c.lastLocal[m]
 		if !ok {
@@ -336,11 +339,46 @@ func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
 		agg.powerW += st.Consumption
 		agg.compHz = max(agg.compHz, st.Comp)
 		e := c.lastEnergy[m]
-		agg.energyWh += e.total
-		agg.energyHeatWh += e.heat
-		agg.energyCoolWh += e.cool
+		totals = append(totals, e.total)
+		heats = append(heats, e.heat)
+		cools = append(cools, e.cool)
 	}
+	agg.energyWh = aggregateEnergy(totals)
+	agg.energyHeatWh = aggregateEnergy(heats)
+	agg.energyCoolWh = aggregateEnergy(cools)
 	return agg
+}
+
+// aggregateEnergy combines per-member lifetime energy counters into the outdoor
+// total. Per-unit meters (the common case) carry different values and sum to the
+// system total. But the Faikin `energy` field is the outside power meter, which
+// on some hardware is a single shared counter every indoor unit reports
+// identically — summing that would multiply it by the unit count. So when every
+// reporting member shows the *same* value, it is treated as one shared counter
+// and returned as-is. Zero (non-reporting) members are ignored.
+func aggregateEnergy(vals []int64) int64 {
+	var sum, shared int64
+	seen, differ := false, false
+	for _, v := range vals {
+		if v == 0 {
+			continue
+		}
+		sum += v
+		switch {
+		case !seen:
+			shared, seen = v, true
+		case v != shared:
+			differ = true
+		}
+	}
+	switch {
+	case !seen:
+		return 0
+	case differ:
+		return sum // per-unit meters → system total
+	default:
+		return shared // all members identical → one shared meter
+	}
 }
 
 // flushLocalStates republishes the last AC state received for each mapped

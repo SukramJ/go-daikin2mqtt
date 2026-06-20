@@ -1,3 +1,18 @@
+# Version 0.2.13 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- Safeguard for the summed outdoor energy totals: if every reporting indoor unit
+  shows the **same** energy counter, it is treated as a single shared meter and
+  published as-is instead of being summed (which would multiply it by the unit
+  count). Per-unit meters (different values) keep summing to the system total.
+  This protects hardware where Faikin's `energy` (the outside power meter) is a
+  shared outdoor counter rather than per indoor unit. Confirmed against the
+  firmware: the energy fields are decoded from S21 device responses, and
+  `energyheat`/`energycool` are the per-device command `'U'`.
+
 # Version 0.2.12 (2026-06-20)
 
 ## What's Changed

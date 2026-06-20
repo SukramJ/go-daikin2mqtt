@@ -139,8 +139,10 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   power draw + lifetime energy totals are each indoor unit's own reading and **sum** to one
   outdoor-unit entity (`scope: outdoor`); energy is **held** per unit (`lastEnergy`) so an idle unit
   reading 0 doesn't drop the summed `total_increasing` total, and the sum is never republished as 0.
-  Compressor frequency is the shared outdoor value (identical per member) → **max**. Fan frequency
-  and refrigerant temperature stay per indoor unit. **Faikin dependency:** the firmware's
+  `aggregateEnergy` falls back to a shared value (not the sum) when every member reports an identical
+  counter (Faikin's `energy`/`Whoutside` is the outside meter, shared on some hardware). Compressor
+  frequency is the shared outdoor value (identical per member) → **max**. Fan frequency and
+  refrigerant temperature stay per indoor unit. **Faikin dependency:** the firmware's
   `ha.enable` gates *both* its own HA discovery *and* the AC fields in `state/<host>`
   (`revk_state_extra` returns early when off), so local reads require `ha.enable = true`; duplicate
   Faikin entities are avoided by redirecting its `topic.ha` prefix, not by disabling HA — see

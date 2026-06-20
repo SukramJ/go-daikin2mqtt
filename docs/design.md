@@ -138,12 +138,18 @@ its **own** energy/power while the compressor frequency is identical everywhere)
 
 - **Per-unit, summed** — `power_consumption`, `energy_total`,
   `heating_energy_total`, `cooling_energy_total` are each indoor unit's own
-  reading, so the outdoor (system) total is the **sum across members**. Power is
-  instantaneous (an idle unit reports ~0, correct). Energy is a
-  `total_increasing` lifetime counter, and an idle unit stops reporting it
-  (reads 0), which would drop the sum — so each unit's energy is **held** at its
-  highest seen value (`Coordinator.lastEnergy`) and the held values are summed;
-  the sum is never republished as 0.
+  reading (confirmed in the firmware: the energy fields decode S21 responses, and
+  `energyheat`/`energycool` are command `'U'`, labelled *"Per device power"*), so
+  the outdoor (system) total is the **sum across members**. Power is instantaneous
+  (an idle unit reports ~0, correct). Energy is a `total_increasing` lifetime
+  counter, and an idle unit stops reporting it (reads 0), which would drop the
+  sum — so each unit's energy is **held** at its highest seen value
+  (`Coordinator.lastEnergy`) and the held values are summed; the sum is never
+  republished as 0. `aggregateEnergy` guards the one ambiguous field: Faikin's
+  `energy` is the *outside power meter*, which on some hardware is a single shared
+  counter every unit reports identically — so when all reporting members show the
+  same value it is treated as one shared meter (returned as-is, not multiplied)
+  rather than summed.
 - **Shared, max** — `compressor_frequency` is the single outdoor compressor's
   speed, reported identically by every member, so the aggregate is the max.
 
