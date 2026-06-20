@@ -159,6 +159,9 @@ const testCatalogYAML = `
   value_path: operationModes/{mode}/setpoints/roomTemperature
   path: /operationModes/{mode}/setpoints/roomTemperature
   precision: 1
+- {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: energy_total, name: Energy total, platform: sensor, unit: kWh, precision: 3}
+- {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: heating_energy_total, name: Heating energy total, platform: sensor, unit: kWh, precision: 3}
+- {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: cooling_energy_total, name: Cooling energy total, platform: sensor, unit: kWh, precision: 3}
 `
 
 func loadTestCatalog(t *testing.T) *catalog.Catalog {

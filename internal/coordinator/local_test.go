@@ -17,7 +17,7 @@ import (
 )
 
 // realFaikinState is a verbatim `state/Klima SZ` payload from a live module.
-const realFaikinState = `{"online":true,"power":true,"target":22.50,"temp":21.00,"hum":66.00,"outside":28.00,"demand":100,"energy":772600,"mode":"cool","fan":"auto","streamer":false,"quiet":false,"econo":true,"comfort":false,"powerful":false,"swing":"off","preset":"eco"}`
+const realFaikinState = `{"online":true,"power":true,"target":22.50,"temp":21.00,"hum":66.00,"outside":28.00,"liquid":13.00,"demand":100,"consumption":120,"comp":25.0,"fanfreq":9.5,"energy":772600,"energyheat":71000,"energycool":117300,"mode":"cool","fan":"auto","streamer":false,"quiet":false,"econo":true,"comfort":false,"powerful":false,"swing":"off","preset":"eco"}`
 
 func localReadCoordinator(t *testing.T, faikinMQTT, mainMQTT *stubMQTT) *Coordinator {
 	t.Helper()
@@ -57,6 +57,14 @@ func TestPublishLocalState(t *testing.T) {
 		"streamer/state":             "off", // streamer:false
 		"outdoor_silent/state":       "off", // quiet:false
 		"demand_control/state":       "100", // demand:100
+		// Local-only telemetry; energy Wh -> kWh.
+		"energy_total/state":            "772.600",
+		"heating_energy_total/state":    "71.000",
+		"cooling_energy_total/state":    "117.300",
+		"power_consumption/state":       "120",
+		"compressor_frequency/state":    "25.0",
+		"fan_frequency/state":           "9.5",
+		"refrigerant_temperature/state": "13.0",
 	}
 	for suffix, exp := range want {
 		topic := "daikin/dev1/climateControl/" + suffix

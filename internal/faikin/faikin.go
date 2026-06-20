@@ -44,11 +44,17 @@ type State struct {
 	Temp    float64 `json:"temp"`    // room temperature °C
 	Hum     float64 `json:"hum"`     // relative humidity %
 	Outside float64 `json:"outside"` // outdoor temperature °C
+	Liquid  float64 `json:"liquid"`  // refrigerant liquid-line temperature °C
 	Demand  int     `json:"demand"`  // demand-control limit %
 
-	Energy     int64 `json:"energy"`     // total Wh
-	EnergyHeat int64 `json:"energyheat"` // heating Wh
-	EnergyCool int64 `json:"energycool"` // cooling Wh
+	// Live telemetry the cloud does not expose (local-only).
+	Consumption int     `json:"consumption"` // current power draw, W
+	Comp        float64 `json:"comp"`        // compressor frequency, Hz
+	FanFreq     float64 `json:"fanfreq"`     // indoor fan frequency, Hz
+
+	Energy     int64 `json:"energy"`     // lifetime total Wh
+	EnergyHeat int64 `json:"energyheat"` // lifetime heating Wh
+	EnergyCool int64 `json:"energycool"` // lifetime cooling Wh
 }
 
 // ParseState decodes a `state/<host>` payload, tagging it with its host. It

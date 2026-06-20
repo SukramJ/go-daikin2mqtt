@@ -22,7 +22,13 @@ import (
 // silent/demand on the FTXA range, read off the serial bus locally). In local
 // mode the daemon synthesizes discovery points for them so the entities appear
 // in Home Assistant even though the cloud poll cannot resolve them.
-var localOnlyTopics = []string{"econo_mode", "streamer", "outdoor_silent", "demand_control"}
+var localOnlyTopics = []string{
+	"econo_mode", "streamer", "outdoor_silent", "demand_control",
+	// Telemetry the cloud does not expose, read straight off the Faikin state.
+	"energy_total", "heating_energy_total", "cooling_energy_total",
+	"power_consumption", "compressor_frequency", "fan_frequency",
+	"refrigerant_temperature",
+}
 
 // faikinToDaikinMode is the inverse of [daikinToFaikinMode]: it maps a Faikin
 // app mode back to the ONECTA operationMode code, so a local state update can
@@ -319,6 +325,15 @@ func (c *Coordinator) localStateMessages(st *faikin.State) map[string]string {
 		"powerful_mode":        onOff(st.Powerful),
 		"econo_mode":           onOff(st.Econo),
 		"streamer":             onOff(st.Streamer),
+		// Local-only telemetry (no cloud equivalent). Energy is a Wh lifetime
+		// total from Faikin, published in kWh to match the energy device_class.
+		"energy_total":            c.fmtFloat("energy_total", float64(st.Energy)/1000),
+		"heating_energy_total":    c.fmtFloat("heating_energy_total", float64(st.EnergyHeat)/1000),
+		"cooling_energy_total":    c.fmtFloat("cooling_energy_total", float64(st.EnergyCool)/1000),
+		"power_consumption":       strconv.Itoa(st.Consumption),
+		"compressor_frequency":    c.fmtFloat("compressor_frequency", st.Comp),
+		"fan_frequency":           c.fmtFloat("fan_frequency", st.FanFreq),
+		"refrigerant_temperature": c.fmtFloat("refrigerant_temperature", st.Liquid),
 	}
 	// outdoor_silent and demand_control are outdoor-shared (scope: outdoor) and
 	// published group-aggregated by publishOutdoorShared, not per unit.

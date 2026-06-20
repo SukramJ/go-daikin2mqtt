@@ -1,3 +1,23 @@
+# Version 0.2.10 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- Local-only telemetry sensors, read straight from the Faikin state document
+  (the cloud does not expose these per indoor unit):
+  - **Energy totals** — `energy_total`, `heating_energy_total`,
+    `cooling_energy_total` (lifetime kWh, `total_increasing`). These complement
+    the cloud's daily/weekly/monthly buckets and keep working without the cloud.
+  - **Power** — `power_consumption` (current draw, W).
+  - **Diagnostics** — `compressor_frequency`, `fan_frequency`,
+    `refrigerant_temperature` (entity category `diagnostic`).
+
+  They appear only for devices mapped to a Faikin host. The live climate sensors
+  (room/outdoor temperature, humidity, setpoint) were already read locally; what
+  still comes from the cloud is static device info (model/serial/firmware) and
+  diagnostics (error/warning states).
+
 # Version 0.2.9 (2026-06-19)
 
 ## What's Changed
