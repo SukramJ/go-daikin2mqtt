@@ -129,7 +129,9 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   canonical state topic — the one its own HA discovery reads from; app form: `mode` word,
   `temp`=room, `target`=setpoint), translate and
   republish onto the **same** per-unit state topics (so HA sees identical entities); the cloud
-  poll skips those topics (`localTopics`). Faikin may interleave **OS/heartbeat docs** (no AC fields)
+  poll skips those topics (`localTopics`). In local mode each mapped device's HA `configuration_url`
+  is pointed at its Faikin web UI (`http://<ipv4>/`, from the module's reported `ipv4`/`ipv6`),
+  mirroring Faikin's own discovery (`applyFaikinConfigURLs`). Faikin may interleave **OS/heartbeat docs** (no AC fields)
   on `state/<host>` — `faikin.ParseState` sets `HasAC` (presence of `power`) and the read path
   **skips** them, else every entity would reset to its zero value. For settings the cloud does not
   expose for a unit (econo/streamer/outdoor silent/demand on the FTXA range, plus local-only

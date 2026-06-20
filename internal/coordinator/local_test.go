@@ -13,6 +13,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
+	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 )
 
@@ -371,5 +372,23 @@ func TestAggregateEnergySharedVsPerUnit(t *testing.T) {
 		if got := aggregateEnergy(tc.vals); got != tc.want {
 			t.Errorf("%s: aggregateEnergy(%v) = %d, want %d", tc.name, tc.vals, got, tc.want)
 		}
+	}
+}
+
+func TestApplyFaikinConfigURLs(t *testing.T) {
+	c := localReadCoordinator(t, newStubMQTT(), newStubMQTT()) // dev1 -> Klima SZ
+	c.lastLocal["dev1"] = &faikin.State{HasAC: true, IPv4: "172.18.9.135", IPv6: "2003::4320"}
+
+	infos := map[string]hass.DeviceInfo{
+		"dev1":  {Name: "Schlafzimmer"}, // locally mapped → Faikin URL
+		"other": {Name: "Cloud only"},   // not mapped → unchanged
+	}
+	c.applyFaikinConfigURLs(infos)
+
+	if got := infos["dev1"].ConfigurationURL; got != "http://172.18.9.135/" {
+		t.Errorf("dev1 config URL = %q, want http://172.18.9.135/ (Faikin, IPv4 preferred)", got)
+	}
+	if got := infos["other"].ConfigurationURL; got != "" {
+		t.Errorf("unmapped device config URL = %q, want empty (keeps cloud default)", got)
 	}
 }

@@ -1,3 +1,15 @@
+# Version 0.2.16 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- In local mode, each mapped device's Home Assistant **device link**
+  (`configuration_url`) now points at its **Faikin module web UI**
+  (`http://<ip>/`, from the module's reported `ipv4`/`ipv6`), mirroring Faikin's
+  own discovery — so the device page opens the local module instead of the
+  ONECTA cloud. Cloud-only devices keep the ONECTA link.
+
 # Version 0.2.15 (2026-06-20)
 
 ## What's Changed
