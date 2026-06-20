@@ -7,9 +7,10 @@ official ONECTA cloud — or, in **local-first mode**, through the indoor
 units' local Faikin modules — publishes their state to MQTT, and accepts
 write-back commands from Home Assistant.
 
-> **Status: beta.** The daemon works end-to-end (read + control) and has
-> been validated against live ONECTA devices. Topic layout and the
-> characteristic catalog may still evolve.
+> **Status: beta.** The daemon works end-to-end (read + control) and has been
+> validated against live ONECTA devices, including local-first control and a
+> multi-split (3MXM + FTXA) setup. Topic layout and the characteristic catalog
+> may still evolve.
 
 ## Features
 
@@ -24,16 +25,33 @@ write-back commands from Home Assistant.
   `temperatureControl` and `consumptionData` energy) to MQTT and HA.
 - Home Assistant MQTT auto-discovery for climate / sensor / binary_sensor /
   number / select / switch. **English `entity_id`s with localized (en/de)
-  display names**; localized select options that map back to API codes.
-- **Local-first mode** (optional): read and control the indoor units over their
-  local **Faikin / Faikout** (revk/ESP32) MQTT interface instead of the
-  rate-limited cloud, keeping the same HA entities. Surfaces settings the cloud
-  does not expose for a unit (econo, streamer, outdoor silent, demand). See
-  [`docs/design.md`](./docs/design.md).
+  display names**; localized select options that map back to API codes. A
+  combined **climate** entity (mode / setpoint / fan / swing / preset). Static
+  device identity (model, serial, sw/firmware version, MAC) is carried in the HA
+  **device** object, not as separate sensors.
+- **Self-cleaning discovery**: when an entity is removed, moved to another
+  device, or renamed across versions, the daemon clears its own now-stale
+  retained discovery configs automatically — no manual broker cleanup. Other
+  integrations' configs are never touched.
+- **`data_source` attribute** on every entity (`cloud` / `local`) so you can see
+  at a glance whether a value comes from the ONECTA cloud or the local Faikin
+  path.
+- **Local-first mode** (optional): read **and** control the indoor units over
+  their local **Faikin / Faikout** (revk/ESP32) MQTT interface instead of the
+  rate-limited cloud, keeping the same HA entities — including fan speed, swing
+  and the boost preset. Surfaces settings the cloud does not expose for a unit
+  (econo, streamer, outdoor silent, demand) plus local-only telemetry (energy,
+  power, compressor / fan frequency, refrigerant / outdoor temperature). Each
+  mapped device's HA link points at its Faikin web UI. See
+  [`docs/design.md`](./docs/design.md) and
+  [`docs/faikin-home-assistant.md`](./docs/faikin-home-assistant.md).
 - **Multi-split aware**: settings shared across one outdoor unit (operation
   mode, outdoor silent, demand) are surfaced once per outdoor unit and fanned
   out to all indoor units; heat/cool mode is kept consistent across the group;
-  powerful ⇄ econo are mutually exclusive.
+  powerful ⇄ econo are mutually exclusive. Telemetry follows the physics: energy
+  and power are **per indoor unit** and also **summed** once per outdoor unit;
+  values identical across the units (compressor / fan frequency, refrigerant /
+  outdoor temperature) are shown **once** at the outdoor unit.
 - Optional diagnostic **web UI** with integrated OAuth (HA-ingress ready).
 - `daikin2mqtt-util` helper CLI (auth, devices, points, set, ratelimit,
   catalog-check) and a `--mock` mode using the ONECTA mock endpoint.
