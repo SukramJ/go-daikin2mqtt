@@ -392,3 +392,24 @@ func TestApplyFaikinConfigURLs(t *testing.T) {
 		t.Errorf("unmapped device config URL = %q, want empty (keeps cloud default)", got)
 	}
 }
+
+func TestLocalPresetMirrorsPowerful(t *testing.T) {
+	main := newStubMQTT()
+	c := localReadCoordinator(t, newStubMQTT(), main)
+	c.climateEmbedded["dev1"] = "climateControl"
+
+	// Powerful on → climate preset must read "boost" (so it stays toggleable).
+	c.publishLocalState(context.Background(), "dev1", &faikin.State{HasAC: true, Power: true, Powerful: true})
+	if got, _ := main.get("daikin/dev1/climateControl/preset_mode/state"); got.payload != "Boost" {
+		t.Errorf("preset with powerful on = %q, want Boost", got.payload)
+	}
+	if got, _ := main.get("daikin/dev1/climateControl/powerful_mode/state"); got.payload != "on" {
+		t.Errorf("powerful switch = %q, want on", got.payload)
+	}
+
+	// Powerful off → preset "none".
+	c.publishLocalState(context.Background(), "dev1", &faikin.State{HasAC: true, Power: true, Powerful: false})
+	if got, _ := main.get("daikin/dev1/climateControl/preset_mode/state"); got.payload != "none" {
+		t.Errorf("preset with powerful off = %q, want none", got.payload)
+	}
+}

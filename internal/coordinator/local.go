@@ -455,6 +455,13 @@ func (c *Coordinator) localStateMessages(st *faikin.State) map[string]string {
 	v, h := faikinSwingAxes(st.Swing)
 	out[hass.SwingModeTopic] = localizeAux(v, lang, swingModeDE)
 	out[hass.SwingHModeTopic] = localizeAux(h, lang, swingModeDE)
+	// Climate preset mirrors powerful (boost) from the local state, so the
+	// preset stays in sync with the powerful switch instead of the stale cloud.
+	preset := "none"
+	if st.Powerful {
+		preset = "boost"
+	}
+	out[hass.PresetModeTopic] = localizeAux(preset, lang, presetModeDE)
 	return out
 }
 

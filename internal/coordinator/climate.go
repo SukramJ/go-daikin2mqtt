@@ -320,7 +320,10 @@ func (c *Coordinator) publishClimateAux(ctx context.Context, devices []model.Dev
 			if len(a.swingHModes) > 0 && !localFanSwing {
 				pub(hass.SwingHModeTopic, localizeAux(a.swingH, lang, swingModeDE))
 			}
-			if len(a.presetModes) > 0 {
+			// In local mode the Faikin read path owns preset (mirrors powerful),
+			// so skip the cloud value here — it is stale for a local unit and
+			// would snap the preset back, making boost untoggleable.
+			if len(a.presetModes) > 0 && !localFanSwing {
 				pub(hass.PresetModeTopic, localizeAux(a.preset, lang, presetModeDE))
 			}
 		}

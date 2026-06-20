@@ -3,7 +3,7 @@
 # version MUST equal the published image tag (ghcr.io/sukramj/go-daikin2mqtt-addon-{arch})
 # and is bumped in the release commit that cuts the matching git tag.
 name: go-daikin2mqtt
-version: "0.2.16"
+version: "0.2.17"
 slug: go-daikin2mqtt
 description: >-
   Bridges Daikin ONECTA cloud climate devices to MQTT with Home Assistant
