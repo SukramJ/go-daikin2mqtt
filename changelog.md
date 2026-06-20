@@ -1,3 +1,21 @@
+# Version 0.2.12 (2026-06-20)
+
+## What's Changed
+
+### Fixed
+
+- Corrected the outdoor-unit telemetry aggregation introduced in 0.2.11. Live
+  multi-split data showed that **power and energy are per indoor unit** (each unit
+  reports its own), not a single shared outdoor value — only the compressor
+  frequency is shared. The 0.2.11 *max* aggregation therefore showed just the
+  single highest unit, which is meaningless. Now:
+  - `power_consumption`, `energy_total`, `heating_energy_total`,
+    `cooling_energy_total` are **summed** across the group = the system total.
+    Energy is **held** per unit at its highest seen value, so an idle unit that
+    stops reporting (reads 0) does not drop the summed `total_increasing` total.
+  - `compressor_frequency` stays the shared outdoor value (max; identical across
+    members).
+
 # Version 0.2.11 (2026-06-20)
 
 ## What's Changed

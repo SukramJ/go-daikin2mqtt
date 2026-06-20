@@ -64,8 +64,17 @@ type Coordinator struct {
 	climateEmbedded map[string]string        // deviceID -> climateControl embeddedID (for local routing)
 	outdoorSerial   map[string]string        // deviceID -> outdoor-unit serial (for multi-split grouping)
 	lastLocal       map[string]*faikin.State // deviceID -> last AC state received from Faikin
+	lastEnergy      map[string]energyTotals  // deviceID -> last non-zero per-unit energy (held; see localOutdoorAgg)
 	pendingOutdoor  map[string]outdoorHold   // "<group>|<topic>" -> just-written value, held until confirmed
 	lastDiscSig     string                   // signature of the last published discovery set
+}
+
+// energyTotals holds a unit's lifetime energy counters (Wh). They are monotonic
+// per unit, so each field is held at its highest seen value to bridge the gaps
+// when an idle unit stops reporting them (would otherwise read 0 and drop the
+// summed outdoor total).
+type energyTotals struct {
+	total, heat, cool int64
 }
 
 // outdoorHold remembers a just-written outdoor-shared value so a stale Faikin
@@ -97,6 +106,7 @@ func New(d Deps) *Coordinator {
 		climateEmbedded: map[string]string{},
 		outdoorSerial:   map[string]string{},
 		lastLocal:       map[string]*faikin.State{},
+		lastEnergy:      map[string]energyTotals{},
 		pendingOutdoor:  map[string]outdoorHold{},
 	}
 }

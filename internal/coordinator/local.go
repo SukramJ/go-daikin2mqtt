@@ -166,6 +166,13 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 	// before the first cloud poll has populated the embeddedID cache.
 	c.mu.Lock()
 	c.lastLocal[deviceID] = st
+	// Hold each per-unit energy counter at its highest seen value, so an idle
+	// unit reporting 0 does not drop the summed outdoor total.
+	e := c.lastEnergy[deviceID]
+	e.total = max(e.total, st.Energy)
+	e.heat = max(e.heat, st.EnergyHeat)
+	e.cool = max(e.cool, st.EnergyCool)
+	c.lastEnergy[deviceID] = e
 	c.mu.Unlock()
 
 	emb, ok := c.climateEmbeddedID(deviceID)
@@ -300,11 +307,16 @@ type outdoorAggregate struct {
 	energyWh, energyHeatWh, energyCoolWh int64
 }
 
-// localOutdoorAgg combines the outdoor-shared values across a device's outdoor
-// group from the cached Faikin states. Outdoor silent is on if any member
-// reports it; demand is the most restrictive (lowest). The telemetry values are
-// genuinely the outdoor unit's, reported only by the active indoor unit, so the
-// aggregate is the maximum across members (idle members report 0).
+// localOutdoorAgg combines the outdoor values across a device's outdoor group
+// from the cached Faikin states. The aggregation rule differs by physics:
+//   - Settings: outdoor silent is on if any member reports it; demand is the
+//     most restrictive (lowest).
+//   - Power and energy are reported per indoor unit, so the outdoor (system)
+//     total is the SUM across members. Power is instantaneous (an idle unit
+//     reports ~0, which is correct); energy uses the per-unit held value so an
+//     idle unit reporting 0 does not drop the monotonic total.
+//   - Compressor frequency is a single outdoor value every member reports
+//     identically, so it is the MAX (any reporting member).
 func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
 	members := c.groupMembers(deviceID)
 	c.mu.Lock()
@@ -321,11 +333,12 @@ func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
 		if st.Demand < agg.demand {
 			agg.demand = st.Demand
 		}
-		agg.powerW = max(agg.powerW, st.Consumption)
+		agg.powerW += st.Consumption
 		agg.compHz = max(agg.compHz, st.Comp)
-		agg.energyWh = max(agg.energyWh, st.Energy)
-		agg.energyHeatWh = max(agg.energyHeatWh, st.EnergyHeat)
-		agg.energyCoolWh = max(agg.energyCoolWh, st.EnergyCool)
+		e := c.lastEnergy[m]
+		agg.energyWh += e.total
+		agg.energyHeatWh += e.heat
+		agg.energyCoolWh += e.cool
 	}
 	return agg
 }

@@ -136,11 +136,11 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   telemetry), `localOnlyPoints` **synthesizes discovery points** so the entities still appear (state
   fed from Faikin). These catalog entries match a synthetic characteristic (`faikinLocal`) the cloud
   never reports, so they are only ever published via the local path. Telemetry splits by physics:
-  **outdoor-unit values** (power draw, compressor frequency, lifetime energy totals — `scope:
-  outdoor`) are reported only by the active member and surface as one entity per outdoor unit,
-  aggregated as the max across the group (energy never republished as 0, to protect the
-  `total_increasing` counter); **per-unit values** (fan frequency, refrigerant temperature) stay per
-  indoor unit. **Faikin dependency:** the firmware's
+  power draw + lifetime energy totals are each indoor unit's own reading and **sum** to one
+  outdoor-unit entity (`scope: outdoor`); energy is **held** per unit (`lastEnergy`) so an idle unit
+  reading 0 doesn't drop the summed `total_increasing` total, and the sum is never republished as 0.
+  Compressor frequency is the shared outdoor value (identical per member) → **max**. Fan frequency
+  and refrigerant temperature stay per indoor unit. **Faikin dependency:** the firmware's
   `ha.enable` gates *both* its own HA discovery *and* the AC fields in `state/<host>`
   (`revk_state_extra` returns early when off), so local reads require `ha.enable = true`; duplicate
   Faikin entities are avoided by redirecting its `topic.ha` prefix, not by disabling HA — see
