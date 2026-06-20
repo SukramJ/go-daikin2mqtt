@@ -557,34 +557,10 @@
 # Plain scalar / boolean values surfaced as diagnostic sensors. They appear on
 # the matching sub-device (gateway / indoor unit / outdoor unit).
 
-# --- Gateway ---
-- match: {managementPointType: gateway, characteristic: modelInfo}
-  topic: gateway_model
-  name: Gateway model
-  name_de: Gateway-Modell
-  platform: sensor
-  category: diagnostic
-
-- match: {managementPointType: gateway, characteristic: ssid}
-  topic: gateway_ssid
-  name: Gateway Wi-Fi SSID
-  name_de: Gateway-WLAN (SSID)
-  platform: sensor
-  category: diagnostic
-
-- match: {managementPointType: gateway, characteristic: timeZone}
-  topic: gateway_timezone
-  name: Gateway time zone
-  name_de: Gateway-Zeitzone
-  platform: sensor
-  category: diagnostic
-
-- match: {managementPointType: gateway, characteristic: isFirmwareUpdateSupported}
-  topic: gateway_firmware_update_supported
-  name: Gateway firmware update supported
-  name_de: Gateway-Firmware-Update unterstützt
-  platform: binary_sensor
-  category: diagnostic
+# Note: model info and software/firmware versions are carried in the HA `device`
+# object (model / sw_version / serial_number, from deviceInfos), so they are NOT
+# duplicated as separate sensors. SSID and time zone are intentionally not
+# surfaced.
 
 # --- climateControl (status flags) ---
 - match: {managementPointType: climateControl, characteristic: isInCautionState}
@@ -610,22 +586,7 @@
   platform: binary_sensor
   category: diagnostic
 
-# --- indoorUnit ---
-- match: {managementPointType: indoorUnit, characteristic: softwareVersion}
-  topic: indoor_unit_software_version
-  name: Indoor unit software version
-  name_de: Innengerät-Softwareversion
-  platform: sensor
-  category: diagnostic
-
 # --- outdoorUnit ---
-- match: {managementPointType: outdoorUnit, characteristic: softwareVersion}
-  topic: outdoor_unit_software_version
-  name: Outdoor unit software version
-  name_de: Außengerät-Softwareversion
-  platform: sensor
-  category: diagnostic
-
 - match: {managementPointType: outdoorUnit, characteristic: errorCode}
   topic: outdoor_error_code
   name: Outdoor unit error code

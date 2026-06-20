@@ -1,3 +1,23 @@
+# Version 0.2.15 (2026-06-20)
+
+## What's Changed
+
+### Changed
+
+- Model and software/firmware versions are kept in the Home Assistant **device**
+  info (the device's `model` / `sw_version` / `serial_number`, already populated
+  from the cloud data) rather than duplicated as separate sensors. The redundant
+  entities added in 0.2.14 are removed: `gateway_model`,
+  `indoor_unit_software_version`, `outdoor_unit_software_version`. Gateway SSID,
+  time zone, and firmware-update-supported are no longer surfaced
+  (`gateway_ssid`, `gateway_timezone`, `gateway_firmware_update_supported`
+  removed). The status-flag diagnostics from 0.2.14 stay: `caution_state`,
+  `mode_conflict`, `holiday_mode`, and the outdoor unit `outdoor_error_code` /
+  `outdoor_error_state` / `outdoor_warning_state` / `outdoor_caution_state`.
+
+  **Migration:** the removed entities go unavailable in Home Assistant after the
+  update — delete them; the same information is shown on the device page.
+
 # Version 0.2.14 (2026-06-20)
 
 ## What's Changed
