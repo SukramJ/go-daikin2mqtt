@@ -1,3 +1,19 @@
+# Version 0.2.14 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- Catalogued more ONECTA characteristics as **diagnostic** entities (previously
+  unmapped), surfaced on the matching sub-device:
+  - Gateway: `gateway_model`, `gateway_ssid`, `gateway_timezone`,
+    `gateway_firmware_update_supported`.
+  - Indoor unit: `indoor_unit_software_version`.
+  - Outdoor unit: `outdoor_unit_software_version`, `outdoor_error_code`,
+    `outdoor_error_state`, `outdoor_warning_state`, `outdoor_caution_state`.
+  - Climate: `caution_state`, `mode_conflict` (useful on a multi-split),
+    `holiday_mode`.
+
 # Version 0.2.13 (2026-06-20)
 
 ## What's Changed
