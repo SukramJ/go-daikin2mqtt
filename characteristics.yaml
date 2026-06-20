@@ -552,3 +552,107 @@
   state_class: measurement
   category: diagnostic
   precision: 1
+
+# === Additional diagnostic characteristics (from a live device dump) =========
+# Plain scalar / boolean values surfaced as diagnostic sensors. They appear on
+# the matching sub-device (gateway / indoor unit / outdoor unit).
+
+# --- Gateway ---
+- match: {managementPointType: gateway, characteristic: modelInfo}
+  topic: gateway_model
+  name: Gateway model
+  name_de: Gateway-Modell
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: gateway, characteristic: ssid}
+  topic: gateway_ssid
+  name: Gateway Wi-Fi SSID
+  name_de: Gateway-WLAN (SSID)
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: gateway, characteristic: timeZone}
+  topic: gateway_timezone
+  name: Gateway time zone
+  name_de: Gateway-Zeitzone
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: gateway, characteristic: isFirmwareUpdateSupported}
+  topic: gateway_firmware_update_supported
+  name: Gateway firmware update supported
+  name_de: Gateway-Firmware-Update unterstützt
+  platform: binary_sensor
+  category: diagnostic
+
+# --- climateControl (status flags) ---
+- match: {managementPointType: climateControl, characteristic: isInCautionState}
+  topic: caution_state
+  name: Caution
+  name_de: Achtung
+  platform: binary_sensor
+  category: diagnostic
+  device_class: problem
+
+- match: {managementPointType: climateControl, characteristic: isInModeConflict}
+  topic: mode_conflict
+  name: Mode conflict
+  name_de: Modus-Konflikt
+  platform: binary_sensor
+  category: diagnostic
+  device_class: problem
+
+- match: {managementPointType: climateControl, characteristic: isHolidayModeActive}
+  topic: holiday_mode
+  name: Holiday mode
+  name_de: Urlaubsmodus
+  platform: binary_sensor
+  category: diagnostic
+
+# --- indoorUnit ---
+- match: {managementPointType: indoorUnit, characteristic: softwareVersion}
+  topic: indoor_unit_software_version
+  name: Indoor unit software version
+  name_de: Innengerät-Softwareversion
+  platform: sensor
+  category: diagnostic
+
+# --- outdoorUnit ---
+- match: {managementPointType: outdoorUnit, characteristic: softwareVersion}
+  topic: outdoor_unit_software_version
+  name: Outdoor unit software version
+  name_de: Außengerät-Softwareversion
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: outdoorUnit, characteristic: errorCode}
+  topic: outdoor_error_code
+  name: Outdoor unit error code
+  name_de: Außengerät-Fehlercode
+  platform: sensor
+  category: diagnostic
+
+- match: {managementPointType: outdoorUnit, characteristic: isInErrorState}
+  topic: outdoor_error_state
+  name: Outdoor unit error
+  name_de: Außengerät-Fehler
+  platform: binary_sensor
+  category: diagnostic
+  device_class: problem
+
+- match: {managementPointType: outdoorUnit, characteristic: isInWarningState}
+  topic: outdoor_warning_state
+  name: Outdoor unit warning
+  name_de: Außengerät-Warnung
+  platform: binary_sensor
+  category: diagnostic
+  device_class: problem
+
+- match: {managementPointType: outdoorUnit, characteristic: isInCautionState}
+  topic: outdoor_caution_state
+  name: Outdoor unit caution
+  name_de: Außengerät-Achtung
+  platform: binary_sensor
+  category: diagnostic
+  device_class: problem
