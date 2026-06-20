@@ -1,3 +1,35 @@
+# Version 0.2.11 (2026-06-20)
+
+## What's Changed
+
+### Changed
+
+- The outdoor-unit telemetry added in 0.2.10 — **power draw**, **compressor
+  frequency** and the **lifetime energy totals** — now appears as **one sensor
+  per outdoor unit** instead of one per indoor unit. On a multi-split only the
+  active indoor unit reports these over the S21 bus, so the per-unit sensors were
+  misleading (idle units showed 0). They are aggregated as the max across the
+  outdoor group (= the reporting unit); energy totals are never republished as 0,
+  so the `total_increasing` counter is not reset when no unit is currently
+  reporting. `fan_frequency` and `refrigerant_temperature` remain per indoor
+  unit.
+
+  **Migration:** after updating, the old per-indoor-unit `power_consumption` /
+  `energy_total` / `heating_energy_total` / `cooling_energy_total` /
+  `compressor_frequency` entities become unavailable (their discovery scheme
+  changed) — delete them in Home Assistant; the new outdoor-unit sensors appear
+  automatically.
+
+### Documentation
+
+- New [docs/faikin-home-assistant.md](docs/faikin-home-assistant.md): how to run
+  local mode alongside the Faikin firmware **without duplicate Home Assistant
+  entities**. Key point — Faikin's `ha.enable` gates **both** its own HA
+  discovery **and** the AC fields the daemon reads from `state/<host>`, so it
+  must stay enabled; avoid duplicates by pointing Faikin's `topic.ha` at a prefix
+  Home Assistant does not scan (e.g. `homeassistant_disabled`), not by disabling
+  HA. (Corrects the earlier `{"ha":false}` guidance.)
+
 # Version 0.2.10 (2026-06-20)
 
 ## What's Changed

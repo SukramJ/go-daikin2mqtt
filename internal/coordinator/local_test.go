@@ -262,3 +262,63 @@ func TestOutdoorHold(t *testing.T) {
 		t.Errorf("no pending should return raw, got %q", got)
 	}
 }
+
+func TestOutdoorTelemetryAggregate(t *testing.T) {
+	main := newStubMQTT()
+	cfg := &config.Config{
+		MQTTTopic: "daikin", Language: "de", LocalMode: true, LocalFaikinPrefix: "Faikout",
+		LocalDeviceMap: map[string]string{"a": "Klima A", "b": "Klima B"},
+	}
+	c := New(Deps{
+		Cfg: cfg, Client: &stubCloud{}, MQTT: main, FaikinMQTT: newStubMQTT(),
+		Catalog: loadTestCatalog(t), Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
+	})
+	c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1"}
+	c.climateEmbedded = map[string]string{"a": "climateControl", "b": "climateControl"}
+	// a is idle (reports zero telemetry), b is the active unit reporting the
+	// outdoor unit's real values. The aggregate is the max (= the reporter).
+	c.lastLocal = map[string]*faikin.State{
+		"a": {HasAC: true, Demand: 100},
+		"b": {HasAC: true, Demand: 100, Consumption: 90, Comp: 23, Energy: 784900, EnergyHeat: 164000, EnergyCool: 197000},
+	}
+
+	c.publishOutdoorShared(context.Background(), "a")
+
+	want := map[string]string{
+		"power_consumption":    "90",
+		"compressor_frequency": "23.0",
+		"energy_total":         "784.900",
+		"heating_energy_total": "164.000",
+		"cooling_energy_total": "197.000",
+	}
+	for _, dev := range []string{"a", "b"} {
+		for suffix, exp := range want {
+			got, ok := main.get("daikin/" + dev + "/climateControl/" + suffix + "/state")
+			if !ok || got.payload != exp {
+				t.Errorf("%s %s = %q (ok=%v), want %q", dev, suffix, got.payload, ok, exp)
+			}
+		}
+	}
+}
+
+func TestOutdoorEnergyNotResetToZero(t *testing.T) {
+	main := newStubMQTT()
+	c := newCoordinator(t, &stubCloud{}, main)
+	c.outdoorSerial = map[string]string{"dev1": "OD1"}
+	c.climateEmbedded = map[string]string{"dev1": "climateControl"}
+	// No member reports energy (all idle) → energy totals must NOT be published
+	// (publishing 0 would reset the total_increasing counter in HA).
+	c.lastLocal = map[string]*faikin.State{"dev1": {HasAC: true, Demand: 100}}
+
+	c.publishOutdoorShared(context.Background(), "dev1")
+
+	for _, suffix := range []string{"energy_total", "heating_energy_total", "cooling_energy_total"} {
+		if _, ok := main.get("daikin/dev1/climateControl/" + suffix + "/state"); ok {
+			t.Errorf("%s should not be published when aggregate is 0", suffix)
+		}
+	}
+	// Power (0 W is a valid reading) is still published.
+	if got, ok := main.get("daikin/dev1/climateControl/power_consumption/state"); !ok || got.payload != "0" {
+		t.Errorf("power_consumption = %q (ok=%v), want 0", got.payload, ok)
+	}
+}

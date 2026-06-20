@@ -125,18 +125,36 @@ A catalog entry can carry `scope: outdoor` (`internal/catalog`). On the write
 side it triggers fan-out; on the discovery side
 (`internal/hass/discovery.go`), such points are keyed by the **outdoor serial**
 and attached to the outdoor device, so all indoor units' copies deduplicate to a
-**single entity per outdoor unit** (`outdoor_silent`, `demand_control`).
+**single entity per outdoor unit** (`outdoor_silent`, `demand_control`, plus the
+outdoor telemetry below).
+
+### Outdoor-unit telemetry aggregation
+
+On a multi-split the **outdoor-unit** readings — power draw (`power_consumption`),
+compressor frequency (`compressor_frequency`) and the lifetime energy totals
+(`energy_total`, `heating_energy_total`, `cooling_energy_total`) — are reported
+over the S21 bus by **only the active indoor unit**; idle members omit those
+fields (decode to 0). They are catalogued `scope: outdoor`, so they surface as
+one entity per outdoor unit, and `localOutdoorAgg`/`publishOutdoorShared`
+combine them as the **max across the group** (= the reporting member). Energy is
+a `total_increasing` lifetime counter, so it is **never republished as 0** (the
+retained last value is kept when no member currently reports it); power and
+compressor publish 0 normally (a valid "off" reading). Genuinely per-unit
+telemetry (`fan_frequency`, `refrigerant_temperature`) stays per indoor unit.
 
 ## Catalog additions
 
 Per-unit switches `econo_mode`, `streamer`; outdoor-shared `outdoor_silent`
-(switch) and `demand_control` (number). Faikin exposes all of them locally. On
-the FTXA range these characteristics are **absent from the ONECTA cloud JSON**
-(confirmed via the device browser — only as nested `schedule` action types), so
-in cloud mode they never resolve; in local mode they appear via
-`localOnlyPoints` (above). `demand_control`'s cloud-side nested PATCH is
-best-effort and should be verified against a live `daikin2mqtt-util points <id>`
-dump.
+(switch) and `demand_control` (number); local-only telemetry sensors (outdoor:
+`power_consumption`, `compressor_frequency`, `energy_total`,
+`heating_energy_total`, `cooling_energy_total`; per-unit: `fan_frequency`,
+`refrigerant_temperature`). Faikin exposes all of them locally. On the FTXA range
+the settings are **absent from the ONECTA cloud JSON** (confirmed via the device
+browser — only as nested `schedule` action types) and the telemetry has no cloud
+equivalent at all, so in cloud mode they never resolve; in local mode they appear
+via `localOnlyPoints` (above, matched on the synthetic `faikinLocal`
+characteristic). `demand_control`'s cloud-side nested PATCH is best-effort and
+should be verified against a live `daikin2mqtt-util points <id>` dump.
 
 ## Configuration reference
 
@@ -200,6 +218,10 @@ the outdoor-scoped discovery dedup (`internal/hass`).
   `handleSwingWrite`): fan via single-char codes on `command/<host>/fan`, swing
   by combining the cloud's two axes into Faikin's single `command/<host>/swing`.
   `floorheatingairflow` has no Faikin equivalent and still uses the cloud.
-- Faikin publishes its own HA discovery for some settings; enabling both creates
-  duplicate entities. Set `{"ha":false}` in the Faikin firmware to let
-  go-daikin2mqtt own them.
+- Faikin publishes its own HA discovery; running it alongside go-daikin2mqtt
+  creates duplicate entities. **Do not** disable it with `ha.enable = false` —
+  that flag also gates the AC state document the daemon reads (`revk_state_extra`
+  returns early when off), so local mode would lose its data feed. Instead keep
+  `ha.enable = true` and point Faikin's `topic.ha` at a prefix Home Assistant
+  does not scan (e.g. `homeassistant_disabled`). See
+  [faikin-home-assistant.md](./faikin-home-assistant.md).

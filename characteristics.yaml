@@ -466,7 +466,13 @@
 # --- Local-only telemetry (Faikin/Faikout, no ONECTA cloud equivalent) -------
 # These match a synthetic characteristic the cloud never reports, so they are
 # only published when local mode synthesizes them (localOnlyTopics) and fed
-# from the Faikin state document. Energy values are lifetime running totals.
+# from the Faikin state document.
+#
+# Outdoor-unit telemetry (scope: outdoor): on a multi-split only the active
+# indoor unit reports these over the S21 bus, and they describe the shared
+# outdoor unit (power draw, compressor, lifetime energy). They surface as ONE
+# entity per outdoor unit, aggregated from the reporting member. Energy values
+# are lifetime running totals.
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
   topic: energy_total
   name: Energy total
@@ -475,6 +481,7 @@
   device_class: energy
   unit: kWh
   state_class: total_increasing
+  scope: outdoor
   precision: 3
 
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
@@ -485,6 +492,7 @@
   device_class: energy
   unit: kWh
   state_class: total_increasing
+  scope: outdoor
   precision: 3
 
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
@@ -495,6 +503,7 @@
   device_class: energy
   unit: kWh
   state_class: total_increasing
+  scope: outdoor
   precision: 3
 
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
@@ -505,6 +514,7 @@
   device_class: power
   unit: W
   state_class: measurement
+  scope: outdoor
   precision: 0
 
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
@@ -515,9 +525,12 @@
   device_class: frequency
   unit: Hz
   state_class: measurement
+  scope: outdoor
   category: diagnostic
   precision: 1
 
+# Per-indoor-unit telemetry (no scope): genuinely per unit, though Faikin only
+# populates them on the active unit (idle units report 0).
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
   topic: fan_frequency
   name: Fan frequency

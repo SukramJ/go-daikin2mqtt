@@ -191,11 +191,25 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 // reports it, demand is the most restrictive (lowest) value. Publishing to all
 // members means the single HA entity (which reads one fixed member) reflects it.
 func (c *Coordinator) publishOutdoorShared(ctx context.Context, deviceID string) {
-	quiet, demand := c.localOutdoorAgg(deviceID)
+	agg := c.localOutdoorAgg(deviceID)
 	group := c.groupKey(deviceID)
 	vals := map[string]string{
-		"outdoor_silent": c.heldOutdoorValue(group, "outdoor_silent", onOff(quiet)),
-		"demand_control": c.heldOutdoorValue(group, "demand_control", strconv.Itoa(demand)),
+		"outdoor_silent":       c.heldOutdoorValue(group, "outdoor_silent", onOff(agg.quiet)),
+		"demand_control":       c.heldOutdoorValue(group, "demand_control", strconv.Itoa(agg.demand)),
+		"power_consumption":    strconv.Itoa(agg.powerW),
+		"compressor_frequency": c.fmtFloat("compressor_frequency", agg.compHz),
+	}
+	// Energy is a lifetime total (total_increasing); never publish 0 — when no
+	// member currently reports it (all idle), keep the retained last value
+	// instead of resetting the counter.
+	if agg.energyWh > 0 {
+		vals["energy_total"] = c.fmtFloat("energy_total", float64(agg.energyWh)/1000)
+	}
+	if agg.energyHeatWh > 0 {
+		vals["heating_energy_total"] = c.fmtFloat("heating_energy_total", float64(agg.energyHeatWh)/1000)
+	}
+	if agg.energyCoolWh > 0 {
+		vals["cooling_energy_total"] = c.fmtFloat("cooling_energy_total", float64(agg.energyCoolWh)/1000)
 	}
 	for _, member := range c.groupMembers(deviceID) {
 		emb, ok := c.climateEmbeddedID(member)
@@ -275,24 +289,45 @@ func (c *Coordinator) heldOutdoorValue(group, suffix, raw string) string {
 // localOutdoorAgg aggregates the outdoor-shared values across a device's outdoor
 // group from the cached Faikin states: outdoor silent is on if any member is on;
 // demand is the lowest (most restrictive) reported value.
-func (c *Coordinator) localOutdoorAgg(deviceID string) (quiet bool, demand int) {
+// outdoorAggregate holds the outdoor-unit values combined across a multi-split
+// group. Settings (quiet/demand) and telemetry (power/compressor/energy) are all
+// reported per indoor unit but describe the one outdoor unit.
+type outdoorAggregate struct {
+	quiet                                bool
+	demand                               int
+	powerW                               int
+	compHz                               float64
+	energyWh, energyHeatWh, energyCoolWh int64
+}
+
+// localOutdoorAgg combines the outdoor-shared values across a device's outdoor
+// group from the cached Faikin states. Outdoor silent is on if any member
+// reports it; demand is the most restrictive (lowest). The telemetry values are
+// genuinely the outdoor unit's, reported only by the active indoor unit, so the
+// aggregate is the maximum across members (idle members report 0).
+func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
 	members := c.groupMembers(deviceID)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	demand = 100
+	agg := outdoorAggregate{demand: 100}
 	for _, m := range members {
 		st, ok := c.lastLocal[m]
 		if !ok {
 			continue
 		}
 		if st.Quiet {
-			quiet = true
+			agg.quiet = true
 		}
-		if st.Demand < demand {
-			demand = st.Demand
+		if st.Demand < agg.demand {
+			agg.demand = st.Demand
 		}
+		agg.powerW = max(agg.powerW, st.Consumption)
+		agg.compHz = max(agg.compHz, st.Comp)
+		agg.energyWh = max(agg.energyWh, st.Energy)
+		agg.energyHeatWh = max(agg.energyHeatWh, st.EnergyHeat)
+		agg.energyCoolWh = max(agg.energyCoolWh, st.EnergyCool)
 	}
-	return quiet, demand
+	return agg
 }
 
 // flushLocalStates republishes the last AC state received for each mapped
@@ -325,17 +360,12 @@ func (c *Coordinator) localStateMessages(st *faikin.State) map[string]string {
 		"powerful_mode":        onOff(st.Powerful),
 		"econo_mode":           onOff(st.Econo),
 		"streamer":             onOff(st.Streamer),
-		// Local-only telemetry (no cloud equivalent). Energy is a Wh lifetime
-		// total from Faikin, published in kWh to match the energy device_class.
-		"energy_total":            c.fmtFloat("energy_total", float64(st.Energy)/1000),
-		"heating_energy_total":    c.fmtFloat("heating_energy_total", float64(st.EnergyHeat)/1000),
-		"cooling_energy_total":    c.fmtFloat("cooling_energy_total", float64(st.EnergyCool)/1000),
-		"power_consumption":       strconv.Itoa(st.Consumption),
-		"compressor_frequency":    c.fmtFloat("compressor_frequency", st.Comp),
+		// Per-indoor-unit telemetry (no cloud equivalent).
 		"fan_frequency":           c.fmtFloat("fan_frequency", st.FanFreq),
 		"refrigerant_temperature": c.fmtFloat("refrigerant_temperature", st.Liquid),
 	}
-	// outdoor_silent and demand_control are outdoor-shared (scope: outdoor) and
+	// outdoor_silent, demand_control and the outdoor-unit telemetry (power,
+	// compressor, energy totals) are outdoor-shared (scope: outdoor) and
 	// published group-aggregated by publishOutdoorShared, not per unit.
 	if label, ok := c.localOperationModeLabel(st.Mode); ok {
 		out["operation_mode"] = label
