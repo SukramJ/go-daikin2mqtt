@@ -462,3 +462,80 @@
   # best-effort and should be verified against a live `points` dump.
   value_path: modes/fixed
   path: /demandControl/modes/fixed
+
+# --- Local-only telemetry (Faikin/Faikout, no ONECTA cloud equivalent) -------
+# These match a synthetic characteristic the cloud never reports, so they are
+# only published when local mode synthesizes them (localOnlyTopics) and fed
+# from the Faikin state document. Energy values are lifetime running totals.
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: energy_total
+  name: Energy total
+  name_de: Energie gesamt
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: heating_energy_total
+  name: Heating energy total
+  name_de: Heizenergie gesamt
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: cooling_energy_total
+  name: Cooling energy total
+  name_de: Kühlenergie gesamt
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: power_consumption
+  name: Power
+  name_de: Leistung
+  platform: sensor
+  device_class: power
+  unit: W
+  state_class: measurement
+  precision: 0
+
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: compressor_frequency
+  name: Compressor frequency
+  name_de: Verdichterfrequenz
+  platform: sensor
+  device_class: frequency
+  unit: Hz
+  state_class: measurement
+  category: diagnostic
+  precision: 1
+
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: fan_frequency
+  name: Fan frequency
+  name_de: Lüfterfrequenz
+  platform: sensor
+  device_class: frequency
+  unit: Hz
+  state_class: measurement
+  category: diagnostic
+  precision: 1
+
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: refrigerant_temperature
+  name: Refrigerant temperature
+  name_de: Kältemitteltemperatur
+  platform: sensor
+  device_class: temperature
+  unit: "°C"
+  state_class: measurement
+  category: diagnostic
+  precision: 1

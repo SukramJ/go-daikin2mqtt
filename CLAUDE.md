@@ -132,8 +132,11 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   poll skips those topics (`localTopics`). Faikin may interleave **OS/heartbeat docs** (no AC fields)
   on `state/<host>` — `faikin.ParseState` sets `HasAC` (presence of `power`) and the read path
   **skips** them, else every entity would reset to its zero value. For settings the cloud does not
-  expose for a unit (econo/streamer/outdoor silent/demand on the FTXA range), `localOnlyPoints`
-  **synthesizes discovery points** so the entities still appear (state fed from Faikin).
+  expose for a unit (econo/streamer/outdoor silent/demand on the FTXA range, plus local-only
+  telemetry: energy totals, power draw, compressor/fan frequency, refrigerant temperature),
+  `localOnlyPoints` **synthesizes discovery points** so the entities still appear (state fed from
+  Faikin). These catalog entries match a synthetic characteristic (`faikinLocal`) the cloud never
+  reports, so they are only ever published via the local path.
 - **Multi-split / dependency engine** (`outdoor.go`): outdoor groups keyed by outdoor serial
   (`groupMembers`). `scope: outdoor` catalog entries (`outdoor_silent`, `demand_control`) dedup to
   **one entity per outdoor unit** (in `hass.entityIdentity`) and **fan out** writes to all members.
