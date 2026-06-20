@@ -141,14 +141,14 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   expose for a unit (econo/streamer/outdoor silent/demand on the FTXA range, plus local-only
   telemetry), `localOnlyPoints` **synthesizes discovery points** so the entities still appear (state
   fed from Faikin). These catalog entries match a synthetic characteristic (`faikinLocal`) the cloud
-  never reports, so they are only ever published via the local path. Telemetry splits by physics:
-  power draw + lifetime energy totals are each indoor unit's own reading and **sum** to one
-  outdoor-unit entity (`scope: outdoor`); energy is **held** per unit (`lastEnergy`) so an idle unit
-  reading 0 doesn't drop the summed `total_increasing` total, and the sum is never republished as 0.
-  `aggregateEnergy` falls back to a shared value (not the sum) when every member reports an identical
-  counter (Faikin's `energy`/`Whoutside` is the outside meter, shared on some hardware). Compressor
-  frequency is the shared outdoor value (identical per member) → **max**. Fan frequency and
-  refrigerant temperature stay per indoor unit. **Faikin dependency:** the firmware's
+  never reports, so they are only ever published via the local path. Telemetry placement follows the
+  physics (verified on a live multi-split): power and lifetime energy are each indoor unit's **own**
+  reading → published **per indoor unit** (`energy_total`, `power_consumption`; energy **held** per
+  unit in `lastEnergy` so an idle unit reading 0 doesn't reset its `total_increasing` counter) **and**
+  as a **system SUM per outdoor unit** (`outdoor_power`, `outdoor_energy_total`, … — `scope: outdoor`;
+  energy sum never republished as 0). Values that are identical on every indoor unit are shared
+  outdoor-unit readings shown **once** per outdoor unit (`scope: outdoor`, aggregated **max**):
+  compressor + fan frequency, refrigerant temperature, outdoor temperature. **Faikin dependency:** the firmware's
   `ha.enable` gates *both* its own HA discovery *and* the AC fields in `state/<host>`
   (`revk_state_extra` returns early when off), so local reads require `ha.enable = true`; duplicate
   Faikin entities are avoided by redirecting its `topic.ha` prefix, not by disabling HA — see

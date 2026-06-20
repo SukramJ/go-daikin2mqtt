@@ -1,3 +1,27 @@
+# Version 0.2.19 (2026-06-20)
+
+## What's Changed
+
+### Changed
+
+- Reworked the placement of the local telemetry to follow the physics (verified
+  on a live multi-split):
+  - **Per indoor unit** (each unit's own value): `energy_total`,
+    `heating_energy_total`, `cooling_energy_total`, `power_consumption`.
+  - **System total per outdoor unit** (the SUM across the indoor units): new
+    `outdoor_energy_total`, `outdoor_heating_energy_total`,
+    `outdoor_cooling_energy_total`, `outdoor_power`.
+  - **Shared outdoor values** (identical on every indoor unit) shown **once** per
+    outdoor unit: `compressor_frequency`, `fan_frequency`,
+    `refrigerant_temperature`, and now also `outdoor_temperature`.
+
+  **Migration:** the previous outdoor-aggregated `energy_total` /
+  `power_consumption` / … entities and the duplicated per-indoor
+  `outdoor_temperature` / `compressor_frequency` / `fan_frequency` /
+  `refrigerant_temperature` entities change device/scope. Stale ones go
+  unavailable in Home Assistant — delete them; the new layout appears
+  automatically.
+
 # Version 0.2.18 (2026-06-20)
 
 ## What's Changed

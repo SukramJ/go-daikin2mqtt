@@ -90,6 +90,9 @@
   unit: "°C"
   state_class: measurement
   value_path: outdoorTemperature
+  # The outdoor temperature is the one outdoor unit's reading; surface it once
+  # per outdoor unit rather than duplicated on every indoor unit.
+  scope: outdoor
   precision: 1
 
 - match: {managementPointType: climateControl, characteristic: sensoryData}
@@ -409,14 +412,16 @@
 
 # --- Local-only telemetry (Faikin/Faikout, no ONECTA cloud equivalent) -------
 # These match a synthetic characteristic the cloud never reports, so they are
-# only published when local mode synthesizes them (localOnlyTopics) and fed
-# from the Faikin state document.
-#
-# Outdoor-unit telemetry (scope: outdoor): on a multi-split only the active
-# indoor unit reports these over the S21 bus, and they describe the shared
-# outdoor unit (power draw, compressor, lifetime energy). They surface as ONE
-# entity per outdoor unit, aggregated from the reporting member. Energy values
-# are lifetime running totals.
+# only published when local mode synthesizes them (localOnlyTopics) and fed from
+# the Faikin state document. Placement follows the physics, confirmed on a live
+# multi-split:
+#   * Per indoor unit (each unit reports its own value): energy totals and power.
+#   * Also aggregated as one SUM per outdoor unit (the system total): the
+#     outdoor_* variants below (scope: outdoor).
+#   * Shared outdoor values, identical on every indoor unit, shown ONCE per
+#     outdoor unit: compressor / fan frequency, refrigerant temperature.
+
+# Per indoor unit (own value).
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
   topic: energy_total
   name: Energy total
@@ -425,7 +430,6 @@
   device_class: energy
   unit: kWh
   state_class: total_increasing
-  scope: outdoor
   precision: 3
 
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
@@ -436,7 +440,6 @@
   device_class: energy
   unit: kWh
   state_class: total_increasing
-  scope: outdoor
   precision: 3
 
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
@@ -447,7 +450,6 @@
   device_class: energy
   unit: kWh
   state_class: total_increasing
-  scope: outdoor
   precision: 3
 
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
@@ -458,9 +460,54 @@
   device_class: power
   unit: W
   state_class: measurement
+  precision: 0
+
+# System total per outdoor unit (sum of the per-unit values above).
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: outdoor_energy_total
+  name: Energy total (system)
+  name_de: Energie gesamt (Anlage)
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  scope: outdoor
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: outdoor_heating_energy_total
+  name: Heating energy total (system)
+  name_de: Heizenergie gesamt (Anlage)
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  scope: outdoor
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: outdoor_cooling_energy_total
+  name: Cooling energy total (system)
+  name_de: Kühlenergie gesamt (Anlage)
+  platform: sensor
+  device_class: energy
+  unit: kWh
+  state_class: total_increasing
+  scope: outdoor
+  precision: 3
+
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: outdoor_power
+  name: Power (system)
+  name_de: Leistung (Anlage)
+  platform: sensor
+  device_class: power
+  unit: W
+  state_class: measurement
   scope: outdoor
   precision: 0
 
+# Shared outdoor values, identical on every indoor unit → one entity per outdoor.
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
   topic: compressor_frequency
   name: Compressor frequency
@@ -473,8 +520,6 @@
   category: diagnostic
   precision: 1
 
-# Per-indoor-unit telemetry (no scope): genuinely per unit, though Faikin only
-# populates them on the active unit (idle units report 0).
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
   topic: fan_frequency
   name: Fan frequency
@@ -483,6 +528,7 @@
   device_class: frequency
   unit: Hz
   state_class: measurement
+  scope: outdoor
   category: diagnostic
   precision: 1
 
@@ -494,6 +540,7 @@
   device_class: temperature
   unit: "°C"
   state_class: measurement
+  scope: outdoor
   category: diagnostic
   precision: 1
 
