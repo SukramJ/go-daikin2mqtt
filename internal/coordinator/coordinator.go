@@ -67,6 +67,7 @@ type Coordinator struct {
 	lastEnergy      map[string]energyTotals  // deviceID -> last non-zero per-unit energy (held; see localOutdoorAgg)
 	pendingOutdoor  map[string]outdoorHold   // "<group>|<topic>" -> just-written value, held until confirmed
 	lastDiscSig     string                   // signature of the last published discovery set
+	reconcileGate   sync.Mutex               // try-locked gate so only one orphan reconcile runs at a time
 }
 
 // energyTotals holds a unit's lifetime energy counters (Wh). They are monotonic
@@ -310,7 +311,8 @@ func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []proces
 	if !changed {
 		return
 	}
-	if err := c.deps.HASS.Publish(ctx, points, infos, climateInfos); err != nil {
+	published, err := c.deps.HASS.Publish(ctx, points, infos, climateInfos)
+	if err != nil {
 		c.deps.Logger.Warn("coordinator.discovery_failed", slog.String("err", err.Error()))
 		return
 	}
@@ -318,6 +320,68 @@ func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []proces
 	// Publish each entity's data_source (cloud vs local Faikin) alongside the
 	// (retained) discovery, so it shows as an entity attribute.
 	c.publishDataSources(ctx, points)
+	// Clear any of our own retained discovery configs that we no longer publish
+	// (entities removed or moved/renamed across versions), so they don't linger
+	// as unavailable entities in Home Assistant.
+	c.reconcileOrphans(ctx, published)
+}
+
+// reconcileOrphans clears this daemon's retained discovery configs that are no
+// longer in the published set. It collects the retained configs under the HA
+// discovery prefix, then clears ours (IsOwnConfig) that are absent from
+// published. Runs asynchronously; a second call while one is in flight is
+// skipped (the gate), since discovery changes are infrequent.
+func (c *Coordinator) reconcileOrphans(ctx context.Context, published map[string]bool) {
+	if c.deps.HASS == nil || !c.reconcileGate.TryLock() {
+		return
+	}
+	go func() {
+		defer c.reconcileGate.Unlock()
+		filter := c.deps.HASS.ConfigFilter()
+		var mu sync.Mutex
+		retained := map[string][]byte{}
+		if err := c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(topic string, payload []byte) {
+			mu.Lock()
+			retained[topic] = append([]byte(nil), payload...)
+			mu.Unlock()
+		}); err != nil {
+			c.deps.Logger.Warn("coordinator.reconcile_subscribe_failed", slog.String("err", err.Error()))
+			return
+		}
+		// Retained configs are delivered right after subscribe; collect briefly.
+		select {
+		case <-ctx.Done():
+			_ = c.deps.MQTT.Unsubscribe(ctx, filter)
+			return
+		case <-time.After(2 * time.Second):
+		}
+		_ = c.deps.MQTT.Unsubscribe(ctx, filter)
+
+		mu.Lock()
+		cleared := c.clearOrphanConfigs(ctx, retained, published)
+		mu.Unlock()
+		if cleared > 0 {
+			c.deps.Logger.Info("coordinator.discovery_orphans_cleared", slog.Int("count", cleared))
+		}
+	}()
+}
+
+// clearOrphanConfigs clears each retained config that is ours (IsOwnConfig) and
+// absent from the published set, returning how many were cleared.
+func (c *Coordinator) clearOrphanConfigs(ctx context.Context, retained map[string][]byte, published map[string]bool) int {
+	cleared := 0
+	for topic, payload := range retained {
+		if len(payload) == 0 || published[topic] {
+			continue // already cleared, or still a current entity
+		}
+		if !c.deps.HASS.IsOwnConfig(payload) {
+			continue // belongs to another integration — never touch it
+		}
+		if err := c.deps.MQTT.Publish(ctx, topic, nil, mqtt.QoS0, true); err == nil {
+			cleared++
+		}
+	}
+	return cleared
 }
 
 // publishDataSources publishes a {"data_source": "cloud"|"local"} JSON-attributes

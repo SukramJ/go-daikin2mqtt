@@ -51,7 +51,7 @@ func samplePoint() process.Point {
 func TestDiscoveryEnglishEntityIDLocalizedName(t *testing.T) {
 	pub := &capturePub{}
 	d := New("homeassistant", "daikin", "de", pub)
-	if err := d.Publish(context.Background(), []process.Point{samplePoint()}, map[string]DeviceInfo{"dev-1": {Name: "Wohnzimmer", Model: "FTXA20", ModelID: "dx4", SerialNumber: "J035347"}}, nil); err != nil {
+	if _, err := d.Publish(context.Background(), []process.Point{samplePoint()}, map[string]DeviceInfo{"dev-1": {Name: "Wohnzimmer", Model: "FTXA20", ModelID: "dx4", SerialNumber: "J035347"}}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -87,7 +87,7 @@ func TestDiscoveryEnglishEntityIDLocalizedName(t *testing.T) {
 func TestDiscoveryEnglishNameFallback(t *testing.T) {
 	pub := &capturePub{}
 	d := New("homeassistant", "daikin", "en", pub)
-	_ = d.Publish(context.Background(), []process.Point{samplePoint()}, nil, nil)
+	_, _ = d.Publish(context.Background(), []process.Point{samplePoint()}, nil, nil)
 	raw := pub.msgs["homeassistant/sensor/daikin_dev-1_room_temperature/config"]
 	var cfg map[string]any
 	_ = json.Unmarshal(raw, &cfg)
@@ -114,7 +114,7 @@ func TestDiscoverySelectLocalizedOptions(t *testing.T) {
 
 	pub := &capturePub{}
 	d := New("homeassistant", "daikin", "de", pub)
-	if err := d.Publish(context.Background(), []process.Point{p}, nil, nil); err != nil {
+	if _, err := d.Publish(context.Background(), []process.Point{p}, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	var cfg map[string]any
@@ -183,7 +183,7 @@ func TestDiscoveryOutdoorScopedDedup(t *testing.T) {
 		"dev-1": {Name: "Galerie", Outdoor: &SubDevice{SerialNumber: "OD1"}},
 		"dev-2": {Name: "Wohnzimmer", Outdoor: &SubDevice{SerialNumber: "OD1"}},
 	}
-	if err := d.Publish(context.Background(),
+	if _, err := d.Publish(context.Background(),
 		[]process.Point{outdoorSilentPoint("dev-1"), outdoorSilentPoint("dev-2")}, infos, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -214,4 +214,24 @@ func keys(m map[string][]byte) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func TestIsOwnConfig(t *testing.T) {
+	d := New("homeassistant", "daikin", "en", &capturePub{})
+	cases := []struct {
+		name    string
+		payload string
+		want    bool
+	}{
+		{"our sensor", `{"unique_id":"daikin_dev1_room_temperature","state_topic":"daikin/dev1/climateControl/room_temperature/state"}`, true},
+		{"our climate (no state_topic)", `{"unique_id":"daikin_dev1_climate","mode_state_topic":"daikin/dev1/climateControl/hvac_mode/state"}`, true},
+		{"foreign integration", `{"unique_id":"zigbee2mqtt_0x123","state_topic":"zigbee2mqtt/x"}`, false},
+		{"daikin uid but foreign state topic", `{"unique_id":"daikin_dev1_x","state_topic":"other/x"}`, false},
+		{"garbage", `not json`, false},
+	}
+	for _, tc := range cases {
+		if got := d.IsOwnConfig([]byte(tc.payload)); got != tc.want {
+			t.Errorf("%s: IsOwnConfig = %v, want %v", tc.name, got, tc.want)
+		}
+	}
 }

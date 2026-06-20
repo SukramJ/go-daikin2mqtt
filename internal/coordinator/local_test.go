@@ -444,3 +444,33 @@ func TestDataSource(t *testing.T) {
 		}
 	}
 }
+
+func TestClearOrphanConfigs(t *testing.T) {
+	m := newStubMQTT()
+	c := New(Deps{
+		Cfg: testConfig(), Client: &stubCloud{}, MQTT: m, Catalog: loadTestCatalog(t),
+		HASS:   hass.New("homeassistant", "daikin", "de", m),
+		Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
+	})
+	current := `{"unique_id":"daikin_dev1_room_temperature","state_topic":"daikin/dev1/climateControl/room_temperature/state"}`
+	orphan := `{"unique_id":"daikin_dev1_old_sensor","state_topic":"daikin/dev1/climateControl/old_sensor/state"}`
+	foreign := `{"unique_id":"zigbee2mqtt_x","state_topic":"zigbee2mqtt/x"}`
+	retained := map[string][]byte{
+		"homeassistant/sensor/daikin_dev1_room_temperature/config": []byte(current),
+		"homeassistant/sensor/daikin_dev1_old_sensor/config":       []byte(orphan),
+		"homeassistant/sensor/zigbee2mqtt_x/config":                []byte(foreign),
+	}
+	published := map[string]bool{"homeassistant/sensor/daikin_dev1_room_temperature/config": true}
+
+	if n := c.clearOrphanConfigs(context.Background(), retained, published); n != 1 {
+		t.Fatalf("cleared %d, want 1 (only the orphaned daikin config)", n)
+	}
+	// The orphan was cleared with an empty retained payload.
+	if msg, ok := m.get("homeassistant/sensor/daikin_dev1_old_sensor/config"); !ok || msg.payload != "" || !msg.retain {
+		t.Errorf("orphan clear = %+v, want empty retained payload", msg)
+	}
+	// The current and foreign configs are untouched.
+	if _, ok := m.get("homeassistant/sensor/zigbee2mqtt_x/config"); ok {
+		t.Error("foreign config must never be cleared")
+	}
+}

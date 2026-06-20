@@ -1,3 +1,19 @@
+# Version 0.2.20 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- **Self-cleaning Home Assistant discovery.** The daemon now clears its own
+  retained discovery configs that it no longer publishes — entities removed,
+  moved to another device, or renamed across versions. After publishing
+  discovery it collects the retained configs under the HA discovery prefix and
+  clears the ones it owns (`unique_id` in the `daikin_…` namespace with a state
+  topic under the configured root) that are not in the current set. Other
+  integrations' configs are never touched. This removes the previously-needed
+  manual broker cleanup after entity changes — including the 0.2.19 telemetry
+  rework — so stale, unavailable entities disappear on their own.
+
 # Version 0.2.19 (2026-06-20)
 
 ## What's Changed
