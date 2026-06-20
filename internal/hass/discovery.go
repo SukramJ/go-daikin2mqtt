@@ -270,12 +270,15 @@ func (d *Discovery) CommandTopic(p process.Point) string {
 
 // Publish emits a retained discovery config for every point. Points that
 // map to an unsupported platform are skipped. infos maps a device ID to its
-// rich device metadata (may be absent; a fallback name is used).
-func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos map[string]DeviceInfo, climateInfos map[string]ClimateInfo) error {
+// rich device metadata (may be absent; a fallback name is used). It returns the
+// set of config topics it published, so the caller can clear orphaned ones.
+func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos map[string]DeviceInfo, climateInfos map[string]ClimateInfo) (published map[string]bool, err error) {
+	published = map[string]bool{}
 	var firstErr error
-	record := func(err error) {
-		if err != nil && firstErr == nil {
-			firstErr = err
+	pub := func(topic string, payload []byte) {
+		published[topic] = true
+		if e := d.pub.Publish(ctx, topic, payload, mqtt.QoS0, true); e != nil && firstErr == nil {
+			firstErr = e
 		}
 	}
 
@@ -283,7 +286,7 @@ func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos m
 	// controls for climateControl management points that have both.
 	climates, consumed := d.climateEntities(points, infos, climateInfos)
 	for _, m := range climates {
-		record(d.pub.Publish(ctx, m.topic, m.payload, mqtt.QoS0, true))
+		pub(m.topic, m.payload)
 	}
 
 	// seen deduplicates shared sub-device entities (gateway / outdoor unit)
@@ -303,10 +306,29 @@ func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos m
 		if !ok {
 			continue
 		}
-		record(d.pub.Publish(ctx, topic, payload, mqtt.QoS0, true))
+		pub(topic, payload)
 	}
-	return firstErr
+	return published, firstErr
 }
+
+// IsOwnConfig reports whether a retained HA discovery config payload was
+// published by this daemon (its unique_id is in our `daikin_…` namespace and its
+// state topic is under our root), so orphan cleanup never touches other configs.
+func (d *Discovery) IsOwnConfig(payload []byte) bool {
+	var cfg struct {
+		UniqueID   string `json:"unique_id"`
+		StateTopic string `json:"state_topic"`
+	}
+	if json.Unmarshal(payload, &cfg) != nil {
+		return false
+	}
+	return strings.HasPrefix(cfg.UniqueID, "daikin_") &&
+		(cfg.StateTopic == "" || strings.HasPrefix(cfg.StateTopic, d.stateRoot+"/"))
+}
+
+// ConfigFilter is the MQTT filter matching this daemon's discovery config topics
+// (e.g. "homeassistant/+/+/config"), for collecting retained configs to reconcile.
+func (d *Discovery) ConfigFilter() string { return d.baseTopic + "/+/+/config" }
 
 // buildConfig renders the discovery topic and JSON payload for a point, using
 // the precomputed unique id and device block (see [Discovery.entityIdentity]).

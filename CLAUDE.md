@@ -110,7 +110,11 @@ the individual power/mode/setpoint controls. Each entity also advertises a `json
 the coordinator publishes `{"data_source":"cloud"|"local"}` there (`publishDataSources`/`dataSource`)
 so HA shows whether a value came from the ONECTA cloud or the local Faikin path. Static device
 identity (model, serial, sw/firmware version, MAC) lives in the HA `device` object (from
-`deviceInfos`), **not** as separate sensors.
+`deviceInfos`), **not** as separate sensors. **Orphan cleanup:** `Discovery.Publish` returns the set
+of config topics it published; `reconcileOrphans` then collects the retained configs under the
+discovery prefix and clears this daemon's own (`IsOwnConfig`: `daikin_…` uid + state topic under our
+root) that are no longer published — so entities removed/moved/renamed across versions don't linger
+in HA. Other integrations' configs are never touched.
 
 **Entity-ID invariant (do not break):** `unique_id` and `default_entity_id` are English and
 language-independent. `default_entity_id` is built by `entityObjectID(deviceName, topic)` =

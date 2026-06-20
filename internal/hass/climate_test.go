@@ -54,7 +54,7 @@ func climatePoints() []process.Point {
 func TestClimateEntitySuppressesIndividualControls(t *testing.T) {
 	pub := &capturePub{}
 	d := New("homeassistant", "daikin", "en", pub)
-	if err := d.Publish(context.Background(), climatePoints(), nil, nil); err != nil {
+	if _, err := d.Publish(context.Background(), climatePoints(), nil, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -120,7 +120,7 @@ func TestSubDevicesDedupBySerial(t *testing.T) {
 
 	pub := &capturePub{}
 	d := New("homeassistant", "daikin", "en", pub)
-	if err := d.Publish(context.Background(), []process.Point{gwPoint("dev-1"), odPoint("dev-1"), gwPoint("dev-2"), odPoint("dev-2")}, infos, nil); err != nil {
+	if _, err := d.Publish(context.Background(), []process.Point{gwPoint("dev-1"), odPoint("dev-1"), gwPoint("dev-2"), odPoint("dev-2")}, infos, nil); err != nil {
 		t.Fatal(err)
 	}
 
