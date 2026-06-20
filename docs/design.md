@@ -130,17 +130,25 @@ outdoor telemetry below).
 
 ### Outdoor-unit telemetry aggregation
 
-On a multi-split the **outdoor-unit** readings — power draw (`power_consumption`),
-compressor frequency (`compressor_frequency`) and the lifetime energy totals
-(`energy_total`, `heating_energy_total`, `cooling_energy_total`) — are reported
-over the S21 bus by **only the active indoor unit**; idle members omit those
-fields (decode to 0). They are catalogued `scope: outdoor`, so they surface as
-one entity per outdoor unit, and `localOutdoorAgg`/`publishOutdoorShared`
-combine them as the **max across the group** (= the reporting member). Energy is
-a `total_increasing` lifetime counter, so it is **never republished as 0** (the
-retained last value is kept when no member currently reports it); power and
-compressor publish 0 normally (a valid "off" reading). Genuinely per-unit
-telemetry (`fan_frequency`, `refrigerant_temperature`) stays per indoor unit.
+Several Faikin telemetry fields are catalogued `scope: outdoor` so they surface
+as one entity per outdoor unit; `localOutdoorAgg`/`publishOutdoorShared` combine
+them across the group, but the rule differs by what the field physically is
+(established from live multi-split data, where each active indoor unit reports
+its **own** energy/power while the compressor frequency is identical everywhere):
+
+- **Per-unit, summed** — `power_consumption`, `energy_total`,
+  `heating_energy_total`, `cooling_energy_total` are each indoor unit's own
+  reading, so the outdoor (system) total is the **sum across members**. Power is
+  instantaneous (an idle unit reports ~0, correct). Energy is a
+  `total_increasing` lifetime counter, and an idle unit stops reporting it
+  (reads 0), which would drop the sum — so each unit's energy is **held** at its
+  highest seen value (`Coordinator.lastEnergy`) and the held values are summed;
+  the sum is never republished as 0.
+- **Shared, max** — `compressor_frequency` is the single outdoor compressor's
+  speed, reported identically by every member, so the aggregate is the max.
+
+Genuinely per-indoor-unit telemetry (`fan_frequency`, `refrigerant_temperature`)
+stays per unit (not `scope: outdoor`).
 
 ## Catalog additions
 

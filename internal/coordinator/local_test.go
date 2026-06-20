@@ -275,21 +275,22 @@ func TestOutdoorTelemetryAggregate(t *testing.T) {
 	})
 	c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1"}
 	c.climateEmbedded = map[string]string{"a": "climateControl", "b": "climateControl"}
-	// a is idle (reports zero telemetry), b is the active unit reporting the
-	// outdoor unit's real values. The aggregate is the max (= the reporter).
-	c.lastLocal = map[string]*faikin.State{
-		"a": {HasAC: true, Demand: 100},
-		"b": {HasAC: true, Demand: 100, Consumption: 90, Comp: 23, Energy: 784900, EnergyHeat: 164000, EnergyCool: 197000},
-	}
+	// Both units are active and report their OWN per-unit power/energy; the
+	// compressor frequency is the shared outdoor value (identical). Feed them
+	// through publishLocalState so the held energy totals populate naturally.
+	c.publishLocalState(context.Background(), "a",
+		&faikin.State{HasAC: true, Power: true, Demand: 100, Consumption: 80, Comp: 22, Energy: 778300, EnergyHeat: 71000, EnergyCool: 118700})
+	c.publishLocalState(context.Background(), "b",
+		&faikin.State{HasAC: true, Power: true, Demand: 100, Consumption: 90, Comp: 22, Energy: 785500, EnergyHeat: 164000, EnergyCool: 197200})
 
-	c.publishOutdoorShared(context.Background(), "a")
-
+	// Power and energy are summed across the units (system total); compressor is
+	// the shared value. Published identically to every member.
 	want := map[string]string{
-		"power_consumption":    "90",
-		"compressor_frequency": "23.0",
-		"energy_total":         "784.900",
-		"heating_energy_total": "164.000",
-		"cooling_energy_total": "197.000",
+		"power_consumption":    "170",      // 80 + 90
+		"compressor_frequency": "22.0",     // shared
+		"energy_total":         "1563.800", // 778.300 + 785.500
+		"heating_energy_total": "235.000",  // 71.000 + 164.000
+		"cooling_energy_total": "315.900",  // 118.700 + 197.200
 	}
 	for _, dev := range []string{"a", "b"} {
 		for suffix, exp := range want {
@@ -320,5 +321,36 @@ func TestOutdoorEnergyNotResetToZero(t *testing.T) {
 	// Power (0 W is a valid reading) is still published.
 	if got, ok := main.get("daikin/dev1/climateControl/power_consumption/state"); !ok || got.payload != "0" {
 		t.Errorf("power_consumption = %q (ok=%v), want 0", got.payload, ok)
+	}
+}
+
+func TestOutdoorEnergyHoldAcrossIdle(t *testing.T) {
+	main := newStubMQTT()
+	cfg := &config.Config{
+		MQTTTopic: "daikin", Language: "de", LocalMode: true, LocalFaikinPrefix: "Faikout",
+		LocalDeviceMap: map[string]string{"a": "Klima A", "b": "Klima B"},
+	}
+	c := New(Deps{
+		Cfg: cfg, Client: &stubCloud{}, MQTT: main, FaikinMQTT: newStubMQTT(),
+		Catalog: loadTestCatalog(t), Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
+	})
+	c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1"}
+	c.climateEmbedded = map[string]string{"a": "climateControl", "b": "climateControl"}
+
+	// Both report energy → summed total.
+	c.publishLocalState(context.Background(), "a",
+		&faikin.State{HasAC: true, Power: true, Demand: 100, Energy: 100000})
+	c.publishLocalState(context.Background(), "b",
+		&faikin.State{HasAC: true, Power: true, Demand: 100, Energy: 50000})
+	if got, _ := main.get("daikin/a/climateControl/energy_total/state"); got.payload != "150.000" {
+		t.Fatalf("energy_total = %q, want 150.000 (100+50)", got.payload)
+	}
+
+	// b goes idle and stops reporting energy (0). The held 50 kWh must persist,
+	// so the total stays 150 — not drop to 100.
+	c.publishLocalState(context.Background(), "b",
+		&faikin.State{HasAC: true, Power: false, Demand: 100, Energy: 0})
+	if got, _ := main.get("daikin/a/climateControl/energy_total/state"); got.payload != "150.000" {
+		t.Errorf("energy_total after b idle = %q, want 150.000 (held, no reset)", got.payload)
 	}
 }
