@@ -52,8 +52,11 @@ type DeviceInfo struct {
 	HWVersion     string // hardware revision, if known
 	SerialNumber  string // indoor unit serial number
 	SuggestedArea string // optional HA area suggestion
-	Gateway       *SubDevice
-	Outdoor       *SubDevice
+	// ConfigurationURL overrides the default (ONECTA) device link. In local mode
+	// it points at the unit's Faikin web UI, mirroring Faikin's own discovery.
+	ConfigurationURL string
+	Gateway          *SubDevice
+	Outdoor          *SubDevice
 }
 
 // device is the HA device grouping. Fields mirror Home Assistant's
@@ -82,6 +85,10 @@ func mainIdentifier(deviceID string) string { return "daikin_" + deviceID }
 // deviceBlock builds the HA device-registry block for the main (indoor /
 // climate) Daikin device.
 func (d *Discovery) deviceBlock(deviceID string, info DeviceInfo) device {
+	cu := configurationURL
+	if info.ConfigurationURL != "" {
+		cu = info.ConfigurationURL
+	}
 	return device{
 		Identifiers:      []string{mainIdentifier(deviceID)},
 		Name:             orDefault(info.Name, "Daikin "+orDefault(info.ModelID, deviceID)),
@@ -92,7 +99,7 @@ func (d *Discovery) deviceBlock(deviceID string, info DeviceInfo) device {
 		HWVersion:        info.HWVersion,
 		SerialNumber:     info.SerialNumber,
 		SuggestedArea:    info.SuggestedArea,
-		ConfigurationURL: configurationURL,
+		ConfigurationURL: cu,
 	}
 }
 

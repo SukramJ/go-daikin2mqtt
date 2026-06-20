@@ -65,6 +65,31 @@ func (c *Coordinator) localActiveFor(deviceID string) bool {
 	return ok
 }
 
+// applyFaikinConfigURLs points each locally-controlled device's HA configuration
+// URL at its Faikin module web UI (from the module's reported IP), mirroring
+// Faikin's own discovery. Cloud-only devices keep the default (ONECTA) link.
+func (c *Coordinator) applyFaikinConfigURLs(infos map[string]hass.DeviceInfo) {
+	if !c.deps.Cfg.LocalEnabled() {
+		return
+	}
+	for id := range infos {
+		if !c.localActiveFor(id) {
+			continue
+		}
+		c.mu.Lock()
+		st := c.lastLocal[id]
+		c.mu.Unlock()
+		if st == nil {
+			continue
+		}
+		if u := st.WebURL(); u != "" {
+			info := infos[id]
+			info.ConfigurationURL = u
+			infos[id] = info
+		}
+	}
+}
+
 // localOnlyPoints synthesizes discovery points for the local-only topics of
 // every mapped device, skipping any the cloud already resolved (so cloud-backed
 // units are unaffected). These points seed HA discovery only — their live state

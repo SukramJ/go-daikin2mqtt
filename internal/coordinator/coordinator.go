@@ -188,7 +188,9 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	}
 
 	if c.deps.HASS != nil {
-		c.maybePublishDiscovery(ctx, points, deviceInfos(devices), climateInfos(devices, c.deps.Cfg.Language))
+		infos := deviceInfos(devices)
+		c.applyFaikinConfigURLs(infos)
+		c.maybePublishDiscovery(ctx, points, infos, climateInfos(devices, c.deps.Cfg.Language))
 	}
 
 	published := 0

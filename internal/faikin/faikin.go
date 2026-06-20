@@ -55,6 +55,23 @@ type State struct {
 	Energy     int64 `json:"energy"`     // lifetime total Wh
 	EnergyHeat int64 `json:"energyheat"` // lifetime heating Wh
 	EnergyCool int64 `json:"energycool"` // lifetime cooling Wh
+
+	// The module's own addresses, used to link the HA device to its local web UI.
+	IPv4 string `json:"ipv4"`
+	IPv6 string `json:"ipv6"`
+}
+
+// WebURL returns a link to the module's local web UI (http://<ip>/), preferring
+// IPv4. Empty when neither address is known.
+func (s *State) WebURL() string {
+	switch {
+	case s.IPv4 != "":
+		return "http://" + s.IPv4 + "/"
+	case s.IPv6 != "":
+		return "http://[" + s.IPv6 + "]/"
+	default:
+		return ""
+	}
 }
 
 // ParseState decodes a `state/<host>` payload, tagging it with its host. It
