@@ -354,3 +354,22 @@ func TestOutdoorEnergyHoldAcrossIdle(t *testing.T) {
 		t.Errorf("energy_total after b idle = %q, want 150.000 (held, no reset)", got.payload)
 	}
 }
+
+func TestAggregateEnergySharedVsPerUnit(t *testing.T) {
+	cases := []struct {
+		name string
+		vals []int64
+		want int64
+	}{
+		{"per-unit differ → sum", []int64{778300, 788600, 785500}, 2352400},
+		{"shared identical → as-is", []int64{500000, 500000, 500000}, 500000},
+		{"one reporter, rest idle → that value", []int64{0, 600000, 0}, 600000},
+		{"none reporting → 0", []int64{0, 0, 0}, 0},
+		{"two differ, one idle → sum of reporters", []int64{100000, 0, 50000}, 150000},
+	}
+	for _, tc := range cases {
+		if got := aggregateEnergy(tc.vals); got != tc.want {
+			t.Errorf("%s: aggregateEnergy(%v) = %d, want %d", tc.name, tc.vals, got, tc.want)
+		}
+	}
+}
