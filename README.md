@@ -151,6 +151,19 @@ Bool / int / float values are coerced; everything else stays a string.
   local mode alongside the Faikin firmware without duplicate Home Assistant
   entities (and why `ha.enable` must stay on).
 
+## Acknowledgments
+
+This is an independent, ground-up Go re-implementation. It was inspired by the
+prior work of the Home Assistant
+[**Daikin Onecta**](https://github.com/jwillemsen/daikin_onecta) integration by
+**Johnny Willemsen** and contributors (licensed GPL-3.0). go-daikin2mqtt was
+built directly against the official Daikin ONECTA cloud API, using the Daikin
+Developer Portal (API documentation and mock endpoints) as the source of truth.
+It does not incorporate that project's source code, translation files, or other
+copyrightable content — only factual, non-copyrightable knowledge about the
+official ONECTA cloud API informed this work. Our thanks to the daikin_onecta
+authors. See [NOTICE](./NOTICE).
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).

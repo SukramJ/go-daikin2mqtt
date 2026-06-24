@@ -1,0 +1,27 @@
+go-daikin2mqtt
+Copyright (c) 2026 SukramJ
+
+This product is licensed under the MIT License (see LICENSE).
+
+------------------------------------------------------------------------
+Acknowledgments
+------------------------------------------------------------------------
+
+This project is an independent, ground-up Go re-implementation. It was
+inspired by the prior work of the Home Assistant "Daikin Onecta"
+integration by Johnny Willemsen and contributors:
+
+    https://github.com/jwillemsen/daikin_onecta
+
+go-daikin2mqtt was developed directly against the official Daikin ONECTA
+cloud API, using the Daikin Developer Portal — its API documentation and
+mock endpoints — as the source of truth. That integration is licensed under
+the GNU General Public License v3.0 (GPL-3.0). go-daikin2mqtt does not
+incorporate source code, translation files, or other copyrightable content
+from daikin_onecta; only factual, non-copyrightable knowledge about the
+official ONECTA cloud API (which characteristics exist and how they are
+shaped) informed this work. All German display labels and other expressive
+content in this repository are this project's own.
+
+Our thanks to Johnny Willemsen and the daikin_onecta contributors for
+making the ONECTA API approachable.
