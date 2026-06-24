@@ -54,16 +54,16 @@ func TestParseClimateAux(t *testing.T) {
 }
 
 // TestClimateAuxInfoGerman verifies the discovery option lists carry the
-// German labels (mirroring daikin_onecta) while numeric fan speeds stay raw.
+// German labels while numeric fan speeds stay raw.
 func TestClimateAuxInfoGerman(t *testing.T) {
 	ci := parseClimateAux(climateMP(), "cooling").info("de")
-	if want := []string{"Automatisch", "Leise", "1", "2", "3", "4", "5"}; !reflect.DeepEqual(ci.FanModes, want) {
+	if want := []string{"Automatik", "Leise", "1", "2", "3", "4", "5"}; !reflect.DeepEqual(ci.FanModes, want) {
 		t.Errorf("FanModes = %v, want %v", ci.FanModes, want)
 	}
-	if want := []string{"Stopp", "Schwingen", "Komfort Luftstrom"}; !reflect.DeepEqual(ci.SwingModes, want) {
+	if want := []string{"Aus", "Schwenken", "Sanfter Luftstrom"}; !reflect.DeepEqual(ci.SwingModes, want) {
 		t.Errorf("SwingModes = %v, want %v", ci.SwingModes, want)
 	}
-	if want := []string{"Stopp", "Schwingen"}; !reflect.DeepEqual(ci.SwingHorizontalModes, want) {
+	if want := []string{"Aus", "Schwenken"}; !reflect.DeepEqual(ci.SwingHorizontalModes, want) {
 		t.Errorf("SwingHorizontalModes = %v, want %v", ci.SwingHorizontalModes, want)
 	}
 	if want := []string{"Boost"}; !reflect.DeepEqual(ci.PresetModes, want) {
@@ -100,7 +100,7 @@ func TestHandleAuxWriteGermanLabels(t *testing.T) {
 		cloud := &stubCloud{}
 		c := newCoordinator(t, cloud, newStubMQTT())
 		c.updateModeCache([]model.Device{{ID: "dev1", ManagementPoints: []model.ManagementPoint{climateMP()}}})
-		c.handleSwingWrite(context.Background(), writeReq{deviceID: "dev1", embeddedID: "climateControl", topic: "swing_mode", payload: "Komfort Luftstrom"}, "vertical")
+		c.handleSwingWrite(context.Background(), writeReq{deviceID: "dev1", embeddedID: "climateControl", topic: "swing_mode", payload: "Sanfter Luftstrom"}, "vertical")
 		if p := cloud.lastPatch(t); p.value != "windNice" {
 			t.Errorf("patch value = %v, want windNice", p.value)
 		}

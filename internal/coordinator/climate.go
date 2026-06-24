@@ -109,9 +109,9 @@ type climateAux struct {
 const langDE = "de"
 
 // German display labels for the climate fan/swing/preset dropdowns, keyed by
-// the canonical (lower-cased) Daikin value used internally. The strings mirror
-// the native daikin_onecta HA integration (translations/de.json). Values not
-// listed here pass through unchanged (numeric fan speeds, unmapped modes).
+// the canonical (lower-cased) Daikin value used internally. These are this
+// project's own German renderings of the underlying technical concepts; values
+// not listed here pass through unchanged (numeric fan speeds, unmapped modes).
 //
 // A native HA integration keeps the raw value and localizes only the displayed
 // state via integration translations. MQTT discovery has no separate label
@@ -120,14 +120,14 @@ const langDE = "de"
 // on write (see [canonicalAux] and the aux write handlers).
 var (
 	fanModeDE = map[string]string{
-		"auto":  "Automatisch",
+		"auto":  "Automatik",
 		"quiet": "Leise",
 	}
 	swingModeDE = map[string]string{
-		"stop":                "Stopp",
-		"swing":               "Schwingen",
-		"windnice":            "Komfort Luftstrom",
-		"floorheatingairflow": "Fußbodenheizung Luftstrom",
+		"stop":                "Aus",
+		"swing":               "Schwenken",
+		"windnice":            "Sanfter Luftstrom",
+		"floorheatingairflow": "Luftstrom Fußbodenheizung",
 	}
 	presetModeDE = map[string]string{
 		"boost": "Boost",
