@@ -46,12 +46,15 @@ write-back commands from Home Assistant.
   [`docs/design.md`](./docs/design.md) and
   [`docs/faikin-home-assistant.md`](./docs/faikin-home-assistant.md).
 - **Multi-split aware**: settings shared across one outdoor unit (operation
-  mode, outdoor silent, demand) are surfaced once per outdoor unit and fanned
-  out to all indoor units; heat/cool mode is kept consistent across the group;
-  powerful ⇄ econo are mutually exclusive. Telemetry follows the physics: energy
-  and power are **per indoor unit** and also **summed** once per outdoor unit;
-  values identical across the units (compressor / fan frequency, refrigerant /
-  outdoor temperature) are shown **once** at the outdoor unit.
+  mode, outdoor silent, eco, demand) are surfaced once per outdoor unit and fanned
+  out to all indoor units; heat/cool mode is kept consistent across the group.
+  powerful ⇄ eco are mutually exclusive (both act on the shared compressor):
+  turning powerful on for any unit suspends eco group-wide and restores it when
+  the boost ends (manually or after the 20-minute hardware timeout). Telemetry
+  follows the physics: energy and power are **per indoor unit** and also
+  **summed** once per outdoor unit; values identical across the units (compressor
+  / fan frequency, refrigerant / outdoor temperature) are shown **once** at the
+  outdoor unit.
 - Optional diagnostic **web UI** with integrated OAuth (HA-ingress ready).
 - `daikin2mqtt-util` helper CLI (auth, devices, points, set, ratelimit,
   catalog-check) and a `--mock` mode using the ONECTA mock endpoint.

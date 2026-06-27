@@ -60,14 +60,26 @@ type Coordinator struct {
 	writes chan writeReq
 
 	mu              sync.Mutex
-	modeCache       map[string]string        // deviceID/embeddedID -> current operationMode
-	climateEmbedded map[string]string        // deviceID -> climateControl embeddedID (for local routing)
-	outdoorSerial   map[string]string        // deviceID -> outdoor-unit serial (for multi-split grouping)
-	lastLocal       map[string]*faikin.State // deviceID -> last AC state received from Faikin
-	lastEnergy      map[string]energyTotals  // deviceID -> last non-zero per-unit energy (held; see localOutdoorAgg)
-	pendingOutdoor  map[string]outdoorHold   // "<group>|<topic>" -> just-written value, held until confirmed
-	lastDiscSig     string                   // signature of the last published discovery set
-	reconcileGate   sync.Mutex               // try-locked gate so only one orphan reconcile runs at a time
+	modeCache       map[string]string            // deviceID/embeddedID -> current operationMode
+	climateEmbedded map[string]string            // deviceID -> climateControl embeddedID (for local routing)
+	outdoorSerial   map[string]string            // deviceID -> outdoor-unit serial (for multi-split grouping)
+	lastLocal       map[string]*faikin.State     // deviceID -> last AC state received from Faikin
+	lastEnergy      map[string]energyTotals      // deviceID -> last non-zero per-unit energy (held; see localOutdoorAgg)
+	pendingOutdoor  map[string]outdoorHold       // "<group>|<topic>" -> just-written value, held until confirmed
+	econoSuspend    map[string]econoSuspendState // outdoor group key -> powerful<->econo save/restore state
+	lastDiscSig     string                       // signature of the last published discovery set
+	reconcileGate   sync.Mutex                   // try-locked gate so only one orphan reconcile runs at a time
+}
+
+// econoSuspendState tracks the powerful<->econo save/restore per outdoor group.
+// econo limits the shared outdoor compressor, so a powerful (boost) on any member
+// suspends it group-wide; the hardware does not restore econo afterwards, so the
+// coordinator does. boosting is the last-observed "any member in powerful";
+// pending records that econo was on when the boost began and must be restored
+// when the last member leaves powerful. See reconcileEconoSuspend.
+type econoSuspendState struct {
+	boosting bool
+	pending  bool
 }
 
 // energyTotals holds a unit's lifetime energy counters (Wh). They are monotonic
@@ -109,6 +121,7 @@ func New(d Deps) *Coordinator {
 		lastLocal:       map[string]*faikin.State{},
 		lastEnergy:      map[string]energyTotals{},
 		pendingOutdoor:  map[string]outdoorHold{},
+		econoSuspend:    map[string]econoSuspendState{},
 	}
 }
 
@@ -175,6 +188,9 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 
 	c.updateModeCache(devices)
 	c.updateOutdoorGroups(devices)
+	// Drive the powerful⇄econo save/restore from the cloud snapshot for groups
+	// not controlled locally (the Faikin read path owns the locally-active ones).
+	c.reconcileEconoSuspendCloud(ctx, devices)
 	// The embeddedID cache is now populated; (re)publish any Faikin state that
 	// arrived before this (e.g. the retained state at subscribe time).
 	if c.deps.Cfg.LocalEnabled() {

@@ -13,9 +13,9 @@ It complements the package-level doc comments; read those for exact signatures.
    their local Faikin / Faikout MQTT interface instead of the rate-limited
    ONECTA cloud, while keeping the same Home Assistant entities and MQTT topics.
 2. **Correct multi-split behaviour** — settings that are one physical knob on
-   the shared outdoor unit (operation mode, outdoor silent, demand limit) must
-   stay consistent across all indoor units; mutually-exclusive settings
-   (powerful ⇄ econo) must not be set together.
+   the shared outdoor unit (operation mode, outdoor silent, eco, demand limit)
+   must stay consistent across all indoor units; mutually-exclusive settings
+   (powerful ⇄ eco) must not be set together.
 3. **No rework** — the two are independent: control routing is a seam both the
    cloud and the local path plug into, and the outdoor/dependency logic sits
    above the backend so it applies to either.
@@ -29,11 +29,14 @@ units) runs one refrigerant cycle, so:
   indoor units — the first unit to start wins; conflicting units drop to
   standby (Daikin FAQ: *"…either cooling or heating at the same time"*).
 - **Outdoor silent** (Außen Geräuscharm) caps the single outdoor unit's
-  fan/noise; **demand control** limits its power draw. Both are exposed per
-  indoor unit in ONECTA but act on the one outdoor unit.
+  fan/noise; **demand control** limits its power draw; **eco** (econo) limits the
+  shared compressor too. All are exposed per indoor unit in ONECTA but act on the
+  one outdoor unit. eco is also mutually exclusive with **powerful** (boost),
+  which stays per indoor unit but drives the same shared compressor — see
+  "Mutual exclusion" below.
 
 Genuinely per-indoor-unit settings (independent): setpoint, fan, swing,
-powerful, econo, streamer, on/off.
+powerful, streamer, on/off.
 
 ## Control backend seam
 
@@ -114,10 +117,26 @@ units sharing one outdoor unit. On this it implements the dependent settings:
 |---|---|---|
 | **Mode sync** | heat/cool change → propagate `operationMode` to the other group members | `MULTISPLIT_MODE_SYNC` |
 | **Outdoor fan-out** | write to a `scope: outdoor` setting → apply to every group member | `MULTISPLIT_OUTDOOR_AGGREGATE` |
-| **Mutual exclusion** | powerful/econo on → clear the partner | `ENFORCE_MUTUAL_EXCLUSIVE` |
+| **Mutual exclusion** | eco on → clear powerful; powerful on → suspend eco group-wide and restore it (save/restore) when the boost ends | `ENFORCE_MUTUAL_EXCLUSIVE` |
 
 These run **above** `setCharacteristic`, so they fan out through whichever
 backend each member uses.
+
+**Powerful ⇄ eco save/restore.** eco (econo) is `scope: outdoor` because it limits
+the shared compressor, but powerful (boost) stays per indoor unit and drives the
+same compressor, so they cannot coexist. Turning eco on clears powerful group-wide
+(`enforceMutualExclusive`). The other direction needs more than a blind clear: the
+hardware suspends eco while powerful runs but does **not** restore it afterwards.
+`reconcileEconoSuspend` therefore drives an edge-based, group-keyed state machine
+(`Coordinator.econoSuspend`) off the observed `(anyPowerful, econoOn)` snapshot:
+on the group's first powerful it remembers whether eco was on and switches it off
+across the group; on the last member leaving powerful it restores eco. It is fed
+from both the local read path (`publishLocalState`, before `publishOutdoorShared`)
+and the cloud poll (`reconcileEconoSuspendCloud`, which skips locally-active
+groups), so a manual powerful-off and the 20-minute hardware timeout are handled
+by the same code (the timeout simply shows up as `powerful:false` on the next
+read). Being edge-driven, the restore's own eco write is not re-triggered, so it
+never loops.
 
 ### `scope: outdoor` in the catalog & discovery
 
@@ -125,8 +144,8 @@ A catalog entry can carry `scope: outdoor` (`internal/catalog`). On the write
 side it triggers fan-out; on the discovery side
 (`internal/hass/discovery.go`), such points are keyed by the **outdoor serial**
 and attached to the outdoor device, so all indoor units' copies deduplicate to a
-**single entity per outdoor unit** (`outdoor_silent`, `demand_control`, plus the
-outdoor telemetry below).
+**single entity per outdoor unit** (`outdoor_silent`, `econo_mode`,
+`demand_control`, plus the outdoor telemetry below).
 
 ### Outdoor-unit telemetry aggregation
 
@@ -158,8 +177,8 @@ stays per unit (not `scope: outdoor`).
 
 ## Catalog additions
 
-Per-unit switches `econo_mode`, `streamer`; outdoor-shared `outdoor_silent`
-(switch) and `demand_control` (number); local-only telemetry sensors (outdoor:
+Per-unit switch `streamer`; outdoor-shared `outdoor_silent` and `econo_mode`
+(switches) and `demand_control` (number); local-only telemetry sensors (outdoor:
 `power_consumption`, `compressor_frequency`, `energy_total`,
 `heating_energy_total`, `cooling_energy_total`; per-unit: `fan_frequency`,
 `refrigerant_temperature`). Faikin exposes all of them locally. On the FTXA range

@@ -118,6 +118,7 @@ func TestLocalOnlyPoints(t *testing.T) {
   topic: econo_mode
   platform: switch
   settable: true
+  scope: outdoor
 - match: {managementPointType: climateControl, characteristic: streamerMode}
   topic: streamer
   platform: switch
@@ -218,12 +219,12 @@ func TestPublishOutdoorSharedAggregates(t *testing.T) {
 		Cfg: cfg, Client: &stubCloud{}, MQTT: main, FaikinMQTT: newStubMQTT(),
 		Catalog: loadTestCatalog(t), Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
 	})
-	// Same outdoor unit; a is idle (quiet off), b (active) reports quiet on.
+	// Same outdoor unit; a is idle (quiet/econo off), b (active) reports them on.
 	c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1"}
 	c.climateEmbedded = map[string]string{"a": "climateControl", "b": "climateControl"}
 	c.lastLocal = map[string]*faikin.State{
-		"a": {HasAC: true, Quiet: false, Demand: 100},
-		"b": {HasAC: true, Quiet: true, Demand: 80},
+		"a": {HasAC: true, Quiet: false, Econo: false, Demand: 100},
+		"b": {HasAC: true, Quiet: true, Econo: true, Demand: 80},
 	}
 
 	c.publishOutdoorShared(context.Background(), "a")
@@ -233,6 +234,9 @@ func TestPublishOutdoorSharedAggregates(t *testing.T) {
 	for _, dev := range []string{"a", "b"} {
 		if got, _ := main.get("daikin/" + dev + "/climateControl/outdoor_silent/state"); got.payload != "on" {
 			t.Errorf("%s outdoor_silent = %q, want on (OR across group)", dev, got.payload)
+		}
+		if got, _ := main.get("daikin/" + dev + "/climateControl/econo_mode/state"); got.payload != "on" {
+			t.Errorf("%s econo_mode = %q, want on (OR across group)", dev, got.payload)
 		}
 		if got, _ := main.get("daikin/" + dev + "/climateControl/demand_control/state"); got.payload != "80" {
 			t.Errorf("%s demand_control = %q, want 80 (min across group)", dev, got.payload)
