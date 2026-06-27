@@ -365,16 +365,6 @@
 # (model / sw_version, from deviceInfos for indoorUnitHydro), not as sensors.
 
 # --- Per-unit comfort/air settings ---
-- match: {managementPointType: climateControl, characteristic: econoMode}
-  topic: econo_mode
-  name: Econo mode
-  name_de: Eco-Modus
-  platform: switch
-  settable: true
-  values:
-    - {value: "on", label: "On", label_de: "An"}
-    - {value: "off", label: "Off", label_de: "Aus"}
-
 - match: {managementPointType: climateControl, characteristic: streamerMode}
   topic: streamer
   name: Streamer
@@ -386,6 +376,22 @@
     - {value: "off", label: "Off", label_de: "Aus"}
 
 # --- Outdoor-shared settings (one entity per outdoor unit; writes fan out) ---
+# Eco mode limits the shared outdoor compressor, so on a multi-split it is a
+# single outdoor-unit setting (like outdoor silent): one entity per outdoor unit,
+# writes fan out, read state is the OR across the group. Powerful (per indoor
+# unit) suspends it group-wide and the coordinator restores it afterwards
+# (the hardware does not) — see reconcileEconoSuspend in coordinator/outdoor.go.
+- match: {managementPointType: climateControl, characteristic: econoMode}
+  topic: econo_mode
+  name: Econo mode
+  name_de: Eco-Modus
+  platform: switch
+  settable: true
+  scope: outdoor
+  values:
+    - {value: "on", label: "On", label_de: "An"}
+    - {value: "off", label: "Off", label_de: "Aus"}
+
 - match: {managementPointType: climateControl, characteristic: outdoorSilentMode}
   topic: outdoor_silent
   name: Outdoor silent

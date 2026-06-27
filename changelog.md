@@ -1,3 +1,29 @@
+# Version 0.2.21 (2026-06-27)
+
+## What's Changed
+
+### Changed
+
+- **Eco mode is now an outdoor-unit setting.** Eco (econo) limits the shared
+  outdoor compressor, so on a multi-split it only works when set the same on every
+  indoor unit — just like *Outdoor silent*. It is now surfaced as a **single
+  entity per outdoor unit** (instead of one per indoor unit): writes fan out to
+  all indoor units and the displayed state is the OR across the group.
+- **Powerful now suspends and restores eco group-wide.** Powerful (boost) and eco
+  pull the shared compressor in opposite directions, so they cannot run together.
+  When powerful is switched on for any indoor unit, eco is now remembered and
+  switched off across the whole outdoor unit; when powerful ends — whether turned
+  off manually or after the 20-minute hardware timeout — the previous eco state is
+  **restored automatically** (the hardware does not restore it on its own).
+  Governed by the existing `enforce_mutual_exclusive` option.
+
+### Migration
+
+- The eco-mode entity moves from each indoor-unit device to the outdoor-unit
+  device. The old per-indoor eco entities go stale and are cleared automatically
+  by the self-cleaning discovery from 0.2.20 — the single new entity appears under
+  the outdoor unit on its own.
+
 # Version 0.2.20 (2026-06-20)
 
 ## What's Changed

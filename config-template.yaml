@@ -66,7 +66,7 @@ LOCAL_DEVICE_MAP: {}
 # shared across all indoor units on one outdoor unit.
 MULTISPLIT_MODE_SYNC: true          # propagate heat/cool to all units of an outdoor unit
 MULTISPLIT_OUTDOOR_AGGREGATE: true  # one entity per outdoor unit for outdoor-shared settings
-ENFORCE_MUTUAL_EXCLUSIVE: true      # turning powerful on clears econo (and vice versa)
+ENFORCE_MUTUAL_EXCLUSIVE: true      # econo on clears powerful; powerful on suspends+restores econo group-wide
 
 # --- Misc ---
 LANGUAGE: en   # en | de

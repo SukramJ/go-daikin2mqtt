@@ -243,20 +243,27 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 				slog.String("topic", topic), slog.String("err", err.Error()))
 		}
 	}
+	// React to a powerful change before publishing the shared econo state, so a
+	// suspend/restore write sets the optimistic hold that publishOutdoorShared
+	// then reads through. agg.powerful/econo are the group OR.
+	agg := c.localOutdoorAgg(deviceID)
+	c.reconcileEconoSuspend(ctx, deviceID, agg.powerful, agg.econo)
 	c.publishOutdoorShared(ctx, deviceID)
 }
 
 // publishOutdoorShared publishes the group-aggregated outdoor-shared settings to
 // every member of the device's outdoor unit. On a multi-split only the active
-// indoor unit applies an outdoor-unit setting (outdoor silent, demand), so the
-// aggregate is what's actually in effect: outdoor silent is on if ANY member
-// reports it, demand is the most restrictive (lowest) value. Publishing to all
-// members means the single HA entity (which reads one fixed member) reflects it.
+// indoor unit applies an outdoor-unit setting (outdoor silent, econo, demand),
+// so the aggregate is what's actually in effect: outdoor silent and econo are on
+// if ANY member reports it, demand is the most restrictive (lowest) value.
+// Publishing to all members means the single HA entity (which reads one fixed
+// member) reflects it.
 func (c *Coordinator) publishOutdoorShared(ctx context.Context, deviceID string) {
 	agg := c.localOutdoorAgg(deviceID)
 	group := c.groupKey(deviceID)
 	vals := map[string]string{
 		"outdoor_silent": c.heldOutdoorValue(group, "outdoor_silent", onOff(agg.quiet)),
+		"econo_mode":     c.heldOutdoorValue(group, "econo_mode", onOff(agg.econo)),
 		"demand_control": c.heldOutdoorValue(group, "demand_control", strconv.Itoa(agg.demand)),
 		// System total (sum across the indoor units).
 		"outdoor_power": strconv.Itoa(agg.powerW),
@@ -354,13 +361,16 @@ func (c *Coordinator) heldOutdoorValue(group, suffix, raw string) string {
 }
 
 // localOutdoorAgg aggregates the outdoor-shared values across a device's outdoor
-// group from the cached Faikin states: outdoor silent is on if any member is on;
-// demand is the lowest (most restrictive) reported value.
+// group from the cached Faikin states: outdoor silent and econo are on if any
+// member is on; demand is the lowest (most restrictive) reported value. powerful
+// is on if any member boosts (drives the econo save/restore).
 // outdoorAggregate holds the outdoor-unit values combined across a multi-split
-// group. Settings (quiet/demand) and telemetry (power/compressor/energy) are all
-// reported per indoor unit but describe the one outdoor unit.
+// group. Settings (quiet/econo/demand) and telemetry (power/compressor/energy)
+// are all reported per indoor unit but describe the one outdoor unit.
 type outdoorAggregate struct {
 	quiet                                 bool
+	econo                                 bool // econo on if any member is (shared outdoor setting)
+	powerful                              bool // any member boosting (drives econo save/restore)
 	demand                                int
 	powerW                                int     // sum across units (system total)
 	compHz, fanHz, refrigerantC, outsideC float64 // shared outdoor values (max)
@@ -399,6 +409,12 @@ func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
 		}
 		if st.Quiet {
 			agg.quiet = true
+		}
+		if st.Econo {
+			agg.econo = true
+		}
+		if st.Powerful {
+			agg.powerful = true
 		}
 		if st.Demand < agg.demand {
 			agg.demand = st.Demand
@@ -478,7 +494,6 @@ func (c *Coordinator) localStateMessages(deviceID string, st *faikin.State) map[
 		"room_humidity":        c.fmtFloat("room_humidity", st.Hum),
 		"temperature_setpoint": c.fmtFloat("temperature_setpoint", st.Target),
 		"powerful_mode":        onOff(st.Powerful),
-		"econo_mode":           onOff(st.Econo),
 		"streamer":             onOff(st.Streamer),
 		// Per-indoor-unit telemetry (own value). Power is instantaneous; energy
 		// uses the per-unit held value so an idle unit reporting 0 does not reset
@@ -495,10 +510,11 @@ func (c *Coordinator) localStateMessages(deviceID string, st *faikin.State) map[
 	if e.cool > 0 {
 		out["cooling_energy_total"] = c.fmtFloat("cooling_energy_total", float64(e.cool)/1000)
 	}
-	// outdoor_silent, demand_control, the outdoor-unit sums (outdoor_power,
-	// outdoor_*_energy_total) and the shared outdoor values (compressor / fan
-	// frequency, refrigerant + outdoor temperature) are scope: outdoor and
-	// published group-aggregated by publishOutdoorShared, not per unit.
+	// outdoor_silent, econo_mode, demand_control, the outdoor-unit sums
+	// (outdoor_power, outdoor_*_energy_total) and the shared outdoor values
+	// (compressor / fan frequency, refrigerant + outdoor temperature) are
+	// scope: outdoor and published group-aggregated by publishOutdoorShared,
+	// not per unit.
 	if label, ok := c.localOperationModeLabel(st.Mode); ok {
 		out["operation_mode"] = label
 	}

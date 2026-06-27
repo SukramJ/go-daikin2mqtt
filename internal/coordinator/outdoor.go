@@ -78,16 +78,22 @@ func (c *Coordinator) syncModeToGroup(ctx context.Context, originDeviceID, daiki
 	}
 }
 
-// mutualExclusive pairs settings that the hardware cannot run together; turning
-// one on must turn the other off.
+// mutualExclusive maps a just-enabled setting to the partner it must clear. Only
+// the econo→powerful direction is a blind clear: powerful is temporary, so it
+// needs no save/restore. The powerful→econo direction is handled by
+// reconcileEconoSuspend instead, which remembers econo so it can be restored when
+// the boost ends (the hardware does not restore it).
 var mutualExclusive = map[string]string{
-	"powerfulMode": "econoMode",
-	"econoMode":    "powerfulMode",
+	"econoMode": "powerfulMode",
 }
 
 // enforceMutualExclusive clears the partner of a just-enabled mutually-exclusive
-// setting (powerful ⇄ econo). No-op when disabled, the characteristic has no
-// partner, or value is not an "on".
+// setting. Today this only fires for econo→powerful: turning econo on clears
+// powerful. econo is an outdoor-shared setting, so the clear fans out to the
+// whole group (a per-unit boost would otherwise re-suspend econo on the next
+// read); it also resets the group's suspend state so the explicit econo wins and
+// is not undone by a boost still in progress. No-op when disabled, the
+// characteristic has no partner, or value is not an "on".
 func (c *Coordinator) enforceMutualExclusive(ctx context.Context, deviceID, embeddedID, characteristic string, value any) {
 	if !c.deps.Cfg.MutualExclusiveEnforced() {
 		return
@@ -101,8 +107,129 @@ func (c *Coordinator) enforceMutualExclusive(ctx context.Context, deviceID, embe
 			slog.String("characteristic", partner), slog.String("err", err.Error()))
 		return
 	}
+	// econo is group-wide, powerful is per indoor unit: clear the boost on every
+	// member and forget any pending restore so econo stays the winner.
+	c.fanOutToGroup(ctx, deviceID, partner, "off", "")
+	group := c.groupKey(deviceID)
+	c.mu.Lock()
+	c.econoSuspend[group] = econoSuspendState{boosting: false, pending: false}
+	c.mu.Unlock()
 	c.deps.Logger.Info("coordinator.exclusive_cleared",
 		slog.String("set", characteristic), slog.String("cleared", partner))
+}
+
+// reconcileEconoSuspend drives the powerful⇄econo save/restore for one outdoor
+// group from an observed (anyPowerful, econoOn) snapshot. econo limits the shared
+// outdoor compressor, so a boost on any member suspends it group-wide; when the
+// last member leaves powerful the coordinator restores the econo state it saw
+// before the boost (the hardware does not). It is edge-driven and idempotent: the
+// flag read-modify-write is fully under c.mu (the only mutator, so concurrent
+// cloud-poll and Faikin-callback goroutines serialize to exactly one suspend per
+// group-on edge and one restore per group-off edge), while the resulting writes
+// run outside the lock. Calling it on a non-edge (e.g. the restore's own econo
+// write read back later) does nothing, so it never loops.
+func (c *Coordinator) reconcileEconoSuspend(ctx context.Context, deviceID string, anyPowerful, econoOn bool) {
+	if !c.deps.Cfg.MutualExclusiveEnforced() {
+		return
+	}
+	group := c.groupKey(deviceID) // locks c.mu; must be before the Lock below (mu is not reentrant)
+
+	const (
+		actionNone = iota
+		actionSuspend
+		actionRestore
+	)
+	c.mu.Lock()
+	prev := c.econoSuspend[group]
+	next := prev
+	next.boosting = anyPowerful
+	action := actionNone
+	switch {
+	case anyPowerful && !prev.boosting: // group boost OFF→ON
+		if econoOn {
+			next.pending = true
+			action = actionSuspend
+		} else {
+			next.pending = false // nothing to restore later
+		}
+	case !anyPowerful && prev.boosting: // group boost ON→OFF
+		if prev.pending {
+			action = actionRestore
+		}
+		next.pending = false
+	}
+	c.econoSuspend[group] = next
+	c.mu.Unlock()
+
+	switch action {
+	case actionSuspend:
+		c.deps.Logger.Info("coordinator.econo_suspended", slog.String("group", group))
+		c.setGroupEcono(ctx, deviceID, "off")
+	case actionRestore:
+		c.deps.Logger.Info("coordinator.econo_restored", slog.String("group", group))
+		c.setGroupEcono(ctx, deviceID, "on")
+	}
+}
+
+// reconcileEconoSuspendCloud drives the powerful⇄econo save/restore from a cloud
+// poll snapshot. It aggregates powerful/econo per outdoor group (OR across the
+// indoor units' management points; only climateControl carries these keys) and
+// reconciles each group that is not controlled locally — the Faikin read path
+// owns the locally-active groups, whose cloud values lag. In pure-cloud mode it
+// drives every group.
+func (c *Coordinator) reconcileEconoSuspendCloud(ctx context.Context, devices []model.Device) {
+	if !c.deps.Cfg.MutualExclusiveEnforced() {
+		return
+	}
+	type groupAgg struct {
+		rep             string
+		powerful, econo bool
+	}
+	groups := map[string]*groupAgg{}
+	for _, d := range devices {
+		pw, ec := false, false
+		for _, mp := range d.ManagementPoints {
+			if s, ok := mp.Characteristics["powerfulMode"].String(); ok && s == "on" {
+				pw = true
+			}
+			if s, ok := mp.Characteristics["econoMode"].String(); ok && s == "on" {
+				ec = true
+			}
+		}
+		k := c.groupKey(d.ID)
+		a := groups[k]
+		if a == nil {
+			a = &groupAgg{rep: d.ID}
+			groups[k] = a
+		}
+		a.powerful = a.powerful || pw
+		a.econo = a.econo || ec
+	}
+	for _, a := range groups {
+		if c.localActiveFor(a.rep) {
+			continue // local read path owns this group; cloud values are stale
+		}
+		c.reconcileEconoSuspend(ctx, a.rep, a.powerful, a.econo)
+	}
+}
+
+// setGroupEcono writes econo to every indoor unit of the device's outdoor group
+// (origin first, then fan-out to the rest) and, in local mode, holds the value
+// and reflects it optimistically so the single outdoor-unit econo entity does not
+// flicker before the sparse Faikin status confirms it. Mirrors the optimistic
+// path of the generic scope:outdoor write in handleWrite.
+func (c *Coordinator) setGroupEcono(ctx context.Context, deviceID, value string) {
+	if emb, ok := c.climateEmbeddedID(deviceID); ok {
+		if err := c.setCharacteristic(ctx, deviceID, emb, "econoMode", value, ""); err != nil {
+			c.deps.Logger.Warn("coordinator.econo_set_failed",
+				slog.String("device", deviceID), slog.String("err", err.Error()))
+		}
+	}
+	c.fanOutToGroup(ctx, deviceID, "econoMode", value, "")
+	if c.localActiveFor(deviceID) {
+		c.holdOutdoor(deviceID, "econo_mode", value)
+		c.publishOptimistic(ctx, deviceID, "econo_mode", value)
+	}
 }
 
 // fanOutToGroup applies an outdoor-shared characteristic to every indoor unit of

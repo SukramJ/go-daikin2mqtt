@@ -74,6 +74,13 @@ func (s *stubCloud) patchCount() int {
 	return len(s.patches)
 }
 
+// allPatches returns a copy of the recorded patches (race-safe under -race).
+func (s *stubCloud) allPatches() []patchCall {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]patchCall(nil), s.patches...)
+}
+
 // publishedMsg is a recorded MQTT publish.
 type publishedMsg struct {
 	payload string

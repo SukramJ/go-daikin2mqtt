@@ -158,11 +158,18 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   Faikin entities are avoided by redirecting its `topic.ha` prefix, not by disabling HA — see
   `docs/faikin-home-assistant.md`.
 - **Multi-split / dependency engine** (`outdoor.go`): outdoor groups keyed by outdoor serial
-  (`groupMembers`). `scope: outdoor` catalog entries (`outdoor_silent`, `demand_control`) dedup to
-  **one entity per outdoor unit** (in `hass.entityIdentity`) and **fan out** writes to all members.
-  Mode sync propagates heat/cool across the group (a standard multi-split can't cool+heat at once);
-  powerful ⇄ econo are mutually exclusive. On by default; gated by `MULTISPLIT_MODE_SYNC` /
-  `MULTISPLIT_OUTDOOR_AGGREGATE` / `ENFORCE_MUTUAL_EXCLUSIVE`.
+  (`groupMembers`). `scope: outdoor` catalog entries (`outdoor_silent`, `econo_mode`,
+  `demand_control`) dedup to **one entity per outdoor unit** (in `hass.entityIdentity`) and
+  **fan out** writes to all members. Mode sync propagates heat/cool across the group (a standard
+  multi-split can't cool+heat at once); powerful ⇄ econo are mutually exclusive. econo is
+  `scope: outdoor` (it limits the shared compressor) but powerful stays per indoor unit: turning
+  econo on clears powerful group-wide, and a powerful on **any** member suspends econo group-wide
+  and restores it when the boost ends — manually or after the 20-min hardware timeout (the hardware
+  does not restore it). This save/restore is an edge-driven, group-keyed state machine
+  (`reconcileEconoSuspend` + `Coordinator.econoSuspend`) fed from both the local read path
+  (`publishLocalState`) and the cloud poll (`reconcileEconoSuspendCloud`, skips locally-active
+  groups). On by default; gated by `MULTISPLIT_MODE_SYNC` / `MULTISPLIT_OUTDOOR_AGGREGATE` /
+  `ENFORCE_MUTUAL_EXCLUSIVE`.
 
 The Faikin broker defaults to the main MQTT broker (connection reused); a distinct
 `LOCAL_FAIKIN_SERVER` opens a second connection. The dependency engine runs **above** the backend

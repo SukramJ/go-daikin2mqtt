@@ -46,8 +46,8 @@ Everything else has sensible defaults; use the reference below to fine-tune.
 | `local_faikin_prefix` | str | `Faikout` | **Deprecated and ignored.** The Faikin command topic is always `command/<host>/<setting>` (the firmware convention). |
 | `local_device_map` | list(str) | `[]` | Maps each ONECTA device to its Faikin host as `deviceID=Faikin host` entries (e.g. `cfcbab3e-…=Klima GA`). Only mapped devices are driven locally. See below. |
 | `multisplit_mode_sync` | bool | `true` | Propagate a heat/cool change to the other indoor units of the same outdoor unit (a standard multi-split cannot cool and heat at once). |
-| `multisplit_outdoor_aggregate` | bool | `true` | Surface outdoor-shared settings (outdoor silent, demand) as one entity per outdoor unit, fanning writes out to every member unit. |
-| `enforce_mutual_exclusive` | bool | `true` | Turning powerful on clears econo, and vice versa. |
+| `multisplit_outdoor_aggregate` | bool | `true` | Surface outdoor-shared settings (outdoor silent, eco, demand) as one entity per outdoor unit, fanning writes out to every member unit. |
+| `enforce_mutual_exclusive` | bool | `true` | Powerful and eco cannot run together (both act on the shared outdoor compressor). Turning eco on clears powerful. Turning powerful on suspends eco group-wide and remembers it; when powerful ends (manually or after the 20-minute hardware timeout) eco is restored, since the hardware does not restore it itself. |
 
 Fixed by the add-on (not user-configurable): the token store lives at
 `/data/token-store.json` and the web UI binds to `0.0.0.0:8080` for Ingress.
@@ -81,13 +81,13 @@ Enable it with:
 The cloud connection is still used to bootstrap the device list and Home
 Assistant discovery and for anything Faikin does not expose. The `multisplit_*`
 options govern settings physically shared across one outdoor unit (heat/cool
-mode consistency, outdoor silent / demand as one entity with write fan-out);
+mode consistency, outdoor silent / eco / demand as one entity with write fan-out);
 leave them on for a multi-split.
 
-> **Note:** on a multi-split, an outdoor-unit setting (outdoor silent, demand)
-> is applied by the **active** indoor unit; the add-on fans the command out to
-> all units and shows the aggregated state, so the single entity reflects the
-> whole outdoor unit. The outdoor-unit **readings** — power draw, compressor
+> **Note:** on a multi-split, an outdoor-unit setting (outdoor silent, eco,
+> demand) is applied by the **active** indoor unit; the add-on fans the command
+> out to all units and shows the aggregated state, so the single entity reflects
+> the whole outdoor unit. The outdoor-unit **readings** — power draw, compressor
 > frequency and lifetime energy totals — are likewise reported only by the active
 > unit, so they appear as **one sensor per outdoor unit** rather than per indoor
 > unit (fan frequency and refrigerant temperature stay per indoor unit).
