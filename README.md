@@ -169,6 +169,14 @@ copyrightable content — only factual, non-copyrightable knowledge about the
 official ONECTA cloud API informed this work. Our thanks to the daikin_onecta
 authors. See [NOTICE](./NOTICE).
 
+## Development
+
+Parts of go-daikin2mqtt are developed with agentic AI assistance, primarily
+[Claude Code](https://www.anthropic.com/claude-code). Incoming issues are
+also triaged and analyzed with agentic help. Every change is still reviewed
+by a human maintainer and has to pass the project's tests before it lands —
+the AI accelerates the work, it does not replace the review gate.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).
