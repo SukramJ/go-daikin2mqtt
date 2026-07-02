@@ -8,8 +8,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/SukramJ/go-mqtt"
+
 	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
-	"github.com/SukramJ/go-daikin2mqtt/internal/mqtt"
 )
 
 // setCharacteristic applies one setting change to a management point, choosing

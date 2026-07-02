@@ -12,12 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SukramJ/go-mqtt"
+
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
-	"github.com/SukramJ/go-daikin2mqtt/internal/mqtt"
 )
 
 // --- stubs -----------------------------------------------------------------

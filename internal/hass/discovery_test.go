@@ -8,8 +8,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/SukramJ/go-mqtt"
+
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
-	"github.com/SukramJ/go-daikin2mqtt/internal/mqtt"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 )
 

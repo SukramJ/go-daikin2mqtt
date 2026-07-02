@@ -1,3 +1,30 @@
+# Version 0.3.0 (2026-07-02)
+
+## What's Changed
+
+### Changed
+
+- **MQTT client extracted to `github.com/SukramJ/go-mqtt`.** The hand-rolled
+  MQTT 3.1.1 client that lived under `internal/mqtt` is now the shared
+  `go-mqtt` module (v0.1.0), used by all four `go-*2mqtt` bridges, so a fix
+  lands once instead of drifting across four copies. No behavioural change for
+  this daemon.
+
+### Security
+
+- **MQTT frame-size cap** (inherited via the module). The MQTT read path
+  capped an incoming frame's `remaining length` only at the 256 MiB wire
+  maximum and allocated the body buffer unconditionally, so a malicious or
+  malfunctioning broker could force a multi-hundred-megabyte allocation per
+  frame (OOM/DoS). Frames larger than 1 MiB are now rejected before any
+  allocation.
+
+### Fixed
+
+- **Rejected MQTT subscriptions are surfaced** (inherited via the module). A
+  broker SUBACK failure code (`0x80`) is now decoded and logged instead of
+  silently leaving a command topic undelivered.
+
 # Version 0.2.22 (2026-07-02)
 
 ## What's Changed
