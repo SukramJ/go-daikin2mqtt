@@ -182,8 +182,9 @@ command *values*. **The one documented exception:** the climate fan/swing/preset
 the German *label as the command value* (HA's MQTT climate platform has no separate label/value
 field), reversed on write by `canonicalAux` (see `coordinator/climate.go`).
 
-### MQTT (`internal/mqtt/`, `internal/mqtt/protocol/`)
-A **custom pure-Go MQTT 3.1.1 implementation** (no paho/library): packet codec in `protocol/`,
+### MQTT (`github.com/SukramJ/go-mqtt`, `github.com/SukramJ/go-mqtt/protocol`)
+A **custom pure-Go MQTT 3.1.1 implementation** (no paho/library), extracted into the shared
+`go-mqtt` module (formerly a locally duplicated `internal/mqtt`): packet codec in `protocol/`,
 TCP adapter, and a `Lifecycle` wrapper that auto-reconnects with backoff and re-fires
 `OnConnect` (used to re-announce availability). Narrow `Publisher`/`Subscriber`/`Client`
 interfaces make the coordinator and discovery testable with stubs.

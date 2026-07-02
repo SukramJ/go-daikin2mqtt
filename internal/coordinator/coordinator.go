@@ -20,6 +20,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/SukramJ/go-mqtt"
+
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
@@ -27,7 +29,6 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
-	"github.com/SukramJ/go-daikin2mqtt/internal/mqtt"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 )
 

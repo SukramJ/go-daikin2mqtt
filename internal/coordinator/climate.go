@@ -11,10 +11,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/SukramJ/go-mqtt"
+
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
-	"github.com/SukramJ/go-daikin2mqtt/internal/mqtt"
 )
 
 // --- Local Faikin fan/swing translation -----------------------------------
