@@ -357,7 +357,7 @@ func (c *Coordinator) reconcileOrphans(ctx context.Context, published map[string
 		filter := c.deps.HASS.ConfigFilter()
 		var mu sync.Mutex
 		retained := map[string][]byte{}
-		if err := c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(topic string, payload []byte) {
+		if err := c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(topic string, payload []byte, _ bool) {
 			mu.Lock()
 			retained[topic] = append([]byte(nil), payload...)
 			mu.Unlock()
@@ -435,7 +435,7 @@ func (c *Coordinator) publishAttrs(ctx context.Context, topic, source string) {
 
 func (c *Coordinator) subscribeWrites(ctx context.Context) error {
 	filter := c.topicRoot + "/+/+/+/set"
-	return c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(topic string, payload []byte) {
+	return c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(topic string, payload []byte, _ bool) {
 		req, ok := c.parseSetTopic(topic, string(payload))
 		if !ok {
 			return
