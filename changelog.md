@@ -1,3 +1,13 @@
+# Version 0.3.1 (2026-07-03)
+
+## What's Changed
+
+### Changed
+
+- **Adopt go-mqtt v0.2.0.** Retained `MessageHandler` flag, per-filter QoS
+  replay on reconnect, and a hardened ping watchdog — no more spurious
+  `ping_timeout` reconnects.
+
 # Version 0.3.0 (2026-07-02)
 
 ## What's Changed

@@ -106,7 +106,7 @@ func TestSubscribeLocalRoutesStateMessages(t *testing.T) {
 		t.Fatalf("subscribed filter = %q, want state/Klima SZ", faikinMQTT.filter)
 	}
 	// Simulate an inbound Faikin state message → it should be republished.
-	faikinMQTT.handler("state/Klima SZ", []byte(realFaikinState))
+	faikinMQTT.handler("state/Klima SZ", []byte(realFaikinState), false)
 	if _, ok := main.get("daikin/dev1/climateControl/hvac_mode/state"); !ok {
 		t.Error("inbound Faikin state was not republished to the main broker")
 	}
