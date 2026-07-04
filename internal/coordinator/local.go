@@ -192,8 +192,8 @@ func (c *Coordinator) subscribeLocal(ctx context.Context) {
 func (c *Coordinator) subscribeFaikin(ctx context.Context, deviceID, host, topic string,
 	parse func(host string, payload []byte) (*faikin.State, error),
 ) {
-	err := c.deps.FaikinMQTT.Subscribe(ctx, topic, mqtt.QoS0, func(_ string, payload []byte, _ bool) {
-		st, err := parse(host, payload)
+	_, err := c.deps.FaikinMQTT.Subscribe(ctx, topic, mqtt.QoS0, func(msg *mqtt.Message) {
+		st, err := parse(host, msg.Payload)
 		if err != nil {
 			c.deps.Logger.Warn("coordinator.local_parse_failed",
 				slog.String("topic", topic), slog.String("err", err.Error()))

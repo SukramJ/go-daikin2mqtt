@@ -19,7 +19,7 @@ type capturePub struct {
 	msgs map[string][]byte
 }
 
-func (c *capturePub) Publish(_ context.Context, topic string, payload []byte, _ mqtt.QoS, _ bool) error {
+func (c *capturePub) Publish(_ context.Context, topic string, payload []byte, _ mqtt.QoS, _ bool, _ ...mqtt.PublishOption) error {
 	if c.msgs == nil {
 		c.msgs = map[string][]byte{}
 	}
