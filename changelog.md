@@ -1,3 +1,26 @@
+# Version 0.5.0 (2026-07-04)
+
+## What's Changed
+
+### Changed
+
+- **MQTT publishes are circuit-protected.** Upgraded to `go-mqtt` v1.1.0
+  and adopted its new `Breaker` decorator on the bridge's publish path
+  (coordinator state publishes and HA discovery announcements): during a
+  degraded-broker phase (TCP link up, acknowledgements missing) publishes
+  fail fast with `ErrCircuitOpen` instead of each stalling on the full
+  ack timeout. After 5 consecutive broker-side failures the circuit
+  opens; after 30 seconds a single half-open probe tests recovery, and
+  one success closes the circuit again. Local conditions (caller
+  cancellation, oversized packets) never trip it. Every state transition
+  is logged as a `daikin2mqtt.mqtt_breaker_state` warning. The
+  write-command subscription is deliberately not gated — it carries its
+  own SUBACK-bounded wait and must keep working while the publish side is
+  browned out — and the local Faikin connection stays ungated too, since
+  it carries low-rate user-intent device commands on a possibly separate
+  broker. The lifecycle's reconnect loop remains in charge of the link
+  itself.
+
 # Version 0.4.0 (2026-07-04)
 
 ## What's Changed
