@@ -111,6 +111,21 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	if err := lifecycle.Start(ctx); err != nil {
 		return fmt.Errorf("mqtt: %w", err)
 	}
+	// Circuit breaker between the bridge and the broker: during a
+	// degraded-broker phase (TCP link up, acks missing) publishes fail
+	// fast with mqtt.ErrCircuitOpen instead of each stalling on the ack
+	// timeout, and bounded half-open probes test recovery. Defaults: 5
+	// consecutive broker-side failures open the circuit, recovery is
+	// probed after 30s. The lifecycle's reconnect loop stays in charge
+	// of the link itself.
+	breaker := mqtt.NewBreaker(mqttClient, mqtt.BreakerConfig{
+		OnStateChange: func(from, to mqtt.BreakerState) {
+			logger.Warn("daikin2mqtt.mqtt_breaker_state",
+				slog.String("from", from.String()),
+				slog.String("to", to.String()))
+		},
+	})
+	session := &mqttSession{Breaker: breaker, Subscriber: mqttClient}
 	defer func() {
 		stopCtx, stop := context.WithTimeout(context.Background(), 3*time.Second)
 		defer stop()
@@ -155,14 +170,18 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	// --- HA discovery (optional) ---
 	var discovery *hass.Discovery
 	if cfg.HASSEnable {
-		discovery = hass.New(cfg.HASSBaseTopic, cfg.MQTTTopic, cfg.Language, mqttClient)
+		discovery = hass.New(cfg.HASSBaseTopic, cfg.MQTTTopic, cfg.Language, session)
 	}
 
 	// --- Coordinator ---
+	// FaikinMQTT deliberately stays ungated: it carries low-rate,
+	// user-intent device commands (and its own state subscription),
+	// possibly on a separate local broker whose health is independent of
+	// the main link — a main-broker brownout must not reject them.
 	coord := coordinator.New(coordinator.Deps{
 		Cfg:        cfg,
 		Client:     cloud,
-		MQTT:       mqttClient,
+		MQTT:       session,
 		FaikinMQTT: faikinClient,
 		Catalog:    cat,
 		HASS:       discovery,
@@ -192,6 +211,20 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 
 	return g.Wait()
 }
+
+// mqttSession is the MQTT surface handed to the coordinator and HA
+// discovery: Publish is gated by the circuit breaker, while
+// Subscribe/Unsubscribe go straight to the client — the write-command
+// subscription is a startup-path call with its own SUBACK-bounded wait
+// and must not be rejected during a publish-side broker brownout.
+type mqttSession struct {
+	*mqtt.Breaker
+	mqtt.Subscriber
+}
+
+// Compile-time contract: the session satisfies the combined client role
+// the coordinator depends on.
+var _ mqtt.Client = (*mqttSession)(nil)
 
 // loadConfig resolves the config path (explicit flag or standard search) and
 // loads it with environment overrides applied.
