@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/SukramJ/go-mqtt"
+
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
@@ -106,7 +108,7 @@ func TestSubscribeLocalRoutesStateMessages(t *testing.T) {
 		t.Fatalf("subscribed filter = %q, want state/Klima SZ", faikinMQTT.filter)
 	}
 	// Simulate an inbound Faikin state message → it should be republished.
-	faikinMQTT.handler("state/Klima SZ", []byte(realFaikinState), false)
+	faikinMQTT.handler(&mqtt.Message{Topic: "state/Klima SZ", Payload: []byte(realFaikinState), Retain: false})
 	if _, ok := main.get("daikin/dev1/climateControl/hvac_mode/state"); !ok {
 		t.Error("inbound Faikin state was not republished to the main broker")
 	}

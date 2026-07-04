@@ -1,3 +1,34 @@
+# Version 0.4.0 (2026-07-04)
+
+## What's Changed
+
+### Changed
+
+- **Adopt go-mqtt v1.0.0 — MQTT 5.0 is now the wire default.** The shared
+  `go-mqtt` client now speaks MQTT 5.0 by default (3.1.1 remains selectable via
+  `ProtocolVersion`); this daemon deliberately leaves `ProtocolVersion` unset,
+  so both the primary broker connection and the optional local Faikin
+  connection now negotiate MQTT 5.0. Nothing in this bridge's docs/config
+  promises pre-v5 broker support, so no config change is needed to benefit.
+- **Subscriptions are now confirmed by the broker.** `Subscribe` blocks until
+  the broker's SUBACK and returns `(SubscribeResult, error)` — a rejected
+  filter is now a hard error instead of a silent log line. The
+  coordinator's write-command subscription, HA discovery's orphan
+  reconciliation, and the local Faikin state subscription all now check that
+  error explicitly.
+- **More robust, event-driven reconnect.** The underlying client reacts to
+  connection loss immediately instead of polling, so a dropped broker
+  connection is noticed and re-dialed faster.
+- **Fail-fast publishing on a dead connection.** Publishes against a known-dead
+  connection now return an error immediately instead of hanging until a
+  timeout.
+- **Full QoS 0/1/2 support end-to-end** in the underlying client (previously
+  QoS 2 was rejected at publish time).
+- Handler wiring moved from the old `func(topic, payload, retained)` shape to
+  `func(msg *mqtt.Message)`; `TCPConfig.CleanSession` is now `CleanStart` and
+  `WillTopic`/`WillPayload`/`WillRetain` are now `Will{Topic, Payload, Retain}`
+  — internal call-site changes only, no user-facing config impact.
+
 # Version 0.3.1 (2026-07-03)
 
 ## What's Changed

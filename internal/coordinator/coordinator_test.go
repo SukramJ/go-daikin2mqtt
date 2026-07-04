@@ -101,19 +101,19 @@ func newStubMQTT() *stubMQTT {
 	return &stubMQTT{published: map[string]publishedMsg{}}
 }
 
-func (m *stubMQTT) Publish(_ context.Context, topic string, payload []byte, _ mqtt.QoS, retain bool) error {
+func (m *stubMQTT) Publish(_ context.Context, topic string, payload []byte, _ mqtt.QoS, retain bool, _ ...mqtt.PublishOption) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.published[topic] = publishedMsg{payload: string(payload), retain: retain}
 	return nil
 }
 
-func (m *stubMQTT) Subscribe(_ context.Context, topicFilter string, _ mqtt.QoS, handler mqtt.MessageHandler) error {
+func (m *stubMQTT) Subscribe(_ context.Context, topicFilter string, _ mqtt.QoS, handler mqtt.MessageHandler, _ ...mqtt.SubscribeOption) (mqtt.SubscribeResult, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.filter = topicFilter
 	m.handler = handler
-	return nil
+	return mqtt.SubscribeResult{}, nil
 }
 
 func (m *stubMQTT) Unsubscribe(_ context.Context, _ string) error { return nil }

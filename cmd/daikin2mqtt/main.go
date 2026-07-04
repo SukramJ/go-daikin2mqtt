@@ -95,15 +95,17 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	// --- MQTT ---
 	statusTopic := cfg.MQTTTopic + "/bridge/status"
 	mqttClient := mqtt.NewTCPClient(mqtt.TCPConfig{
-		BrokerURL:    fmt.Sprintf("tcp://%s:%d", cfg.MQTTServer, cfg.MQTTPort),
-		ClientID:     config.MQTTClientID,
-		Username:     cfg.MQTTLogin,
-		Password:     cfg.MQTTPassword,
-		WillTopic:    statusTopic,
-		WillPayload:  []byte("offline"),
-		WillRetain:   true,
-		CleanSession: true,
-		Logger:       logger,
+		BrokerURL:  fmt.Sprintf("tcp://%s:%d", cfg.MQTTServer, cfg.MQTTPort),
+		ClientID:   config.MQTTClientID,
+		Username:   cfg.MQTTLogin,
+		Password:   cfg.MQTTPassword,
+		CleanStart: true,
+		Will: &mqtt.Will{
+			Topic:   statusTopic,
+			Payload: []byte("offline"),
+			Retain:  true,
+		},
+		Logger: logger,
 	})
 	lifecycle := mqtt.NewLifecycle(mqtt.LifecycleConfig{Logger: logger}, mqttClient)
 	if err := lifecycle.Start(ctx); err != nil {
@@ -128,12 +130,12 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 				slog.String("faikin_broker", cfg.FaikinBrokerAddress()), slog.Bool("shared_connection", true))
 		} else {
 			fc := mqtt.NewTCPClient(mqtt.TCPConfig{
-				BrokerURL:    "tcp://" + cfg.FaikinBrokerAddress(),
-				ClientID:     config.MQTTClientID + "-faikin",
-				Username:     cfg.FaikinLogin(),
-				Password:     cfg.FaikinPassword(),
-				CleanSession: true,
-				Logger:       logger,
+				BrokerURL:  "tcp://" + cfg.FaikinBrokerAddress(),
+				ClientID:   config.MQTTClientID + "-faikin",
+				Username:   cfg.FaikinLogin(),
+				Password:   cfg.FaikinPassword(),
+				CleanStart: true,
+				Logger:     logger,
 			})
 			flife := mqtt.NewLifecycle(mqtt.LifecycleConfig{Logger: logger}, fc)
 			if err := flife.Start(ctx); err != nil {

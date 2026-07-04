@@ -357,9 +357,9 @@ func (c *Coordinator) reconcileOrphans(ctx context.Context, published map[string
 		filter := c.deps.HASS.ConfigFilter()
 		var mu sync.Mutex
 		retained := map[string][]byte{}
-		if err := c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(topic string, payload []byte, _ bool) {
+		if _, err := c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(msg *mqtt.Message) {
 			mu.Lock()
-			retained[topic] = append([]byte(nil), payload...)
+			retained[msg.Topic] = append([]byte(nil), msg.Payload...)
 			mu.Unlock()
 		}); err != nil {
 			c.deps.Logger.Warn("coordinator.reconcile_subscribe_failed", slog.String("err", err.Error()))
@@ -435,17 +435,18 @@ func (c *Coordinator) publishAttrs(ctx context.Context, topic, source string) {
 
 func (c *Coordinator) subscribeWrites(ctx context.Context) error {
 	filter := c.topicRoot + "/+/+/+/set"
-	return c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(topic string, payload []byte, _ bool) {
-		req, ok := c.parseSetTopic(topic, string(payload))
+	_, err := c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(msg *mqtt.Message) {
+		req, ok := c.parseSetTopic(msg.Topic, string(msg.Payload))
 		if !ok {
 			return
 		}
 		select {
 		case c.writes <- req:
 		default:
-			c.deps.Logger.Warn("coordinator.write_queue_full", slog.String("topic", topic))
+			c.deps.Logger.Warn("coordinator.write_queue_full", slog.String("topic", msg.Topic))
 		}
 	})
+	return err
 }
 
 // parseSetTopic extracts the device/embedded/topic from a /set topic.
