@@ -66,7 +66,12 @@ func DaikinModeForHA(ha string) (string, bool) {
 
 // climatePayload is the HA MQTT climate discovery config.
 type climatePayload struct {
-	Name                    string   `json:"name"`
+	Name string `json:"name"`
+	// ObjectID and DefaultEntityID both seed the entity_id; see the configPayload
+	// comment in discovery.go. We publish both because current HA does not yet
+	// honour default_entity_id reliably (home-assistant/core#157241) while the
+	// deprecated object_id still works.
+	ObjectID                string   `json:"object_id,omitempty"`
 	DefaultEntityID         string   `json:"default_entity_id"`
 	UniqueID                string   `json:"unique_id"`
 	Modes                   []string `json:"modes,omitempty"`
@@ -196,6 +201,7 @@ func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInf
 
 	cfg := climatePayload{
 		Name:                    "Thermostat",
+		ObjectID:                entityObjectID(info.Name, "thermostat"),
 		DefaultEntityID:         "climate." + entityObjectID(info.Name, "thermostat"),
 		UniqueID:                uid,
 		Modes:                   modes,

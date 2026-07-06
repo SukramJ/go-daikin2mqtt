@@ -217,13 +217,20 @@ func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string
 // omitempty keeps each entity's config minimal.
 type configPayload struct {
 	Name string `json:"name"`
-	// DefaultEntityID seeds the Home Assistant entity_id. Current HA replaced
-	// the older object_id discovery field with default_entity_id (a full
-	// "<domain>.<object_id>"); without it HA derives the entity_id from the
-	// device + entity name, which is localized — yielding e.g. a German id. We
-	// build it from the device name plus the English, language-independent
-	// topic (see entityObjectID) so entity_ids stay English (e.g.
+	// ObjectID and DefaultEntityID both seed the Home Assistant entity_id.
+	// Without a seed HA derives the entity_id from the device + entity name,
+	// which is localized — yielding e.g. a German id. We build the seed from
+	// the device name plus the English, language-independent topic (see
+	// entityObjectID) so entity_ids stay English (e.g.
 	// sensor.galerie_room_temperature) while Name is localized for display.
+	//
+	// We publish BOTH fields deliberately: object_id is the older discovery
+	// field HA deprecated in favour of default_entity_id, but current HA does
+	// not yet honour default_entity_id reliably (home-assistant/core#157241),
+	// whereas object_id still works. object_id keeps today's HA correct and
+	// default_entity_id keeps future HA correct. UniqueID is independent of the
+	// seed, so the entity identity never changes with the name/language.
+	ObjectID          string   `json:"object_id,omitempty"`
 	DefaultEntityID   string   `json:"default_entity_id"`
 	UniqueID          string   `json:"unique_id"`
 	EntityCategory    string   `json:"entity_category,omitempty"`
@@ -336,6 +343,7 @@ func (d *Discovery) ConfigFilter() string { return d.baseTopic + "/+/+/config" }
 func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic string, payload []byte, ok bool) {
 	cfg := configPayload{
 		Name:                p.Entry.LocalizedName(d.lang),
+		ObjectID:            entityObjectID(dev.Name, p.Topic),
 		DefaultEntityID:     p.Entry.Platform + "." + entityObjectID(dev.Name, p.Topic),
 		UniqueID:            uid,
 		EntityCategory:      p.Entry.Category,
