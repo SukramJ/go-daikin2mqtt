@@ -1,3 +1,21 @@
+# Version 0.5.1 (2026-07-06)
+
+## What's Changed
+
+### Fixed
+
+- **Entity-id seed now published as both `object_id` and `default_entity_id`.**
+  Current Home Assistant releases do not yet honour `default_entity_id`
+  reliably (home-assistant/core#157241 — the seed is ignored and HA derives a
+  localized `entity_id` from the device + entity name instead), while the
+  deprecated `object_id` still works. Every discovery payload (sensors,
+  numbers, selects, switches, and the climate entity) now carries both — so the
+  English, language-independent entity_id seed (e.g.
+  `sensor.wohnzimmer_room_temperature`) actually lands in the `entity_id`
+  regardless of the configured `LANGUAGE`. `object_id` keeps today's HA
+  correct, `default_entity_id` keeps future HA correct; the `unique_id` stays
+  independent, so the entity identity never changes.
+
 # Version 0.5.0 (2026-07-04)
 
 ## What's Changed
