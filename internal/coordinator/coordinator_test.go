@@ -6,6 +6,7 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strings"
 	"sync"
@@ -19,6 +20,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
+	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 )
 
 // --- stubs -----------------------------------------------------------------
@@ -129,6 +131,29 @@ func (m *stubMQTT) count() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return len(m.published)
+}
+
+// flakyPub is an mqtt.Publisher whose Publish fails while fail is set.
+type flakyPub struct {
+	*stubMQTT
+	fmu  sync.Mutex
+	fail bool
+}
+
+func (f *flakyPub) setFail(v bool) {
+	f.fmu.Lock()
+	defer f.fmu.Unlock()
+	f.fail = v
+}
+
+func (f *flakyPub) Publish(ctx context.Context, topic string, payload []byte, qos mqtt.QoS, retain bool, opts ...mqtt.PublishOption) error {
+	f.fmu.Lock()
+	fail := f.fail
+	f.fmu.Unlock()
+	if fail {
+		return errors.New("broker down")
+	}
+	return f.stubMQTT.Publish(ctx, topic, payload, qos, retain, opts...)
 }
 
 // --- fixtures --------------------------------------------------------------
@@ -386,6 +411,55 @@ func TestHandleWriteUnknownTopic(t *testing.T) {
 	}
 }
 
+// Non-finite numeric payloads (NaN/Inf parse fine via ParseFloat) must be
+// rejected before reaching the cloud or the local firmware.
+func TestHandleWriteRejectsNonFiniteNumbers(t *testing.T) {
+	for _, payload := range []string{"NaN", "Inf", "+Inf", "-Inf"} {
+		t.Run(payload, func(t *testing.T) {
+			cloud := &stubCloud{}
+			m := newStubMQTT()
+			c := newCoordinator(t, cloud, m)
+
+			c.handleWrite(context.Background(), writeReq{
+				deviceID:   "dev1",
+				embeddedID: "climateControl",
+				topic:      "temperature_setpoint",
+				payload:    payload,
+			})
+
+			if n := cloud.patchCount(); n != 0 {
+				t.Errorf("patch count = %d, want 0 for payload %q", n, payload)
+			}
+		})
+	}
+}
+
+// Retained /set messages are stale commands the broker replays on every
+// (re)subscribe; they must be dropped instead of re-applied.
+func TestSubscribeWritesDropsRetained(t *testing.T) {
+	cloud := &stubCloud{}
+	m := newStubMQTT()
+	c := newCoordinator(t, cloud, m)
+	if err := c.subscribeWrites(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	m.handler(&mqtt.Message{Topic: "daikin/dev1/climateControl/power/set", Payload: []byte("on"), Retain: true})
+	select {
+	case req := <-c.writes:
+		t.Fatalf("retained /set was queued: %+v", req)
+	default:
+	}
+
+	// A live (non-retained) command still goes through.
+	m.handler(&mqtt.Message{Topic: "daikin/dev1/climateControl/power/set", Payload: []byte("on"), Retain: false})
+	select {
+	case <-c.writes:
+	default:
+		t.Fatal("live /set command was not queued")
+	}
+}
+
 // parseSetTopic accepts well-formed /set topics and rejects malformed ones.
 func TestParseSetTopic(t *testing.T) {
 	cloud := &stubCloud{}
@@ -411,6 +485,44 @@ func TestParseSetTopic(t *testing.T) {
 		if _, ok := c.parseSetTopic(topic, "v"); ok {
 			t.Errorf("topic %q unexpectedly parsed", topic)
 		}
+	}
+}
+
+// A failed discovery publish must not commit the signature — the next poll
+// retries instead of permanently suppressing discovery.
+func TestDiscoveryRetriedAfterPublishFailure(t *testing.T) {
+	const dev, emb = "dev1", "climateControl"
+	cloud := &stubCloud{devices: devicesJSON(dev, emb)}
+	m := newStubMQTT()
+	flaky := &flakyPub{stubMQTT: newStubMQTT(), fail: true}
+	c := New(Deps{
+		Cfg:     testConfig(),
+		Client:  cloud,
+		MQTT:    m,
+		Catalog: loadTestCatalog(t),
+		HASS:    hass.New("homeassistant", "daikin", "en", flaky),
+		Logger:  slog.New(slog.DiscardHandler),
+		Clock:   fixedClock(),
+	})
+
+	c.pollOnce(context.Background())
+	c.mu.Lock()
+	sig := c.lastDiscSig
+	c.mu.Unlock()
+	if sig != "" {
+		t.Fatalf("lastDiscSig committed despite publish failure: %q", sig)
+	}
+
+	flaky.setFail(false)
+	c.pollOnce(context.Background())
+	c.mu.Lock()
+	sig = c.lastDiscSig
+	c.mu.Unlock()
+	if sig == "" {
+		t.Fatal("lastDiscSig not committed after successful publish")
+	}
+	if flaky.count() == 0 {
+		t.Fatal("no discovery configs published after recovery")
 	}
 }
 

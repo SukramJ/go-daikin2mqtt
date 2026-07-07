@@ -13,6 +13,11 @@ import (
 // to complete the consent screen and return to the callback.
 const stateTTL = 10 * time.Minute
 
+// maxPendingAuth caps the number of pending states so an unauthenticated
+// client hammering /api/auth/login cannot grow the store without bound.
+// Legitimate use has ~1 concurrent pending login.
+const maxPendingAuth = 128
+
 // pendingAuth holds the per-login data needed to complete the OAuth code
 // exchange: the PKCE verifier matching the challenge sent to the IdP, the
 // redirect_uri used at authorize time (which must be replayed verbatim at the
@@ -41,11 +46,22 @@ func newStateStore() *stateStore {
 }
 
 // put records the PKCE verifier and redirect_uri for a freshly generated state
-// and prunes any expired entries while the lock is held.
+// and prunes any expired entries while the lock is held. When the store is at
+// capacity, the entries closest to expiry are evicted first.
 func (s *stateStore) put(state, verifier, redirectURI string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pruneLocked()
+	for len(s.entries) >= maxPendingAuth {
+		var oldest string
+		var oldestAt time.Time
+		for k, v := range s.entries {
+			if oldest == "" || v.expiresAt.Before(oldestAt) {
+				oldest, oldestAt = k, v.expiresAt
+			}
+		}
+		delete(s.entries, oldest)
+	}
 	s.entries[state] = pendingAuth{
 		verifier:    verifier,
 		redirectURI: redirectURI,

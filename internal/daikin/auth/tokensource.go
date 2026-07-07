@@ -28,12 +28,13 @@ type TokenSource struct {
 	current *Token
 }
 
-// NewTokenSource builds a TokenSource. hc may be nil (http.DefaultClient).
+// NewTokenSource builds a TokenSource. hc may be nil (a client with a 60s
+// timeout — the refresh runs under ts.mu, so it must never hang forever).
 // The initial token is loaded lazily on the first [TokenSource.Token] call
 // if not already present.
 func NewTokenSource(cfg Config, store *Store, hc *http.Client) *TokenSource {
 	if hc == nil {
-		hc = http.DefaultClient
+		hc = &http.Client{Timeout: 60 * time.Second}
 	}
 	return &TokenSource{cfg: cfg, store: store, hc: hc, clock: time.Now}
 }

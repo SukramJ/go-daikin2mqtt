@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -72,8 +73,8 @@ type Options struct {
 	BaseURL string
 	// Tokens provides bearer access tokens; required.
 	Tokens TokenProvider
-	// HTTPClient is the underlying HTTP client; defaults to
-	// [http.DefaultClient].
+	// HTTPClient is the underlying HTTP client; defaults to a client with a
+	// 60s timeout.
 	HTTPClient *http.Client
 	// Logger is used for diagnostics; defaults to [slog.Default].
 	Logger *slog.Logger
@@ -158,7 +159,9 @@ func New(o Options) *Client {
 		c.baseURL = DefaultBaseURL
 	}
 	if c.httpClient == nil {
-		c.httpClient = http.DefaultClient
+		// Defense in depth: every request holds cloudLock, so a stalled peer
+		// must never hang a request (and the whole daemon) forever.
+		c.httpClient = &http.Client{Timeout: 60 * time.Second}
 	}
 	if c.logger == nil {
 		c.logger = slog.Default()
@@ -214,9 +217,9 @@ func (c *Client) GetDevices(ctx context.Context) (json.RawMessage, error) {
 		return nil, err
 	}
 
-	url := c.baseURL + "/v1/gateway-devices"
+	reqURL := c.baseURL + "/v1/gateway-devices"
 	if c.mockID != "" {
-		url = c.baseURL + "/mock/v1/gateway-devices"
+		reqURL = c.baseURL + "/mock/v1/gateway-devices"
 	}
 
 	var lastErr error
@@ -230,7 +233,7 @@ func (c *Client) GetDevices(ctx context.Context) (json.RawMessage, error) {
 			}
 		}
 
-		body, status, retryable, err := c.doGet(ctx, url)
+		body, status, retryable, err := c.doGet(ctx, reqURL)
 		if err != nil {
 			lastErr = err
 			if retryable {
@@ -289,8 +292,10 @@ func (c *Client) Patch(ctx context.Context, deviceID, embeddedID, characteristic
 		return fmt.Errorf("client: marshal patch body: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/v1/gateway-devices/%s/management-points/%s/characteristics/%s",
-		c.baseURL, deviceID, embeddedID, characteristic)
+	// The IDs come from MQTT topic segments / the web API; escape them so they
+	// cannot inject path segments or query/fragment parts into the URL.
+	reqURL := fmt.Sprintf("%s/v1/gateway-devices/%s/management-points/%s/characteristics/%s",
+		c.baseURL, url.PathEscape(deviceID), url.PathEscape(embeddedID), url.PathEscape(characteristic))
 
 	c.cloudLock.Lock()
 	defer c.cloudLock.Unlock()
@@ -306,7 +311,7 @@ func (c *Client) Patch(ctx context.Context, deviceID, embeddedID, characteristic
 			return err
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, bytes.NewReader(body))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPatch, reqURL, bytes.NewReader(body))
 		if err != nil {
 			return fmt.Errorf("client: build patch request: %w", err)
 		}
@@ -347,7 +352,7 @@ func (c *Client) Patch(ctx context.Context, deviceID, embeddedID, characteristic
 
 // doGet executes a single GET attempt. It returns the body, HTTP status,
 // whether the error is retryable, and any transport/token error.
-func (c *Client) doGet(ctx context.Context, url string) (body []byte, status int, retryable bool, err error) {
+func (c *Client) doGet(ctx context.Context, reqURL string) (body []byte, status int, retryable bool, err error) {
 	token, err := c.tokens.Token(ctx)
 	if err != nil {
 		// Token errors (e.g. auth.ErrReauthRequired) are propagated
@@ -355,7 +360,7 @@ func (c *Client) doGet(ctx context.Context, url string) (body []byte, status int
 		return nil, 0, false, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, http.NoBody)
 	if err != nil {
 		return nil, 0, false, fmt.Errorf("client: build get request: %w", err)
 	}

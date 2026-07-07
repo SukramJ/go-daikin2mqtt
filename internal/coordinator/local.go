@@ -188,7 +188,9 @@ func (c *Coordinator) subscribeLocal(ctx context.Context) {
 }
 
 // subscribeFaikin subscribes to one Faikin topic, parsing each message with the
-// given parser and republishing the AC state.
+// given parser and handing the state to the drain goroutine. The callback runs
+// on the MQTT read loop, so it must not block: the (blocking) republish work —
+// bulk MQTT publishes and possibly cloud writes — happens in drainLocalStates.
 func (c *Coordinator) subscribeFaikin(ctx context.Context, deviceID, host, topic string,
 	parse func(host string, payload []byte) (*faikin.State, error),
 ) {
@@ -199,11 +201,28 @@ func (c *Coordinator) subscribeFaikin(ctx context.Context, deviceID, host, topic
 				slog.String("topic", topic), slog.String("err", err.Error()))
 			return
 		}
-		c.publishLocalState(ctx, deviceID, st)
+		select {
+		case c.localStates <- localStateMsg{deviceID: deviceID, st: st}:
+		default:
+			c.deps.Logger.Warn("coordinator.local_state_queue_full", slog.String("topic", topic))
+		}
 	})
 	if err != nil {
 		c.deps.Logger.Warn("coordinator.local_subscribe_failed",
 			slog.String("topic", topic), slog.String("err", err.Error()))
+	}
+}
+
+// drainLocalStates republishes queued Faikin states sequentially, off the MQTT
+// read loop.
+func (c *Coordinator) drainLocalStates(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case m := <-c.localStates:
+			c.publishLocalState(ctx, m.deviceID, m.st)
+		}
 	}
 }
 

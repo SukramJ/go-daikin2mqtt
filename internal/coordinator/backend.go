@@ -93,6 +93,11 @@ func faikinCommand(characteristic string, value any) (suffix, payload string, ok
 		if !ok {
 			return "", "", false
 		}
+		// Demand is a 0..100 % limit; out-of-range values fall through to the
+		// cloud, which rejects them itself.
+		if f < 0 || f > 100 {
+			return "", "", false
+		}
 		return "demand", strconv.Itoa(int(f)), true
 	}
 	return "", "", false

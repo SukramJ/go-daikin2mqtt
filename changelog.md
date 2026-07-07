@@ -1,3 +1,70 @@
+# Version 0.6.0 (2026-07-07)
+
+## What's Changed
+
+Hardening release: a multi-dimension security/robustness audit of the whole
+codebase (web server, auth/token handling, cloud client, MQTT write path,
+local Faikin path); every confirmed finding is fixed below. No new
+dependencies, no config changes.
+
+### Security
+
+- **Web server request timeouts.** The embedded web UI's `http.Server` now
+  sets `ReadTimeout` (15s), `WriteTimeout` (60s, generous because
+  `/api/devices` can wait on the serialized cloud client with retries) and
+  `IdleTimeout` (120s) in addition to the existing `ReadHeaderTimeout`, so
+  slow-body and idle-connection exhaustion attacks can no longer pin
+  connections open indefinitely.
+- **OAuth login state store is capped.** Unauthenticated `GET
+  /api/auth/login` requests could grow the pending-OAuth-state store without
+  bound (memory-exhaustion DoS). The store now holds at most 128 pending
+  logins and evicts the earliest-expiring entry first — harmless for real
+  use, where concurrent pending logins are ~1.
+- **CSRF hardening on `POST /api/patch`.** The endpoint now requires
+  `Content-Type: application/json` (415 otherwise), blocking cross-site
+  HTML-form and `no-cors` fetch submissions, which can only carry simple
+  content types. The bundled SPA already sends the correct header.
+- **ONECTA PATCH URL segments are path-escaped.** Device ID, embedded ID and
+  characteristic name — which arrive via MQTT topic wildcards and the web
+  API — are now `url.PathEscape`d before being interpolated into the
+  authenticated PATCH URL, neutralizing `/`, `?`, `#` and friends. A no-op
+  for legitimate IDs.
+- **Non-finite numbers are rejected on the write path.** `NaN`/`±Inf`
+  payloads on `.../set` topics are dropped instead of being forwarded to the
+  cloud or converted to a local Faikin command (where `int(NaN)` is
+  implementation-defined), and the local `demand_control` command now
+  enforces its valid 0–100 range.
+
+### Fixed
+
+- **A stalled cloud/token endpoint can no longer freeze the daemon.** The
+  ONECTA client and the OAuth token source previously fell back to
+  `http.DefaultClient` (no timeout); a hung TCP peer would hold the global
+  cloud lock — or the token mutex — forever, wedging every poll and write.
+  Both now share one HTTP client with a 60s timeout, and the fallbacks
+  default to a 60s-timeout client too.
+- **Crash-loop fixed when a `climateControl` point set has no power point.**
+  `climateEntities` dereferenced the power point unconditionally; a device
+  exposing mode + setpoint but no `onOffMode` panicked the daemon on every
+  poll. Such devices now keep their individual entities instead of a
+  combined climate entity.
+- **Retained `.../set` commands are no longer replayed.** A retained command
+  (e.g. published by a misconfigured client) was re-applied to the hardware
+  and cloud on every reconnect and restart. Retained deliveries on the write
+  subscription are now dropped with a warning; the Faikin state subscription
+  deliberately still consumes its retained state document.
+- **Home Assistant discovery retries after a failed publish.** The
+  point-set signature was cached before publishing; a transient broker or
+  circuit-breaker failure during discovery permanently suppressed it until
+  the entity set changed. The signature is now committed only after a
+  successful publish, so the next poll retries.
+- **Faikin state handling moved off the MQTT read loop.** The `state/<host>`
+  handler did bulk publishes and potentially cloud HTTP (mode-sync/econo
+  reconciliation, waiting on the serialized cloud client) inline in the MQTT
+  read loop, stalling all inbound traffic on that connection. Messages are
+  now parsed in the callback and drained by a dedicated goroutine via a
+  buffered queue (drop + warn when full), mirroring the write path.
+
 # Version 0.5.1 (2026-07-06)
 
 ## What's Changed

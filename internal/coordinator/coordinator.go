@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -58,7 +59,8 @@ type Coordinator struct {
 	deps      Deps
 	topicRoot string
 
-	writes chan writeReq
+	writes      chan writeReq
+	localStates chan localStateMsg
 
 	mu              sync.Mutex
 	modeCache       map[string]string            // deviceID/embeddedID -> current operationMode
@@ -104,6 +106,13 @@ type writeReq struct {
 	payload                     string
 }
 
+// localStateMsg carries a parsed Faikin state document from the MQTT read
+// loop to the drain goroutine, which does the (blocking) republish work.
+type localStateMsg struct {
+	deviceID string
+	st       *faikin.State
+}
+
 // New builds a coordinator.
 func New(d Deps) *Coordinator {
 	if d.Logger == nil {
@@ -116,6 +125,7 @@ func New(d Deps) *Coordinator {
 		deps:            d,
 		topicRoot:       d.Cfg.MQTTTopic,
 		writes:          make(chan writeReq, 64),
+		localStates:     make(chan localStateMsg, 64),
 		modeCache:       map[string]string{},
 		climateEmbedded: map[string]string{},
 		outdoorSerial:   map[string]string{},
@@ -139,6 +149,7 @@ func (c *Coordinator) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return c.pollLoop(gctx) })
 	g.Go(func() error { return c.drainWrites(gctx) })
+	g.Go(func() error { return c.drainLocalStates(gctx) })
 	return g.Wait()
 }
 
@@ -323,16 +334,20 @@ func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []proces
 	sig := discoverySignature(points)
 	c.mu.Lock()
 	changed := sig != c.lastDiscSig
-	c.lastDiscSig = sig
 	c.mu.Unlock()
 	if !changed {
 		return
 	}
 	published, err := c.deps.HASS.Publish(ctx, points, infos, climateInfos)
 	if err != nil {
+		// Do not commit the signature: the next poll retries, so a transient
+		// broker/breaker failure cannot permanently suppress discovery.
 		c.deps.Logger.Warn("coordinator.discovery_failed", slog.String("err", err.Error()))
 		return
 	}
+	c.mu.Lock()
+	c.lastDiscSig = sig
+	c.mu.Unlock()
 	c.deps.Logger.Info("coordinator.discovery_published", slog.Int("entities", len(points)))
 	// Publish each entity's data_source (cloud vs local Faikin) alongside the
 	// (retained) discovery, so it shows as an entity attribute.
@@ -436,6 +451,13 @@ func (c *Coordinator) publishAttrs(ctx context.Context, topic, source string) {
 func (c *Coordinator) subscribeWrites(ctx context.Context) error {
 	filter := c.topicRoot + "/+/+/+/set"
 	_, err := c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(msg *mqtt.Message) {
+		// A retained /set message is a stale command the broker replays on
+		// every (re)subscribe; applying it would re-write hardware/cloud state
+		// on each reconnect and restart.
+		if msg.Retain {
+			c.deps.Logger.Warn("coordinator.write_retained_dropped", slog.String("topic", msg.Topic))
+			return
+		}
 		req, ok := c.parseSetTopic(msg.Topic, string(msg.Payload))
 		if !ok {
 			return
@@ -593,6 +615,11 @@ func (c *Coordinator) coerceWriteValue(entry *catalog.Entry, payload string) (an
 	case "number":
 		f, err := strconv.ParseFloat(strings.TrimSpace(payload), 64)
 		if err != nil {
+			return nil, false
+		}
+		// NaN/Inf parse fine but are not valid device values (and int(NaN)
+		// downstream is implementation-defined).
+		if math.IsNaN(f) || math.IsInf(f, 0) {
 			return nil, false
 		}
 		return f, true

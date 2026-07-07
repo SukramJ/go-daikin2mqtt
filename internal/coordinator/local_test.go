@@ -107,8 +107,15 @@ func TestSubscribeLocalRoutesStateMessages(t *testing.T) {
 	if faikinMQTT.filter != "state/Klima SZ" {
 		t.Fatalf("subscribed filter = %q, want state/Klima SZ", faikinMQTT.filter)
 	}
-	// Simulate an inbound Faikin state message → it should be republished.
+	// Simulate an inbound Faikin state message → the (non-blocking) callback
+	// queues it for the drain goroutine, which republishes it.
 	faikinMQTT.handler(&mqtt.Message{Topic: "state/Klima SZ", Payload: []byte(realFaikinState), Retain: false})
+	select {
+	case m := <-c.localStates:
+		c.publishLocalState(context.Background(), m.deviceID, m.st)
+	default:
+		t.Fatal("inbound Faikin state was not queued for the drain goroutine")
+	}
 	if _, ok := main.get("daikin/dev1/climateControl/hvac_mode/state"); !ok {
 		t.Error("inbound Faikin state was not republished to the main broker")
 	}

@@ -109,6 +109,47 @@ func TestClimateEntitySuppressesIndividualControls(t *testing.T) {
 	}
 }
 
+// A climateControl point set without a power point must not build a climate
+// entity (nor panic); the individual mode/setpoint entities are kept.
+func TestClimateEntitySkippedWithoutRequiredPoints(t *testing.T) {
+	cases := []struct {
+		name string
+		drop string // topic removed from the full point set
+	}{
+		{"missing_power", "power"},
+		{"missing_mode", "operation_mode"},
+		{"missing_setpoint", "temperature_setpoint"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var points []process.Point
+			for _, p := range climatePoints() {
+				if p.Topic != tc.drop {
+					points = append(points, p)
+				}
+			}
+			pub := &capturePub{}
+			d := New("homeassistant", "daikin", "en", pub)
+			if _, err := d.Publish(context.Background(), points, nil, nil); err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := pub.msgs["homeassistant/climate/daikin_dev-1_climate/config"]; ok {
+				t.Error("climate entity should not be published without power/mode/setpoint")
+			}
+			// The remaining individual control entities stay published.
+			for _, p := range points {
+				if p.Topic == "room_temperature" || !p.Entry.Settable {
+					continue
+				}
+				topic := "homeassistant/" + p.Entry.Platform + "/daikin_dev-1_" + p.Topic + "/config"
+				if _, ok := pub.msgs[topic]; !ok {
+					t.Errorf("individual entity %s should still be published", topic)
+				}
+			}
+		})
+	}
+}
+
 func TestSubDevicesDedupBySerial(t *testing.T) {
 	// Two API devices share the same physical gateway + outdoor unit (same
 	// serials). They must collapse to a single HA gateway and outdoor device.

@@ -37,10 +37,12 @@ Go ≥ 1.26, `CGO_ENABLED=0`. Minimal deps (`golang.org/x/sync`, `yaml.v3`) — 
 - **Direct commits to `main`/`master` are blocked** by `.githooks/pre-commit` (wired via
   `make setup`/`make hooks`). Always branch + open a PR. Override once with
   `ALLOW_MAIN_COMMIT=1 git commit …` only if truly needed. Merging/pulling into main is fine.
-- **Release procedure** (used for the 0.1.x tags): bump the version in **four** places in one
+- **Release procedure** (used for the 0.1.x tags): bump the version in **five** places in one
   commit — `internal/version/version.go` (the `Version` default), `addon/config.yaml`,
-  `addon/Dockerfile` (`BUILD_VERSION`), and add a `# Version X.Y.Z (YYYY-MM-DD)` section at the
-  top of `changelog.md`. Then branch → PR → squash-merge → tag **`vX.Y.Z`** (note the `v`
+  `addon/Dockerfile` (`BUILD_VERSION`), add a `# Version X.Y.Z (YYYY-MM-DD)` section at the
+  top of `changelog.md`, **and** a matching (condensed) section at the top of
+  `addon/CHANGELOG.md` — that file is what Home Assistant shows as the add-on changelog in
+  its UI, so it must never be forgotten. Then branch → PR → squash-merge → tag **`vX.Y.Z`** (note the `v`
   prefix; `0.1.0` is the lone exception). `make release` reads the version from
   version.go's default; `release-on-tag.yml` cross-compiles and extracts release notes from
   changelog.md.
