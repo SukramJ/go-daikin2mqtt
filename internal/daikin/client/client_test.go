@@ -219,6 +219,27 @@ func TestPatchSendsCorrectPathAndBody(t *testing.T) {
 	}
 }
 
+// ID segments come from MQTT topics / the web API; they must be path-escaped
+// so they cannot inject path segments or query/fragment parts into the URL.
+func TestPatchEscapesPathSegments(t *testing.T) {
+	var gotURI string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotURI = r.RequestURI
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	c := New(Options{BaseURL: srv.URL, Tokens: stubTokens{token: "tok"}})
+	if err := c.Patch(context.Background(), "dev/../../admin", "emb?x=1", "char#frag", "on", ""); err != nil {
+		t.Fatalf("Patch: %v", err)
+	}
+
+	want := "/v1/gateway-devices/dev%2F..%2F..%2Fadmin/management-points/emb%3Fx=1/characteristics/char%23frag"
+	if gotURI != want {
+		t.Errorf("request URI = %q, want %q", gotURI, want)
+	}
+}
+
 func TestGetDevicesRetryThenSuccess(t *testing.T) {
 	withFakeSleep(t)
 

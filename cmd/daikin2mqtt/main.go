@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -84,10 +85,15 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	defer cancel()
 
 	// --- Auth + cloud client ---
+	// One shared HTTP client with a hard timeout: every cloud request runs
+	// under the single-in-flight cloudLock (and token refresh under the token
+	// source's mutex), so a stalled peer must never hang a request forever.
+	hc := &http.Client{Timeout: 60 * time.Second}
 	authCfg := auth.Config{ClientID: cfg.ClientID, ClientSecret: cfg.ClientSecret, RedirectURI: cfg.RedirectURI}
-	tokens := auth.NewTokenSource(authCfg, auth.NewStore(cfg.ResolveTokenStorePath(config.OSEnv{})), nil)
+	tokens := auth.NewTokenSource(authCfg, auth.NewStore(cfg.ResolveTokenStorePath(config.OSEnv{})), hc)
 	cloud := client.New(client.Options{
 		Tokens:     tokens,
+		HTTPClient: hc,
 		ScanIgnore: cfg.ScanIgnoreDuration(),
 		Logger:     logger,
 	})

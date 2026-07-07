@@ -274,6 +274,40 @@ func TestPatchForwardsToClient(t *testing.T) {
 	}
 }
 
+// Non-JSON content types are rejected (CSRF hardening: cross-site forms and
+// no-cors fetches can only send simple content types like text/plain).
+func TestPatchRejectsNonJSONContentType(t *testing.T) {
+	body := `{"deviceId":"dev1","embeddedId":"climate","characteristic":"onOffMode","value":"on"}`
+	for _, ct := range []string{"text/plain", "application/x-www-form-urlencoded", ""} {
+		t.Run("ct="+ct, func(t *testing.T) {
+			fc := &fakeClient{}
+			d := baseDeps()
+			d.Client = fc
+			ts := newTestServer(d)
+			defer ts.Close()
+
+			req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/patch", strings.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ct != "" {
+				req.Header.Set("Content-Type", ct)
+			}
+			res, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = res.Body.Close() }()
+			if res.StatusCode != http.StatusUnsupportedMediaType {
+				t.Fatalf("status = %d, want 415", res.StatusCode)
+			}
+			if fc.lastDevice != "" {
+				t.Errorf("client called with device %q, want no call", fc.lastDevice)
+			}
+		})
+	}
+}
+
 func TestPatchMissingFields(t *testing.T) {
 	ts := newTestServer(baseDeps())
 	defer ts.Close()

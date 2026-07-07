@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -347,6 +348,13 @@ type patchRequest struct {
 
 // handlePatch writes a single characteristic value to the cloud.
 func (s *Server) handlePatch(w http.ResponseWriter, r *http.Request) {
+	// CSRF hardening: cross-site forms and no-cors fetches can only send
+	// "simple" content types (text/plain etc.), so requiring application/json
+	// blocks them without a token. The SPA always sends application/json.
+	if mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err != nil || mt != "application/json" {
+		writeError(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
+		return
+	}
 	if s.client == nil {
 		writeError(w, http.StatusServiceUnavailable, "client unavailable")
 		return

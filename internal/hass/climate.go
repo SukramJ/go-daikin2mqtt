@@ -166,9 +166,10 @@ func (d *Discovery) climateEntities(points []process.Point, infos map[string]Dev
 
 	for _, key := range order {
 		g := groups[key]
-		// A climate entity needs a controllable mode and a setpoint; without
-		// both (e.g. an air purifier) we keep the individual entities.
-		if g.mode == nil || g.setpoint == nil {
+		// A climate entity needs a power switch, a controllable mode and a
+		// setpoint; without all three (e.g. an air purifier) we keep the
+		// individual entities.
+		if g.power == nil || g.mode == nil || g.setpoint == nil {
 			continue
 		}
 		topic, payload, ok := d.buildClimate(g, infos[g.deviceID], climateInfos[key])

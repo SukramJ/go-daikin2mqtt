@@ -28,6 +28,8 @@ func TestFaikinCommand(t *testing.T) {
 		{"streamerMode", "on", "streamer", "true"},
 		{"outdoorSilentMode", "on", "quiet", "true"},
 		{"demandControl", 80.0, "demand", "80"},
+		{"demandControl", -1.0, "", ""},    // out of range → cloud fallback
+		{"demandControl", 101.0, "", ""},   // out of range → cloud fallback
 		{"operationMode", "bogus", "", ""}, // unknown mode → not controllable
 		{"fanControl", "auto", "", ""},     // not modelled → cloud fallback
 	}

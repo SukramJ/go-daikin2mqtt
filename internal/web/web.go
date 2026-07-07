@@ -179,6 +179,11 @@ func (s *Server) Run(ctx context.Context) error {
 		Addr:              s.cfg.WebBind,
 		Handler:           s.handler,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		// Generous write timeout: /api/devices can wait on the cloud lock plus
+		// GET retries with backoff before it starts responding.
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	errc := make(chan error, 1)
