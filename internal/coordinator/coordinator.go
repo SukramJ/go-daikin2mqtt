@@ -61,8 +61,12 @@ type Coordinator struct {
 
 	writes      chan writeReq
 	localStates chan localStateMsg
+	// refresh carries a manual poll request from the refresh button to the poll
+	// loop. Capacity 1: a pending request already covers any further press.
+	refresh chan struct{}
 
 	mu              sync.Mutex
+	lastPoll        time.Time                    // start of the last poll cycle (throttles manual refreshes)
 	modeCache       map[string]string            // deviceID/embeddedID -> current operationMode
 	climateEmbedded map[string]string            // deviceID -> climateControl embeddedID (for local routing)
 	outdoorSerial   map[string]string            // deviceID -> outdoor-unit serial (for multi-split grouping)
@@ -126,6 +130,7 @@ func New(d Deps) *Coordinator {
 		topicRoot:       d.Cfg.MQTTTopic,
 		writes:          make(chan writeReq, 64),
 		localStates:     make(chan localStateMsg, 64),
+		refresh:         make(chan struct{}, 1),
 		modeCache:       map[string]string{},
 		climateEmbedded: map[string]string{},
 		outdoorSerial:   map[string]string{},
@@ -171,11 +176,18 @@ func (c *Coordinator) pollLoop(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-time.After(interval):
+		case <-c.refresh:
+			// Manual refresh (the HA button): poll now and restart the interval.
+			c.deps.Logger.Info("coordinator.refresh_polling")
 		}
 	}
 }
 
 func (c *Coordinator) pollOnce(ctx context.Context) {
+	c.mu.Lock()
+	c.lastPoll = c.deps.Clock()
+	c.mu.Unlock()
+
 	data, err := c.deps.Client.GetDevices(ctx)
 	if err != nil {
 		switch {
@@ -215,6 +227,8 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	if c.deps.Cfg.LocalEnabled() {
 		points = append(points, c.localOnlyPoints(devices, points)...)
 	}
+	// The manual cloud-refresh button: a daemon action, not a device value.
+	points = append(points, c.refreshPoints(devices)...)
 
 	if c.deps.HASS != nil {
 		infos := deviceInfos(devices)
@@ -225,6 +239,10 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	published := 0
 	for i := range points {
 		p := points[i]
+		// Buttons are stateless (command-only), so there is nothing to publish.
+		if p.Entry.Platform == "button" {
+			continue
+		}
 		// In local mode the Faikin path owns these per-unit topics for mapped
 		// devices; skip them here to avoid redundant (and slower) cloud writes.
 		if localTopics[p.Topic] && c.localActiveFor(p.DeviceID) {
@@ -496,6 +514,10 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 	// Synthetic climate-entity topics map to onOffMode/operationMode/fanControl/
 	// powerfulMode rather than a single catalog characteristic.
 	switch req.topic {
+	case hass.RefreshTopic:
+		// The refresh button writes nothing to the device — it re-reads the cloud.
+		c.requestRefresh()
+		return
 	case hass.HVACModeTopic:
 		c.handleHVACModeWrite(ctx, req)
 		return

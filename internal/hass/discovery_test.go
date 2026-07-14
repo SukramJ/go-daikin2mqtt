@@ -215,6 +215,73 @@ func TestDiscoveryOutdoorScopedDedup(t *testing.T) {
 	}
 }
 
+func refreshPoint(dev string) process.Point {
+	return process.Point{
+		DeviceID:   dev,
+		EmbeddedID: "climateControl",
+		MPType:     "climateControl",
+		Topic:      RefreshTopic,
+		Entry: catalog.Entry{
+			Topic:    RefreshTopic,
+			Name:     "Refresh from cloud",
+			NameDE:   "Aus Cloud aktualisieren",
+			Platform: "button",
+			Icon:     "mdi:cloud-refresh",
+			Settable: true,
+			Scope:    "outdoor",
+		},
+	}
+}
+
+// TestDiscoveryRefreshButton verifies the manual cloud-refresh button: it
+// collapses to one command-only entity on the outdoor device, and carries no
+// state_topic — HA's MQTT button has no state and rejects a config with one.
+func TestDiscoveryRefreshButton(t *testing.T) {
+	pub := &capturePub{}
+	d := New("homeassistant", "daikin", "de", pub)
+	infos := map[string]DeviceInfo{
+		"dev-1": {Name: "Galerie", Outdoor: &SubDevice{SerialNumber: "OD1"}},
+		"dev-2": {Name: "Wohnzimmer", Outdoor: &SubDevice{SerialNumber: "OD1"}},
+	}
+	if _, err := d.Publish(context.Background(),
+		[]process.Point{refreshPoint("dev-1"), refreshPoint("dev-2")}, infos, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	const wantTopic = "homeassistant/button/daikin_outdoor_OD1_refresh/config"
+	raw, ok := pub.msgs[wantTopic]
+	if !ok {
+		t.Fatalf("missing refresh button config %q; got %v", wantTopic, keys(pub.msgs))
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg["state_topic"]; ok {
+		t.Errorf("button config carries a state_topic (%v); HA rejects that", cfg["state_topic"])
+	}
+	if got := cfg["command_topic"]; got != "daikin/dev-1/climateControl/refresh/set" {
+		t.Errorf("command_topic = %v, want daikin/dev-1/climateControl/refresh/set", got)
+	}
+	if got := cfg["payload_press"]; got != "PRESS" {
+		t.Errorf("payload_press = %v, want PRESS", got)
+	}
+	if got := cfg["icon"]; got != "mdi:cloud-refresh" {
+		t.Errorf("icon = %v, want mdi:cloud-refresh", got)
+	}
+	if got := cfg["name"]; got != "Aus Cloud aktualisieren" {
+		t.Errorf("name = %v, want the localized name", got)
+	}
+	dev, _ := cfg["device"].(map[string]any)
+	ids, _ := dev["identifiers"].([]any)
+	if len(ids) != 1 || ids[0] != "daikin_outdoor_OD1" {
+		t.Errorf("device identifiers = %v, want [daikin_outdoor_OD1] (the outdoor unit)", ids)
+	}
+	if _, ok := pub.msgs["homeassistant/button/daikin_dev-2_refresh/config"]; ok {
+		t.Error("second indoor unit published its own button instead of deduplicating")
+	}
+}
+
 func keys(m map[string][]byte) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {

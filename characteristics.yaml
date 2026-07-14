@@ -15,8 +15,9 @@
 #     topic: room_temperature      # MQTT suffix, snake_case, unique
 #     name: Room temperature       # English friendly name (canonical)
 #     name_de: Raumtemperatur      # optional German name
-#     platform: sensor             # sensor|binary_sensor|switch|select|number|climate
+#     platform: sensor             # sensor|binary_sensor|switch|select|number|climate|button
 #     device_class: temperature
+#     icon: mdi:thermometer        # optional HA icon override
 #     unit: "°C"
 #     state_class: measurement
 #     settable: false
@@ -614,3 +615,18 @@
   platform: binary_sensor
   category: diagnostic
   device_class: problem
+
+# === Daemon actions ========================================================
+# Not device data: `daemonRefresh` is a synthetic characteristic the cloud never
+# reports, so this entry is never matched by the poll. The coordinator
+# synthesizes its point (refreshPoints) to publish the discovery config, and a
+# press on its /set topic makes the daemon run a poll cycle immediately.
+# scope: outdoor collapses it to one button per outdoor unit.
+- match: {managementPointType: climateControl, characteristic: daemonRefresh}
+  topic: refresh
+  name: Refresh from cloud
+  name_de: Aus Cloud aktualisieren
+  platform: button
+  icon: mdi:cloud-refresh
+  scope: outdoor
+  settable: true

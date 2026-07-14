@@ -40,6 +40,7 @@ var allowedPlatforms = map[string]bool{
 	"select":        true,
 	"number":        true,
 	"climate":       true,
+	"button":        true,
 }
 
 // Load parses and validates a YAML catalog document from r. The document is

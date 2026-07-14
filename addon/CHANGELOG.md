@@ -4,6 +4,17 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.7.0 (2026-07-14)
+
+New: a **manual refresh button** on the outdoor unit.
+
+- **Refresh from cloud / Aus Cloud aktualisieren** — pressing it runs one poll
+  cycle immediately (fetch all devices from the ONECTA cloud and republish every
+  entity state), instead of waiting for the next scheduled poll. One button per
+  outdoor unit.
+- To protect the ONECTA daily request quota, a press within 30s of the last poll
+  is ignored, and presses during a running poll are merged into one refresh.
+
 # 0.6.0 (2026-07-07)
 
 Hardening release — security/robustness audit of the whole codebase, all
