@@ -39,13 +39,24 @@ type stubCloud struct {
 
 	mu      sync.Mutex
 	patches []patchCall
+	gets    int
 }
 
 func (s *stubCloud) GetDevices(_ context.Context) (json.RawMessage, error) {
+	s.mu.Lock()
+	s.gets++
+	s.mu.Unlock()
 	if s.getErr != nil {
 		return nil, s.getErr
 	}
 	return s.devices, nil
+}
+
+// getCount returns how often GetDevices was called (race-safe under -race).
+func (s *stubCloud) getCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.gets
 }
 
 func (s *stubCloud) Patch(_ context.Context, deviceID, embeddedID, characteristic string, value any, path string) error {
@@ -199,6 +210,7 @@ const testCatalogYAML = `
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: outdoor_heating_energy_total, name: Heating energy total (system), platform: sensor, unit: kWh, scope: outdoor, precision: 3}
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: outdoor_cooling_energy_total, name: Cooling energy total (system), platform: sensor, unit: kWh, scope: outdoor, precision: 3}
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: outdoor_power, name: Power (system), platform: sensor, unit: W, scope: outdoor, precision: 0}
+- {match: {managementPointType: climateControl, characteristic: daemonRefresh}, topic: refresh, name: Refresh from cloud, platform: button, icon: mdi:cloud-refresh, scope: outdoor, settable: true}
 `
 
 func loadTestCatalog(t *testing.T) *catalog.Catalog {

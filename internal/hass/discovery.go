@@ -80,6 +80,12 @@ type device struct {
 // configurationURL points operators at the Daikin ONECTA web app.
 const configurationURL = "https://onecta.daikineurope.com"
 
+// RefreshTopic is the synthetic topic of the manual cloud-refresh button. It is
+// not a device characteristic: a press on
+// <root>/<deviceID>/<embeddedID>/refresh/set makes the coordinator run a poll
+// cycle immediately instead of waiting for the next scheduled one.
+const RefreshTopic = "refresh"
+
 // mainIdentifier returns the HA identifier of a device's main entry.
 func mainIdentifier(deviceID string) string { return "daikin_" + deviceID }
 
@@ -230,12 +236,16 @@ type configPayload struct {
 	// whereas object_id still works. object_id keeps today's HA correct and
 	// default_entity_id keeps future HA correct. UniqueID is independent of the
 	// seed, so the entity identity never changes with the name/language.
-	ObjectID          string   `json:"object_id,omitempty"`
-	DefaultEntityID   string   `json:"default_entity_id"`
-	UniqueID          string   `json:"unique_id"`
-	EntityCategory    string   `json:"entity_category,omitempty"`
-	StateTopic        string   `json:"state_topic"`
+	ObjectID        string `json:"object_id,omitempty"`
+	DefaultEntityID string `json:"default_entity_id"`
+	UniqueID        string `json:"unique_id"`
+	EntityCategory  string `json:"entity_category,omitempty"`
+	Icon            string `json:"icon,omitempty"`
+	// StateTopic is omitted for stateless platforms: Home Assistant's MQTT
+	// button has no state and rejects a config carrying an unknown key.
+	StateTopic        string   `json:"state_topic,omitempty"`
 	CommandTopic      string   `json:"command_topic,omitempty"`
+	PayloadPress      string   `json:"payload_press,omitempty"`
 	UnitOfMeasurement string   `json:"unit_of_measurement,omitempty"`
 	DeviceClass       string   `json:"device_class,omitempty"`
 	StateClass        string   `json:"state_class,omitempty"`
@@ -347,6 +357,7 @@ func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic 
 		DefaultEntityID:     p.Entry.Platform + "." + entityObjectID(dev.Name, p.Topic),
 		UniqueID:            uid,
 		EntityCategory:      p.Entry.Category,
+		Icon:                p.Entry.Icon,
 		StateTopic:          d.StateTopic(p),
 		AvailabilityTopic:   d.BridgeStatusTopic(),
 		PayloadAvailable:    "online",
@@ -381,6 +392,12 @@ func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic 
 		cfg.UnitOfMeasurement = p.Unit
 		cfg.DeviceClass = p.Entry.DeviceClass
 		cfg.Min, cfg.Max, cfg.Step = p.Min, p.Max, p.Step
+	case "button":
+		// A button is command-only: HA's MQTT button schema has no state_topic
+		// and rejects the config if one is present.
+		cfg.StateTopic = ""
+		cfg.CommandTopic = d.CommandTopic(p)
+		cfg.PayloadPress = "PRESS"
 	default:
 		return "", nil, false
 	}

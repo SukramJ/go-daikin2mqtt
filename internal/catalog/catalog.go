@@ -45,11 +45,14 @@ type Entry struct {
 	Topic       string `yaml:"topic"`        // MQTT suffix, language-independent, unique
 	Name        string `yaml:"name"`         // English friendly name (canonical)
 	NameDE      string `yaml:"name_de"`      // optional German name
-	Platform    string `yaml:"platform"`     // sensor|binary_sensor|switch|select|number|climate
+	Platform    string `yaml:"platform"`     // sensor|binary_sensor|switch|select|number|climate|button
 	DeviceClass string `yaml:"device_class"` //
 	Unit        string `yaml:"unit"`         //
 	StateClass  string `yaml:"state_class"`  //
 	Settable    bool   `yaml:"settable"`     //
+	// Icon is an optional Home Assistant icon (e.g. "mdi:cloud-refresh"). Empty
+	// leaves the icon to HA's device-class default.
+	Icon string `yaml:"icon"`
 	// Category is the Home Assistant entity_category: "diagnostic" or "config"
 	// (empty = a normal/primary entity). Diagnostics group hardware info,
 	// connectivity and error states away from primary controls.

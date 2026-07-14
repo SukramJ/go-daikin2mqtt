@@ -1,3 +1,32 @@
+# Version 0.7.0 (2026-07-14)
+
+## What's Changed
+
+### Features
+
+- **Manual cloud refresh button.** A new Home Assistant button entity
+  (`Refresh from cloud` / `Aus Cloud aktualisieren`, `mdi:cloud-refresh`) runs
+  one poll cycle on demand — the same work the scheduled poll does: fetch every
+  device from the ONECTA cloud, resolve it against the catalog and republish all
+  entity states. It sits on the **outdoor unit**: the catalog entry is
+  `scope: outdoor`, so the indoor units sharing an outdoor unit collapse to a
+  single button (a device with no known outdoor serial gets its own button on
+  the main device). The button is a daemon action, not device data: its
+  characteristic (`daemonRefresh`) is synthetic and never reported by the cloud,
+  so the point is synthesized by the coordinator for discovery only.
+- **Refresh throttle.** ONECTA enforces a hard daily request quota, so a press
+  arriving within 30s of the last poll is ignored (logged as
+  `coordinator.refresh_throttled`) and presses arriving while a poll is in
+  flight coalesce into a single extra cycle. An automation pressing the button
+  in a loop therefore cannot burn the quota.
+
+### Internal
+
+- The catalog gained the `button` platform and an optional `icon` field
+  (a plain HA icon override, e.g. `mdi:cloud-refresh`). Discovery omits
+  `state_topic` for stateless platforms — HA's MQTT button rejects a config
+  carrying one.
+
 # Version 0.6.0 (2026-07-07)
 
 ## What's Changed
