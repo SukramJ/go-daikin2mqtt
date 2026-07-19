@@ -1,3 +1,26 @@
+# Version 0.8.1 (2026-07-19)
+
+## What's Changed
+
+### Fixed
+
+- **The Eco mode switch no longer snaps back to off.** Turning econo on while
+  the indoor units are in standby left the Home Assistant switch on for two
+  minutes (the optimistic outdoor hold) and then flipped it back to off — even
+  though every unit had accepted the command (the Daikin app showed eco on
+  everywhere). Root cause, verified live against the Faikin modules: a standby
+  FTXA executes the econo command (S21 `D7`) but never reports the bit back in
+  its `G7` status, so the firmware retries `s21.tries` times, publishes
+  `failed-set`, and keeps reporting `econo:false`; once the hold expired, that
+  false aggregate reverted the switch. Only a **running** unit confirms econo.
+  The coordinator now treats standby econo readings as carrying no information:
+  a per-outdoor-group **latch** remembers the last reliably observed or
+  successfully written value — while at least one member runs, the running
+  members' reports are the truth (and refresh the latch, in both directions);
+  while the whole group is off, the latched value is published. The
+  powerful ⇄ econo suspend/restore logic sees the latched state too, so a boost
+  during an all-off eco phase restores eco correctly afterwards.
+
 # Version 0.8.0 (2026-07-19)
 
 ## What's Changed

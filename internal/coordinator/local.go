@@ -400,7 +400,7 @@ func (c *Coordinator) heldOutdoorValue(group, suffix, raw string) string {
 // are all reported per indoor unit but describe the one outdoor unit.
 type outdoorAggregate struct {
 	quiet                                 bool
-	econo                                 bool // econo on if any member is (shared outdoor setting)
+	econo                                 bool // econo on if any RUNNING member reports it, else the group latch
 	powerful                              bool // any member boosting (drives econo save/restore)
 	demand                                int
 	powerW                                int     // sum across units (system total)
@@ -419,6 +419,14 @@ func (c *Coordinator) heldEnergy(deviceID string) energyTotals {
 // from the cached Faikin states. The aggregation rule differs by physics:
 //   - Settings: outdoor silent is on if any member reports it; demand is the
 //     most restrictive (lowest).
+//   - econo: only a RUNNING unit reports it back on the serial bus — a standby
+//     unit accepts the econo command (the Daikin app confirms it) but its G7
+//     status always reads econo off, so Faikin gives up ("failed-set") and keeps
+//     reporting false. Standby states therefore carry no econo information:
+//     when at least one member runs, econo is the OR over the running members
+//     (and refreshes the group latch); when the whole group is off, the latch —
+//     the last reliably observed or successfully written value (see noteWrite)
+//     — is what's actually in effect.
 //   - Power and energy are reported per indoor unit, so the outdoor (system)
 //     total is the SUM across members. Power is instantaneous (an idle unit
 //     reports ~0, which is correct); energy uses the per-unit held value so an
@@ -433,6 +441,7 @@ func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
 	defer c.mu.Unlock()
 	agg := outdoorAggregate{demand: 100}
 	var totals, heats, cools []int64
+	var anyOn, econoOn bool
 	for _, m := range members {
 		st, ok := c.lastLocal[m]
 		if !ok {
@@ -441,8 +450,11 @@ func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
 		if st.Quiet {
 			agg.quiet = true
 		}
-		if st.Econo {
-			agg.econo = true
+		if st.Power {
+			anyOn = true
+			if st.Econo {
+				econoOn = true
+			}
 		}
 		if st.Powerful {
 			agg.powerful = true
@@ -463,6 +475,17 @@ func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
 	agg.energyWh = aggregateEnergy(totals)
 	agg.energyHeatWh = aggregateEnergy(heats)
 	agg.energyCoolWh = aggregateEnergy(cools)
+	// Resolve econo against the group latch (inline group key: mu is held).
+	group := c.outdoorSerial[deviceID]
+	if group == "" {
+		group = deviceID
+	}
+	if anyOn {
+		agg.econo = econoOn
+		c.econoLatch[group] = econoOn
+	} else if v, ok := c.econoLatch[group]; ok {
+		agg.econo = v
+	}
 	return agg
 }
 

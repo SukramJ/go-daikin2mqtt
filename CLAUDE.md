@@ -183,8 +183,13 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   does not restore it). This save/restore is an edge-driven, group-keyed state machine
   (`reconcileEconoSuspend` + `Coordinator.econoSuspend`) fed from both the local read path
   (`publishLocalState`) and the cloud poll (`reconcileEconoSuspendCloud`, skips locally-active
-  groups). On by default; gated by `MULTISPLIT_MODE_SYNC` / `MULTISPLIT_OUTDOOR_AGGREGATE` /
-  `ENFORCE_MUTUAL_EXCLUSIVE`.
+  groups). **Eco readback latch:** only a *running* unit reports econo on the serial bus — a
+  standby unit executes the command but its status keeps reading econo off (Faikin gives up with
+  `failed-set`), so `localOutdoorAgg` takes econo from the running members when any member runs
+  (refreshing `Coordinator.econoLatch`) and from the latch (also fed by econo writes via
+  `noteWrite`) when the whole group is off; otherwise the HA switch snapped back to off after the
+  2-min outdoor hold. On by default; gated by `MULTISPLIT_MODE_SYNC` /
+  `MULTISPLIT_OUTDOOR_AGGREGATE` / `ENFORCE_MUTUAL_EXCLUSIVE`.
 
 The Faikin broker defaults to the main MQTT broker (connection reused); a distinct
 `LOCAL_FAIKIN_SERVER` opens a second connection. The dependency engine runs **above** the backend

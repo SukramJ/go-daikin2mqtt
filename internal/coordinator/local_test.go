@@ -228,12 +228,13 @@ func TestPublishOutdoorSharedAggregates(t *testing.T) {
 		Cfg: cfg, Client: &stubCloud{}, MQTT: main, FaikinMQTT: newStubMQTT(),
 		Catalog: loadTestCatalog(t), Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
 	})
-	// Same outdoor unit; a is idle (quiet/econo off), b (active) reports them on.
+	// Same outdoor unit; a is idle (quiet/econo off), b (running) reports them
+	// on. econo only counts from running units (standby never reports it).
 	c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1"}
 	c.climateEmbedded = map[string]string{"a": "climateControl", "b": "climateControl"}
 	c.lastLocal = map[string]*faikin.State{
 		"a": {HasAC: true, Quiet: false, Econo: false, Demand: 100},
-		"b": {HasAC: true, Quiet: true, Econo: true, Demand: 80},
+		"b": {HasAC: true, Power: true, Quiet: true, Econo: true, Demand: 80},
 	}
 
 	c.publishOutdoorShared(context.Background(), "a")
@@ -274,6 +275,84 @@ func TestOutdoorHold(t *testing.T) {
 	// No pending → raw is returned unchanged.
 	if got := c.heldOutdoorValue("OD2", "demand_control", "80"); got != "80" {
 		t.Errorf("no pending should return raw, got %q", got)
+	}
+}
+
+// newLocalPairCoordinator builds a local-mode coordinator with two mapped
+// devices a/b on the same outdoor unit OD1 (the multi-split test fixture).
+func newLocalPairCoordinator(t *testing.T, main *stubMQTT) *Coordinator {
+	t.Helper()
+	cfg := &config.Config{
+		MQTTTopic: "daikin", Language: "de", LocalMode: true,
+		LocalDeviceMap: map[string]string{"a": "Klima A", "b": "Klima B"},
+	}
+	c := New(Deps{
+		Cfg: cfg, Client: &stubCloud{}, MQTT: main, FaikinMQTT: newStubMQTT(),
+		Catalog: loadTestCatalog(t), Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
+	})
+	c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1"}
+	c.climateEmbedded = map[string]string{"a": "climateControl", "b": "climateControl"}
+	return c
+}
+
+// A standby FTXA accepts an econo command but never confirms it on the serial
+// bus (its G7 status keeps reading econo off; Faikin reports failed-set and
+// publishes econo:false — verified live). The group latch keeps the written
+// value in effect while no unit runs, so the HA switch no longer snaps back to
+// off once the 2-minute outdoor hold expires.
+func TestEconoLatchHoldsWriteWhileGroupOff(t *testing.T) {
+	main := newStubMQTT()
+	c := newLocalPairCoordinator(t, main)
+	// Whole group in standby: econo reads false even though the units took it.
+	c.lastLocal = map[string]*faikin.State{
+		"a": {HasAC: true, Econo: false, Demand: 100},
+		"b": {HasAC: true, Econo: false, Demand: 100},
+	}
+
+	// The econo write records the latch (setCharacteristic → noteWrite).
+	c.noteWrite("a", "climateControl", "econoMode", "on")
+
+	// No hold is pending here — this is the state after outdoorHoldDuration
+	// expired. The standby aggregate must not revert the switch: the latched
+	// written value is what's actually in effect (the Daikin app shows eco on).
+	c.publishOutdoorShared(context.Background(), "a")
+	for _, dev := range []string{"a", "b"} {
+		if got, _ := main.get("daikin/" + dev + "/climateControl/econo_mode/state"); got.payload != "on" {
+			t.Errorf("%s econo_mode = %q, want on (latched while group off)", dev, got.payload)
+		}
+	}
+}
+
+// A running unit's econo report is the truth: it refreshes the latch in both
+// directions and survives the group turning off afterwards.
+func TestEconoLatchFollowsRunningUnit(t *testing.T) {
+	c := newLocalPairCoordinator(t, newStubMQTT())
+
+	// A unit running with econo on refreshes the latch...
+	c.lastLocal = map[string]*faikin.State{
+		"a": {HasAC: true, Power: true, Econo: true},
+		"b": {HasAC: true},
+	}
+	if agg := c.localOutdoorAgg("a"); !agg.econo {
+		t.Fatalf("running unit reports econo on, agg = off")
+	}
+	// ...so when the whole group goes to standby (reads econo:false), the
+	// setting is still known to be on.
+	c.lastLocal["a"] = &faikin.State{HasAC: true}
+	if agg := c.localOutdoorAgg("a"); !agg.econo {
+		t.Errorf("group off after running with econo on: agg = off, want latched on")
+	}
+
+	// The reverse: a running unit reporting econo off (e.g. cleared via IR
+	// remote) overrides a stale latch and re-latches off.
+	c.econoLatch["OD1"] = true
+	c.lastLocal["a"] = &faikin.State{HasAC: true, Power: true, Econo: false}
+	if agg := c.localOutdoorAgg("a"); agg.econo {
+		t.Fatalf("running unit reports econo off, agg = on (stale latch won)")
+	}
+	c.lastLocal["a"] = &faikin.State{HasAC: true}
+	if agg := c.localOutdoorAgg("a"); agg.econo {
+		t.Errorf("group off after running with econo off: agg = on, want latched off")
 	}
 }
 
