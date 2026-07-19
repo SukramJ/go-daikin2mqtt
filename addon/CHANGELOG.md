@@ -4,6 +4,16 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.8.1 (2026-07-19)
+
+Fix: **the Eco mode switch no longer snaps back to off.**
+
+- Indoor units in standby accept the econo command but never confirm it on the
+  serial bus, so the switch reverted to off after two minutes even though the
+  Daikin app showed eco on everywhere. The daemon now latches the last reliably
+  known eco state per outdoor unit: running units remain the truth, and while
+  the whole group is off the latched value stays in effect.
+
 # 0.8.0 (2026-07-19)
 
 Fix: **turning one indoor unit on no longer switches on the others.**

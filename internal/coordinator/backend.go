@@ -44,7 +44,9 @@ func (c *Coordinator) applySet(ctx context.Context, deviceID, embeddedID, charac
 // noteWrite folds a successful power/mode write into the caches, so decisions
 // taken before the next poll or Faikin status (the mode sync's off/conflict
 // checks, {mode} PATCH paths) see the value just written instead of the stale
-// last-snapshot one.
+// last-snapshot one. econo feeds the group latch: a standby unit executes the
+// econo command but never confirms it on the serial bus, so the written value
+// is the only truth until a running unit reports it (see localOutdoorAgg).
 func (c *Coordinator) noteWrite(deviceID, embeddedID, characteristic string, value any) {
 	switch characteristic {
 	case "onOffMode":
@@ -57,6 +59,11 @@ func (c *Coordinator) noteWrite(deviceID, embeddedID, characteristic string, val
 			c.modeCache[deviceID+"/"+embeddedID] = s
 			c.mu.Unlock()
 		}
+	case "econoMode":
+		group := c.groupKey(deviceID) // locks c.mu; must stay outside the Lock below
+		c.mu.Lock()
+		c.econoLatch[group] = truthy(value)
+		c.mu.Unlock()
 	}
 }
 

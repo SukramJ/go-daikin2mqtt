@@ -75,6 +75,7 @@ type Coordinator struct {
 	lastEnergy      map[string]energyTotals      // deviceID -> last non-zero per-unit energy (held; see localOutdoorAgg)
 	pendingOutdoor  map[string]outdoorHold       // "<group>|<topic>" -> just-written value, held until confirmed
 	econoSuspend    map[string]econoSuspendState // outdoor group key -> powerful<->econo save/restore state
+	econoLatch      map[string]bool              // outdoor group key -> last reliable econo state (see localOutdoorAgg)
 	lastDiscSig     string                       // signature of the last published discovery set
 	reconcileGate   sync.Mutex                   // try-locked gate so only one orphan reconcile runs at a time
 }
@@ -140,6 +141,7 @@ func New(d Deps) *Coordinator {
 		lastEnergy:      map[string]energyTotals{},
 		pendingOutdoor:  map[string]outdoorHold{},
 		econoSuspend:    map[string]econoSuspendState{},
+		econoLatch:      map[string]bool{},
 	}
 }
 

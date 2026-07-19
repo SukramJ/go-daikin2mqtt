@@ -153,6 +153,20 @@ by the same code (the timeout simply shows up as `powerful:false` on the next
 read). Being edge-driven, the restore's own eco write is not re-triggered, so it
 never loops.
 
+**Eco readback latch.** Only a **running** indoor unit reports econo back on the
+serial bus: a standby FTXA executes the econo command (S21 `D7`) but its `G7`
+status keeps reading econo off, so the firmware retries `s21.tries` times,
+publishes `failed-set`, and then reports `econo:false` again (verified live —
+the Daikin app showed eco on while every module published false). Standby econo
+readings therefore carry no information. `localOutdoorAgg` resolves econo
+against a per-outdoor-group **latch** (`Coordinator.econoLatch`): while at least
+one member runs, the running members' OR is the truth and refreshes the latch
+(in both directions, so clearing eco from an IR remote propagates); while the
+whole group is off, the latched value — also fed by every successful econo write
+(`noteWrite`) — is published. Without the latch, the 2-minute outdoor hold
+(`outdoorHoldDuration`) expired and the false standby aggregate snapped the HA
+switch back to off.
+
 ### `scope: outdoor` in the catalog & discovery
 
 A catalog entry can carry `scope: outdoor` (`internal/catalog`). On the write
