@@ -51,14 +51,37 @@ func (c *Coordinator) groupMembers(deviceID string) []string {
 	return members
 }
 
-// syncModeToGroup propagates a heat/cool operationMode to the other indoor
-// units of the same outdoor unit. A standard multi-split cannot cool and heat
-// at once: conflicting units drop to standby, so the daemon keeps the whole
-// group on one mode. No-op when mode sync is disabled or the group is a
-// singleton. daikinMode is the ONECTA operationMode code (e.g. "cooling").
+// modeFamily buckets an operationMode by the compressor direction it demands:
+// heating vs cooling (dry also runs the compressor in cooling). auto and
+// fanOnly have no fixed direction — they neither force a sync nor need to be
+// synced away.
+func modeFamily(mode string) string {
+	switch mode {
+	case "heating":
+		return "heat"
+	case "cooling", "dry":
+		return "cool"
+	}
+	return ""
+}
+
+// syncModeToGroup resolves a heat/cool conflict on the other indoor units of
+// the same outdoor unit, last-write-wins. A standard multi-split cannot cool
+// and heat at once: conflicting units drop to standby, so the daemon switches
+// them to the just-commanded mode. Only members known to be RUNNING in the
+// opposite compressor direction are touched: a unit that is off (or whose
+// state is unknown) is never written to — the local Faikin `mode` command
+// force-powers a unit on, so a blind sync would switch on the whole house —
+// and a running, non-conflicting unit (same family, auto, fanOnly) keeps its
+// mode. No-op when mode sync is disabled or the group is a singleton.
+// daikinMode is the ONECTA operationMode code (e.g. "cooling").
 func (c *Coordinator) syncModeToGroup(ctx context.Context, originDeviceID, daikinMode string) {
 	if !c.deps.Cfg.ModeSyncEnabled() {
 		return
+	}
+	family := modeFamily(daikinMode)
+	if family == "" {
+		return // auto/fanOnly demand no compressor direction → nothing to resolve
 	}
 	for _, dev := range c.groupMembers(originDeviceID) {
 		if dev == originDeviceID {
@@ -66,6 +89,16 @@ func (c *Coordinator) syncModeToGroup(ctx context.Context, originDeviceID, daiki
 		}
 		emb, ok := c.climateEmbeddedID(dev)
 		if !ok {
+			continue
+		}
+		if on, known := c.powerState(dev); !known || !on {
+			c.deps.Logger.Debug("coordinator.mode_sync_skipped",
+				slog.String("device", dev), slog.String("reason", "off_or_unknown"))
+			continue
+		}
+		if cur, ok := c.cachedMode(dev, emb); !ok || modeFamily(cur) == "" || modeFamily(cur) == family {
+			c.deps.Logger.Debug("coordinator.mode_sync_skipped",
+				slog.String("device", dev), slog.String("reason", "no_conflict"))
 			continue
 		}
 		if err := c.setCharacteristic(ctx, dev, emb, "operationMode", daikinMode, ""); err != nil {
@@ -76,6 +109,24 @@ func (c *Coordinator) syncModeToGroup(ctx context.Context, originDeviceID, daiki
 		c.deps.Logger.Info("coordinator.mode_synced",
 			slog.String("device", dev), slog.String("operationMode", daikinMode))
 	}
+}
+
+// powerState returns the last known onOffMode of a device. known is false
+// until one of the three feeders (cloud poll, Faikin state, a successful
+// write) has seen the device.
+func (c *Coordinator) powerState(deviceID string) (on, known bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	on, known = c.powerCache[deviceID]
+	return on, known
+}
+
+// cachedMode returns the last known operationMode of a climate point.
+func (c *Coordinator) cachedMode(deviceID, embeddedID string) (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	m, ok := c.modeCache[deviceID+"/"+embeddedID]
+	return m, ok
 }
 
 // mutualExclusive maps a just-enabled setting to the partner it must clear. Only

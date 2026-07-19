@@ -109,6 +109,32 @@ func TestSetCharacteristicFallsBackToCloud(t *testing.T) {
 	}
 }
 
+func TestSetCharacteristicFeedsCaches(t *testing.T) {
+	// A successful power/mode write must be visible to decisions taken before
+	// the next poll (mode sync off/conflict checks, {mode} PATCH paths).
+	cloud := &stubCloud{}
+	c := newCoordinator(t, cloud, newStubMQTT())
+
+	if err := c.setCharacteristic(context.Background(), "dev1", "cc", "onOffMode", "on", ""); err != nil {
+		t.Fatal(err)
+	}
+	if on, known := c.powerState("dev1"); !known || !on {
+		t.Errorf("powerState after on = %v (known=%v), want on", on, known)
+	}
+	if err := c.setCharacteristic(context.Background(), "dev1", "cc", "operationMode", "heating", ""); err != nil {
+		t.Fatal(err)
+	}
+	if m, ok := c.cachedMode("dev1", "cc"); !ok || m != "heating" {
+		t.Errorf("cachedMode = %q (%v), want heating", m, ok)
+	}
+	if err := c.setCharacteristic(context.Background(), "dev1", "cc", "onOffMode", "off", ""); err != nil {
+		t.Fatal(err)
+	}
+	if on, known := c.powerState("dev1"); !known || on {
+		t.Errorf("powerState after off = %v (known=%v), want off", on, known)
+	}
+}
+
 func TestSetCharacteristicCloudWhenLocalDisabled(t *testing.T) {
 	cloud := &stubCloud{}
 	c := newCoordinator(t, cloud, newStubMQTT()) // local mode off, no FaikinMQTT

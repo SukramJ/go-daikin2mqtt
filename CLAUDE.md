@@ -170,8 +170,13 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
 - **Multi-split / dependency engine** (`outdoor.go`): outdoor groups keyed by outdoor serial
   (`groupMembers`). `scope: outdoor` catalog entries (`outdoor_silent`, `econo_mode`,
   `demand_control`) dedup to **one entity per outdoor unit** (in `hass.entityIdentity`) and
-  **fan out** writes to all members. Mode sync propagates heat/cool across the group (a standard
-  multi-split can't cool+heat at once); powerful ⇄ econo are mutually exclusive. econo is
+  **fan out** writes to all members. Mode sync resolves heat/cool conflicts across the group (a
+  standard multi-split can't cool+heat at once), **last write wins** — but only members *known to
+  be running* in the opposite compressor direction (`heating` vs `cooling`/`dry`) are switched;
+  off/unknown units are **never** written to (the Faikin `mode` command force-powers a unit on, so
+  a blind sync would switch on the whole house). Power/mode come from `powerCache`/`modeCache`,
+  fed by cloud poll + Faikin state + successful writes (`noteWrite`); for locally-mapped devices
+  the lagging cloud poll only bootstraps missing entries. powerful ⇄ econo are mutually exclusive. econo is
   `scope: outdoor` (it limits the shared compressor) but powerful stays per indoor unit: turning
   econo on clears powerful group-wide, and a powerful on **any** member suspends econo group-wide
   and restores it when the boost ends — manually or after the 20-min hardware timeout (the hardware

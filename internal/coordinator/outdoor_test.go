@@ -5,8 +5,11 @@ package coordinator
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 	"testing"
+
+	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 )
 
 func TestGroupMembers(t *testing.T) {
@@ -30,6 +33,9 @@ func TestSyncModeToGroup(t *testing.T) {
 	c := newCoordinator(t, cloud, newStubMQTT()) // mode sync defaults on
 	c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1"}
 	c.climateEmbedded = map[string]string{"a": "cc", "b": "cc"}
+	// b is running in the opposite compressor direction → conflict, gets synced.
+	c.powerCache = map[string]bool{"b": true}
+	c.modeCache = map[string]string{"b/cc": "heating"}
 
 	c.syncModeToGroup(context.Background(), "a", "cooling")
 
@@ -39,6 +45,68 @@ func TestSyncModeToGroup(t *testing.T) {
 	p := cloud.lastPatch(t)
 	if p.deviceID != "b" || p.characteristic != "operationMode" || p.value != "cooling" {
 		t.Errorf("propagated patch = %+v, want b/operationMode/cooling", p)
+	}
+	// The propagated write updates b's cached mode (last-wins must chain
+	// correctly before the next poll refreshes the cache).
+	if m, ok := c.cachedMode("b", "cc"); !ok || m != "cooling" {
+		t.Errorf("cached mode of b = %q (%v), want cooling", m, ok)
+	}
+}
+
+func TestSyncModeNeverWakesOffOrUnknownUnits(t *testing.T) {
+	// b is known to be off, c has never been seen: neither may be written to.
+	// (The local Faikin `mode` command force-powers a unit on, so a blind sync
+	// would switch on the whole house.)
+	cloud := &stubCloud{}
+	c := newCoordinator(t, cloud, newStubMQTT())
+	c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1", "c": "OD1"}
+	c.climateEmbedded = map[string]string{"a": "cc", "b": "cc", "c": "cc"}
+	c.powerCache = map[string]bool{"b": false}
+	c.modeCache = map[string]string{"b/cc": "heating", "c/cc": "heating"}
+
+	c.syncModeToGroup(context.Background(), "a", "cooling")
+
+	if cloud.patchCount() != 0 {
+		t.Errorf("off/unknown units must not be patched, got %v", cloud.allPatches())
+	}
+}
+
+func TestSyncModeOnlyOnCompressorConflict(t *testing.T) {
+	cases := []struct {
+		name       string
+		newMode    string // just-commanded mode on a
+		memberMode string // b's current mode (b is running)
+		wantSynced bool
+	}{
+		{"heating vs cooling", "cooling", "heating", true},
+		{"cooling vs heating", "heating", "cooling", true},
+		{"dry conflicts like cooling", "heating", "dry", true},
+		{"same mode", "cooling", "cooling", false},
+		{"same family", "cooling", "dry", false},
+		{"auto member left alone", "cooling", "auto", false},
+		{"fanOnly member left alone", "cooling", "fanOnly", false},
+		{"auto origin syncs nothing", "auto", "heating", false},
+		{"fanOnly origin syncs nothing", "fanOnly", "heating", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cloud := &stubCloud{}
+			c := newCoordinator(t, cloud, newStubMQTT())
+			c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1"}
+			c.climateEmbedded = map[string]string{"a": "cc", "b": "cc"}
+			c.powerCache = map[string]bool{"b": true}
+			c.modeCache = map[string]string{"b/cc": tc.memberMode}
+
+			c.syncModeToGroup(context.Background(), "a", tc.newMode)
+
+			want := 0
+			if tc.wantSynced {
+				want = 1
+			}
+			if cloud.patchCount() != want {
+				t.Errorf("patches = %v, want %d", cloud.allPatches(), want)
+			}
+		})
 	}
 }
 
@@ -53,6 +121,43 @@ func TestSyncModeDisabled(t *testing.T) {
 	c.syncModeToGroup(context.Background(), "a", "cooling")
 	if cloud.patchCount() != 0 {
 		t.Errorf("mode sync disabled should not patch, got %d", cloud.patchCount())
+	}
+}
+
+func TestSyncModeLocalNeverWakesOffUnits(t *testing.T) {
+	// Regression for the local-first path: Faikin's `command/<host>/mode`
+	// force-powers the unit on (power=1 for any mode value except "off"), so the
+	// mode sync used to switch on every other indoor unit of the group. An off
+	// member must receive no mode command at all; a running, conflicting member
+	// still gets one.
+	cloud := &stubCloud{}
+	faikin := newStubMQTT()
+	cfg := &config.Config{
+		MQTTTopic:         "daikin",
+		Language:          "de",
+		LocalMode:         true,
+		LocalFaikinPrefix: "Faikout",
+		LocalDeviceMap:    map[string]string{"a": "Klima SZ", "b": "Klima WZ", "c": "Klima KZ"},
+	}
+	c := New(Deps{
+		Cfg: cfg, Client: cloud, MQTT: newStubMQTT(), FaikinMQTT: faikin,
+		Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
+	})
+	c.outdoorSerial = map[string]string{"a": "OD1", "b": "OD1", "c": "OD1"}
+	c.climateEmbedded = map[string]string{"a": "cc", "b": "cc", "c": "cc"}
+	c.powerCache = map[string]bool{"b": true, "c": false} // b heats, c is off
+	c.modeCache = map[string]string{"b/cc": "heating", "c/cc": "heating"}
+
+	c.syncModeToGroup(context.Background(), "a", "cooling")
+
+	if msg, ok := faikin.get("command/Klima WZ/mode"); !ok || msg.payload != "C" {
+		t.Errorf("running conflicting member: mode command = %q (%v), want \"C\"", msg.payload, ok)
+	}
+	if msg, ok := faikin.get("command/Klima KZ/mode"); ok {
+		t.Errorf("off member must not receive a mode command (would power it on), got %q", msg.payload)
+	}
+	if cloud.patchCount() != 0 {
+		t.Errorf("no cloud patches expected in local mode, got %v", cloud.allPatches())
 	}
 }
 

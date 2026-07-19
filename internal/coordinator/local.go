@@ -241,6 +241,9 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 	// before the first cloud poll has populated the embeddedID cache.
 	c.mu.Lock()
 	c.lastLocal[deviceID] = st
+	// Faikin state is the freshest power source for a mapped device; the mode
+	// sync relies on it to never write to (Faikin: wake) a unit that is off.
+	c.powerCache[deviceID] = st.Power
 	// Hold each per-unit energy counter at its highest seen value, so an idle
 	// unit reporting 0 does not drop the summed outdoor total.
 	e := c.lastEnergy[deviceID]
@@ -255,6 +258,14 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 		c.deps.Logger.Debug("coordinator.local_no_embedded_id",
 			slog.String("device", deviceID), slog.String("hint", "awaiting first cloud poll"))
 		return
+	}
+	// Keep the mode cache on the local value too: mode-scoped {mode} PATCH
+	// paths and the mode sync's conflict check must see the live mode, not the
+	// lagging cloud snapshot.
+	if dk, ok := faikinToDaikinMode[st.Mode]; ok {
+		c.mu.Lock()
+		c.modeCache[deviceID+"/"+emb] = dk
+		c.mu.Unlock()
 	}
 	for suffix, payload := range c.localStateMessages(deviceID, st) {
 		topic := fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, deviceID, emb, suffix)

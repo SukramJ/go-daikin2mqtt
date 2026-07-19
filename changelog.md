@@ -1,3 +1,41 @@
+# Version 0.8.0 (2026-07-19)
+
+## What's Changed
+
+### Fixed
+
+- **Mode sync no longer switches on the other indoor units.** Turning one
+  indoor unit on (e.g. to cooling) used to propagate the new `operationMode` to
+  **every** member of the outdoor group — including units that were off. On the
+  local Faikin path this powered them all on: the firmware's
+  `command/<host>/mode` topic force-sets `power=1` for any mode value except
+  "off". The sync now only writes to members that are **known to be running in
+  the opposite compressor direction** (`heating` vs `cooling`/`dry`); units
+  that are off — or whose state is unknown — are never touched and stay off.
+  The last command still wins: switching a unit on with a conflicting mode
+  flips the running members over, and an off unit that is later turned on via
+  Home Assistant brings its own mode, from which the sync re-runs. In pure
+  cloud mode the skipped members also no longer burn ONECTA daily-quota
+  requests.
+
+### Changed
+
+- **Mode sync is conflict-scoped.** `auto` and `fanOnly` demand no compressor
+  direction, so they neither trigger a sync nor get synced away — setting one
+  unit to fan-only no longer drags a cooling unit out of its mode. Same-family
+  members (`cooling` next to `dry`) keep their mode too.
+
+### Internal
+
+- New per-device power/mode caches (`powerCache`, extended `modeCache`) fed
+  from three sources: the cloud poll, the local Faikin state feed, and each
+  successful write (`noteWrite`, so back-to-back commands see the value just
+  written instead of the stale last-poll snapshot). For locally-mapped devices
+  the lagging cloud snapshot only bootstraps missing entries and never
+  overwrites the fresher local value. Mode-scoped `{mode}` PATCH paths now
+  read the same cache, so they also follow a locally-observed mode change
+  between polls.
+
 # Version 0.7.0 (2026-07-14)
 
 ## What's Changed
