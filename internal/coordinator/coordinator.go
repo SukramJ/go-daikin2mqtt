@@ -68,6 +68,7 @@ type Coordinator struct {
 	mu              sync.Mutex
 	lastPoll        time.Time                    // start of the last poll cycle (throttles manual refreshes)
 	modeCache       map[string]string            // deviceID/embeddedID -> current operationMode
+	powerCache      map[string]bool              // deviceID -> last known onOffMode == "on" (mode sync never touches off/unknown units)
 	climateEmbedded map[string]string            // deviceID -> climateControl embeddedID (for local routing)
 	outdoorSerial   map[string]string            // deviceID -> outdoor-unit serial (for multi-split grouping)
 	lastLocal       map[string]*faikin.State     // deviceID -> last AC state received from Faikin
@@ -132,6 +133,7 @@ func New(d Deps) *Coordinator {
 		localStates:     make(chan localStateMsg, 64),
 		refresh:         make(chan struct{}, 1),
 		modeCache:       map[string]string{},
+		powerCache:      map[string]bool{},
 		climateEmbedded: map[string]string{},
 		outdoorSerial:   map[string]string{},
 		lastLocal:       map[string]*faikin.State{},
@@ -326,22 +328,37 @@ func (c *Coordinator) formatValue(p process.Point) string {
 	return p.Format()
 }
 
-// updateModeCache records the current operationMode of each climate point so
-// the write path can resolve mode-scoped setpoint PATCH paths.
+// updateModeCache records each climate point's current operationMode (resolves
+// mode-scoped PATCH paths) and onOffMode (mode sync must not touch units that
+// are off). For locally-controlled devices the cloud values only bootstrap a
+// missing entry: the Faikin read path and the write path feed fresher values,
+// and the lagging cloud snapshot must not overwrite them — a stale "on" would
+// let the mode sync write to (and thereby wake) a unit just switched off.
 func (c *Coordinator) updateModeCache(devices []model.Device) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, d := range devices {
+		local := c.localActiveFor(d.ID)
 		for _, mp := range d.ManagementPoints {
-			if ch, ok := mp.Characteristics["operationMode"]; ok {
-				if s, ok := ch.String(); ok {
-					c.modeCache[d.ID+"/"+mp.EmbeddedID] = s
-				}
-				// The presence of operationMode marks the climateControl point;
-				// remember its embeddedID so the local read path can route
-				// Faikin state onto the same per-unit topics.
-				c.climateEmbedded[d.ID] = mp.EmbeddedID
+			ch, ok := mp.Characteristics["operationMode"]
+			if !ok {
+				continue
 			}
+			if s, ok := ch.String(); ok {
+				key := d.ID + "/" + mp.EmbeddedID
+				if _, have := c.modeCache[key]; !have || !local {
+					c.modeCache[key] = s
+				}
+			}
+			if s, ok := mp.Characteristics["onOffMode"].String(); ok {
+				if _, have := c.powerCache[d.ID]; !have || !local {
+					c.powerCache[d.ID] = s == "on"
+				}
+			}
+			// The presence of operationMode marks the climateControl point;
+			// remember its embeddedID so the local read path can route
+			// Faikin state onto the same per-unit topics.
+			c.climateEmbedded[d.ID] = mp.EmbeddedID
 		}
 	}
 }
@@ -554,9 +571,7 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 
 	path := entry.Path
 	if strings.Contains(path, "{mode}") {
-		c.mu.Lock()
-		mode := c.modeCache[req.deviceID+"/"+req.embeddedID]
-		c.mu.Unlock()
+		mode, _ := c.cachedMode(req.deviceID, req.embeddedID)
 		if mode == "" {
 			c.deps.Logger.Warn("coordinator.write_no_mode", slog.String("topic", req.topic))
 			return

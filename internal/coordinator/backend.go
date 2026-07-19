@@ -21,6 +21,16 @@ import (
 // expresses differently) fall through to the cloud, so local mode degrades
 // gracefully rather than dropping a command.
 func (c *Coordinator) setCharacteristic(ctx context.Context, deviceID, embeddedID, characteristic string, value any, path string) error {
+	if err := c.applySet(ctx, deviceID, embeddedID, characteristic, value, path); err != nil {
+		return err
+	}
+	c.noteWrite(deviceID, embeddedID, characteristic, value)
+	return nil
+}
+
+// applySet routes one setting change to the local Faikin command topic or the
+// ONECTA cloud (see setCharacteristic).
+func (c *Coordinator) applySet(ctx context.Context, deviceID, embeddedID, characteristic string, value any, path string) error {
 	if host, ok := c.localHost(deviceID); ok {
 		if suffix, payload, ok := faikinCommand(characteristic, value); ok {
 			topic := faikin.CommandTopic(host, suffix)
@@ -29,6 +39,25 @@ func (c *Coordinator) setCharacteristic(ctx context.Context, deviceID, embeddedI
 		// Not locally controllable → fall through to the cloud below.
 	}
 	return c.deps.Client.Patch(ctx, deviceID, embeddedID, characteristic, value, path)
+}
+
+// noteWrite folds a successful power/mode write into the caches, so decisions
+// taken before the next poll or Faikin status (the mode sync's off/conflict
+// checks, {mode} PATCH paths) see the value just written instead of the stale
+// last-snapshot one.
+func (c *Coordinator) noteWrite(deviceID, embeddedID, characteristic string, value any) {
+	switch characteristic {
+	case "onOffMode":
+		c.mu.Lock()
+		c.powerCache[deviceID] = truthy(value)
+		c.mu.Unlock()
+	case "operationMode":
+		if s := toStr(value); s != "" {
+			c.mu.Lock()
+			c.modeCache[deviceID+"/"+embeddedID] = s
+			c.mu.Unlock()
+		}
+	}
 }
 
 // localHost returns the Faikin host for a device when local control is active

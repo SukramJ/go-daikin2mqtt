@@ -341,6 +341,53 @@ func TestPublishOnline(t *testing.T) {
 	}
 }
 
+// updateModeCache ownership: for a locally-mapped device the cloud snapshot
+// only bootstraps missing cache entries — fresher local/write values must not
+// be overwritten by a lagging poll (a stale "on" would let the mode sync
+// write to, and on Faikin thereby wake, a unit just switched off).
+func TestUpdateModeCacheLocalOwnership(t *testing.T) {
+	c := localCoordinator(&stubCloud{}, newStubMQTT(), newStubMQTT()) // maps dev1
+
+	mp := func(power, mode string) model.ManagementPoint {
+		return model.ManagementPoint{
+			Type:       "climateControl",
+			EmbeddedID: "cc",
+			Characteristics: map[string]model.Characteristic{
+				"onOffMode":     {Value: json.RawMessage(`"` + power + `"`)},
+				"operationMode": {Value: json.RawMessage(`"` + mode + `"`)},
+			},
+		}
+	}
+	devices := []model.Device{
+		{ID: "dev1", ManagementPoints: []model.ManagementPoint{mp("on", "heating")}},  // mapped locally
+		{ID: "other", ManagementPoints: []model.ManagementPoint{mp("on", "heating")}}, // cloud-only
+	}
+
+	// First poll: nothing cached yet → bootstrap fills the mapped device too.
+	c.updateModeCache(devices)
+	if on, known := c.powerState("dev1"); !known || !on {
+		t.Fatalf("bootstrap powerState(dev1) = %v (known=%v), want on", on, known)
+	}
+
+	// The local feed turned dev1 off/cooling; the cloud still reports on/heating.
+	c.mu.Lock()
+	c.powerCache["dev1"] = false
+	c.modeCache["dev1/cc"] = "cooling"
+	c.powerCache["other"] = false
+	c.mu.Unlock()
+	c.updateModeCache(devices)
+
+	if on, _ := c.powerState("dev1"); on {
+		t.Errorf("stale cloud poll must not overwrite the local power state")
+	}
+	if m, _ := c.cachedMode("dev1", "cc"); m != "cooling" {
+		t.Errorf("stale cloud poll must not overwrite the local mode, got %q", m)
+	}
+	if on, _ := c.powerState("other"); !on {
+		t.Errorf("cloud-only device must keep following the poll")
+	}
+}
+
 //  3. Write path for a nested, mode-scoped setpoint: {mode} is substituted
 //     from the mode cache and the value is coerced to float64.
 func TestHandleWriteNestedSetpoint(t *testing.T) {

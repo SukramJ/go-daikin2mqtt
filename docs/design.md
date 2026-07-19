@@ -115,12 +115,27 @@ units sharing one outdoor unit. On this it implements the dependent settings:
 
 | Mechanism | Trigger → effect | Flag (default on) |
 |---|---|---|
-| **Mode sync** | heat/cool change → propagate `operationMode` to the other group members | `MULTISPLIT_MODE_SYNC` |
+| **Mode sync** | heat/cool change → switch the group members **running in the opposite compressor direction** to the new mode (last write wins) | `MULTISPLIT_MODE_SYNC` |
 | **Outdoor fan-out** | write to a `scope: outdoor` setting → apply to every group member | `MULTISPLIT_OUTDOOR_AGGREGATE` |
 | **Mutual exclusion** | eco on → clear powerful; powerful on → suspend eco group-wide and restore it (save/restore) when the boost ends | `ENFORCE_MUTUAL_EXCLUSIVE` |
 
 These run **above** `setCharacteristic`, so they fan out through whichever
 backend each member uses.
+
+**Mode sync never wakes a sleeping unit.** Turning one indoor unit on (e.g. to
+cool) must not switch on the rest of the house: the sync only writes to members
+that are **known to be running** in the opposite compressor direction (`heating`
+vs `cooling`/`dry`; `auto`/`fanOnly` demand no direction and neither trigger nor
+receive a sync). This matters doubly on the local path, where the Faikin
+`command/<host>/mode` topic force-powers the unit on for any mode value — a
+blind sync would turn every unit on. Power and mode come from a per-device cache
+(`powerCache`/`modeCache`) fed by the cloud poll, the Faikin state feed, and
+each successful write (`noteWrite`, so back-to-back commands see the value just
+written); for locally-mapped devices the lagging cloud snapshot only bootstraps
+missing entries and never overwrites the fresher local value. Off units keep
+their stored mode — when later switched on via HA, the climate command carries
+power + mode, and the sync then runs from that unit (last write wins). Skipping
+off units also saves ONECTA daily-quota requests in cloud mode.
 
 **Powerful ⇄ eco save/restore.** eco (econo) is `scope: outdoor` because it limits
 the shared compressor, but powerful (boost) stays per indoor unit and drives the
