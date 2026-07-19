@@ -4,6 +4,16 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.8.0 (2026-07-19)
+
+Fix: **turning one indoor unit on no longer switches on the others.**
+
+- The multi-split mode sync now only adjusts units that are **already running**
+  in the opposite direction (heating vs cooling/dry) — the last command wins.
+  Units that are off stay off (on the local Faikin path the `mode` command
+  force-powers a unit on, so the old blind sync switched on the whole house).
+- `auto`/`fan only` no longer trigger or receive a mode sync.
+
 # 0.7.0 (2026-07-14)
 
 New: a **manual refresh button** on the outdoor unit.
