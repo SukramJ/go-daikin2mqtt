@@ -422,11 +422,13 @@
 # only published when local mode synthesizes them (localOnlyTopics) and fed from
 # the Faikin state document. Placement follows the physics, confirmed on a live
 # multi-split:
-#   * Per indoor unit (each unit reports its own value): energy totals and power.
+#   * Per indoor unit (each unit reports its own value): energy totals, power,
+#     fan speed, and refrigerant (liquid-line) temperature — live data shows
+#     per-member values for all of them.
 #   * Also aggregated as one SUM per outdoor unit (the system total): the
 #     outdoor_* variants below (scope: outdoor).
 #   * Shared outdoor values, identical on every indoor unit, shown ONCE per
-#     outdoor unit: compressor / fan frequency, refrigerant temperature.
+#     outdoor unit: compressor frequency.
 
 # Per indoor unit (own value).
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
@@ -468,6 +470,33 @@
   unit: W
   state_class: measurement
   precision: 0
+
+# Each indoor unit's own fan (S21 `RL` reports the responding unit's fan, live
+# data shows different values per member) — NOT a shared outdoor value. The
+# firmware publishes `fanfreq` as rpm/60 (Hz); the daemon converts back to rpm.
+# No device_class: HA's `frequency` class does not accept rpm.
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: fan_speed
+  name: Fan speed
+  name_de: Lüfterdrehzahl
+  platform: sensor
+  unit: rpm
+  state_class: measurement
+  category: diagnostic
+  precision: 0
+
+# Each indoor unit's own liquid-line (coil) temperature — live data shows
+# per-member values (e.g. 20/18/14 °C at the same moment), not a shared reading.
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: refrigerant_temperature
+  name: Refrigerant temperature
+  name_de: Kältemitteltemperatur
+  platform: sensor
+  device_class: temperature
+  unit: "°C"
+  state_class: measurement
+  category: diagnostic
+  precision: 1
 
 # System total per outdoor unit (sum of the per-unit values above).
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
@@ -522,30 +551,6 @@
   platform: sensor
   device_class: frequency
   unit: Hz
-  state_class: measurement
-  scope: outdoor
-  category: diagnostic
-  precision: 1
-
-- match: {managementPointType: climateControl, characteristic: faikinLocal}
-  topic: fan_frequency
-  name: Fan frequency
-  name_de: Lüfterfrequenz
-  platform: sensor
-  device_class: frequency
-  unit: Hz
-  state_class: measurement
-  scope: outdoor
-  category: diagnostic
-  precision: 1
-
-- match: {managementPointType: climateControl, characteristic: faikinLocal}
-  topic: refrigerant_temperature
-  name: Refrigerant temperature
-  name_de: Kältemitteltemperatur
-  platform: sensor
-  device_class: temperature
-  unit: "°C"
   state_class: measurement
   scope: outdoor
   category: diagnostic

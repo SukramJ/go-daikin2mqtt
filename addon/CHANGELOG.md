@@ -4,6 +4,15 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.8.2 (2026-07-20)
+
+Fix: **fan speed and refrigerant temperature are shown per indoor unit again.**
+
+- Both readings had been collapsed into single aggregated sensors on the
+  outdoor unit, hiding the individual units' values. Each indoor unit now gets
+  its own diagnostic `fan_speed` (rpm) and `refrigerant_temperature` (°C)
+  sensors; the misleading outdoor aggregates are removed automatically.
+
 # 0.8.1 (2026-07-19)
 
 Fix: **the Eco mode switch no longer snaps back to off.**

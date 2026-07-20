@@ -1,3 +1,36 @@
+# Version 0.8.2 (2026-07-20)
+
+## What's Changed
+
+### Fixed
+
+- **Fan speed is shown per indoor unit again — in rpm.** Since 0.2.19 the fan
+  reading was misclassified as a value "identical on every indoor unit" and
+  collapsed into a single aggregated `fan_frequency` sensor (Hz) on the outdoor
+  unit, so the individual units' fan speeds were not displayed at all. Live
+  data disproves that classification: the S21 `RL` report is the responding
+  unit's **own** fan (at the same moment one unit read 900 rpm while the others
+  read 0, with all three reporting the identical shared compressor frequency).
+  Each indoor unit now gets its own diagnostic sensor **`fan_speed`** in
+  **rpm** (converted from Faikin's `fanfreq`, which is rpm/60 in Hz with the
+  firmware-default `ha.fanrpm=0`); the misleading outdoor `fan_frequency`
+  aggregate is gone. `compressor_frequency` stays as the genuinely shared
+  outdoor value.
+
+- **Refrigerant temperature is per indoor unit again too.** Same 0.2.19
+  misclassification, same live disproof: the Faikin `liquid` field is each
+  unit's **own** liquid-line (coil) temperature — members read 20/18/14 °C at
+  the same moment — so the single max-aggregated outdoor sensor showed an
+  arbitrary unit's value (often an idle one's). `refrigerant_temperature` is
+  now a diagnostic sensor on each indoor unit; only `compressor_frequency` and
+  `outdoor_temperature` remain as genuinely shared outdoor readings.
+
+  **Migration:** the old `fan_frequency` and outdoor `refrigerant_temperature`
+  sensors on the outdoor unit are removed automatically (discovery orphan
+  cleanup). Their stale retained state topics on the broker are harmless; the
+  new per-unit `fan_speed` and `refrigerant_temperature` sensors appear on each
+  indoor unit without any action.
+
 # Version 0.8.1 (2026-07-19)
 
 ## What's Changed
