@@ -206,6 +206,7 @@ const testCatalogYAML = `
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: energy_total, name: Energy total, platform: sensor, unit: kWh, precision: 3}
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: heating_energy_total, name: Heating energy total, platform: sensor, unit: kWh, precision: 3}
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: cooling_energy_total, name: Cooling energy total, platform: sensor, unit: kWh, precision: 3}
+- {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: fan_speed, name: Fan speed, platform: sensor, unit: rpm, precision: 0}
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: outdoor_energy_total, name: Energy total (system), platform: sensor, unit: kWh, scope: outdoor, precision: 3}
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: outdoor_heating_energy_total, name: Heating energy total (system), platform: sensor, unit: kWh, scope: outdoor, precision: 3}
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: outdoor_cooling_energy_total, name: Cooling energy total (system), platform: sensor, unit: kWh, scope: outdoor, precision: 3}

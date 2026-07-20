@@ -1,3 +1,27 @@
+# Version 0.8.2 (2026-07-20)
+
+## What's Changed
+
+### Fixed
+
+- **Fan speed is shown per indoor unit again — in rpm.** Since 0.2.19 the fan
+  reading was misclassified as a value "identical on every indoor unit" and
+  collapsed into a single aggregated `fan_frequency` sensor (Hz) on the outdoor
+  unit, so the individual units' fan speeds were not displayed at all. Live
+  data disproves that classification: the S21 `RL` report is the responding
+  unit's **own** fan (at the same moment one unit read 900 rpm while the others
+  read 0, with all three reporting the identical shared compressor frequency).
+  Each indoor unit now gets its own diagnostic sensor **`fan_speed`** in
+  **rpm** (converted from Faikin's `fanfreq`, which is rpm/60 in Hz with the
+  firmware-default `ha.fanrpm=0`); the misleading outdoor `fan_frequency`
+  aggregate is gone. `compressor_frequency` stays as the genuinely shared
+  outdoor value.
+
+  **Migration:** the old `fan_frequency` sensor on the outdoor unit is removed
+  automatically (discovery orphan cleanup). Its stale retained state topic
+  (`…/fan_frequency/state`) on the broker is harmless; the new
+  `fan_speed` sensors appear on each indoor unit without any action.
+
 # Version 0.8.1 (2026-07-19)
 
 ## What's Changed

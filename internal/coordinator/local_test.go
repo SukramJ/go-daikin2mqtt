@@ -66,7 +66,7 @@ func TestPublishLocalState(t *testing.T) {
 		"cooling_energy_total/state":    "117.300",
 		"power_consumption/state":       "120",
 		"compressor_frequency/state":    "25.0",
-		"fan_frequency/state":           "9.5",
+		"fan_speed/state":               "570", // fanfreq 9.5 Hz × 60 = rpm
 		"refrigerant_temperature/state": "13.0",
 	}
 	for suffix, exp := range want {

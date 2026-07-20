@@ -4,6 +4,15 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.8.2 (2026-07-20)
+
+Fix: **fan speed is shown per indoor unit again — in rpm.**
+
+- The fan reading had been collapsed into one aggregated Hz sensor on the
+  outdoor unit, hiding the individual units' fan speeds. Each indoor unit now
+  gets its own diagnostic `fan_speed` sensor in rpm; the misleading outdoor
+  `fan_frequency` aggregate is removed automatically.
+
 # 0.8.1 (2026-07-19)
 
 Fix: **the Eco mode switch no longer snaps back to off.**

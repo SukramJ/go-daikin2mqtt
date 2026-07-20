@@ -49,8 +49,11 @@ type State struct {
 
 	// Live telemetry the cloud does not expose (local-only).
 	Consumption int     `json:"consumption"` // current power draw, W
-	Comp        float64 `json:"comp"`        // compressor frequency, Hz
-	FanFreq     float64 `json:"fanfreq"`     // indoor fan frequency, Hz
+	Comp        float64 `json:"comp"`        // compressor frequency, Hz (shared outdoor value)
+	// FanFreq is this indoor unit's OWN fan (S21 `RL` reports the responding
+	// unit; members differ), published by the firmware as rpm/60 in Hz with
+	// the default ha.fanrpm=0 setting. Consumers convert ×60 back to rpm.
+	FanFreq float64 `json:"fanfreq"`
 
 	Energy     int64 `json:"energy"`     // lifetime total Wh
 	EnergyHeat int64 `json:"energyheat"` // lifetime heating Wh
