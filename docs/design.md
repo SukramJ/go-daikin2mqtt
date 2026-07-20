@@ -200,25 +200,24 @@ its **own** energy/power while the compressor frequency is identical everywhere)
   rather than summed.
 - **Shared, max** — `compressor_frequency` is the single outdoor compressor's
   speed, reported identically by every member, so the aggregate is the max;
-  `refrigerant_temperature` and `outdoor_temperature` use the same max
-  aggregation.
+  `outdoor_temperature` uses the same max aggregation.
 
 Genuinely per-indoor-unit telemetry stays per unit (not `scope: outdoor`):
-`fan_speed` (rpm, = Faikin `fanfreq` Hz × 60). The S21 `RL` fan report is the
-responding unit's **own** fan — live members differ (e.g. 900 vs 0 rpm at the
-same moment) — so the 0.2.19 outdoor-shared classification was wrong and was
-reverted in 0.8.2.
+`fan_speed` (rpm, = Faikin `fanfreq` Hz × 60) and `refrigerant_temperature`
+(the unit's own liquid-line/coil reading). Live members differ for both — e.g.
+900 vs 0 rpm, and 20/18/14 °C liquid, at the same moment — so the 0.2.19
+outdoor-shared classification was wrong and was reverted in 0.8.2.
 
 ## Catalog additions
 
 Per-unit switch `streamer`; outdoor-shared `outdoor_silent` and `econo_mode`
 (switches) and `demand_control` (number); local-only telemetry sensors
 (per indoor unit: `energy_total`, `heating_energy_total`,
-`cooling_energy_total`, `power_consumption`, `fan_speed`; system sums per
-outdoor unit: `outdoor_energy_total`, `outdoor_heating_energy_total`,
+`cooling_energy_total`, `power_consumption`, `fan_speed`,
+`refrigerant_temperature`; system sums per outdoor unit:
+`outdoor_energy_total`, `outdoor_heating_energy_total`,
 `outdoor_cooling_energy_total`, `outdoor_power`; shared outdoor, max:
-`compressor_frequency`, `refrigerant_temperature`). Faikin exposes all of them
-locally. On the FTXA range
+`compressor_frequency`). Faikin exposes all of them locally. On the FTXA range
 the settings are **absent from the ONECTA cloud JSON** (confirmed via the device
 browser — only as nested `schedule` action types) and the telemetry has no cloud
 equivalent at all, so in cloud mode they never resolve; in local mode they appear

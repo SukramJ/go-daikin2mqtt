@@ -423,11 +423,12 @@
 # the Faikin state document. Placement follows the physics, confirmed on a live
 # multi-split:
 #   * Per indoor unit (each unit reports its own value): energy totals, power,
-#     and fan speed (each unit's own fan; live data shows per-member values).
+#     fan speed, and refrigerant (liquid-line) temperature — live data shows
+#     per-member values for all of them.
 #   * Also aggregated as one SUM per outdoor unit (the system total): the
 #     outdoor_* variants below (scope: outdoor).
 #   * Shared outdoor values, identical on every indoor unit, shown ONCE per
-#     outdoor unit: compressor frequency, refrigerant temperature.
+#     outdoor unit: compressor frequency.
 
 # Per indoor unit (own value).
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
@@ -484,6 +485,19 @@
   category: diagnostic
   precision: 0
 
+# Each indoor unit's own liquid-line (coil) temperature — live data shows
+# per-member values (e.g. 20/18/14 °C at the same moment), not a shared reading.
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: refrigerant_temperature
+  name: Refrigerant temperature
+  name_de: Kältemitteltemperatur
+  platform: sensor
+  device_class: temperature
+  unit: "°C"
+  state_class: measurement
+  category: diagnostic
+  precision: 1
+
 # System total per outdoor unit (sum of the per-unit values above).
 - match: {managementPointType: climateControl, characteristic: faikinLocal}
   topic: outdoor_energy_total
@@ -537,18 +551,6 @@
   platform: sensor
   device_class: frequency
   unit: Hz
-  state_class: measurement
-  scope: outdoor
-  category: diagnostic
-  precision: 1
-
-- match: {managementPointType: climateControl, characteristic: faikinLocal}
-  topic: refrigerant_temperature
-  name: Refrigerant temperature
-  name_de: Kältemitteltemperatur
-  platform: sensor
-  device_class: temperature
-  unit: "°C"
   state_class: measurement
   scope: outdoor
   category: diagnostic

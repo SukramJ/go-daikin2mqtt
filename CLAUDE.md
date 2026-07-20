@@ -160,11 +160,12 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   reading → published **per indoor unit** (`energy_total`, `power_consumption`; energy **held** per
   unit in `lastEnergy` so an idle unit reading 0 doesn't reset its `total_increasing` counter) **and**
   as a **system SUM per outdoor unit** (`outdoor_power`, `outdoor_energy_total`, … — `scope: outdoor`;
-  energy sum never republished as 0). The fan is each unit's own too: `fan_speed` per indoor unit in
-  rpm (= Faikin `fanfreq` Hz × 60; the S21 `RL` report is the responding unit's own fan — 0.8.2
-  fixed the earlier outdoor-shared misclassification). Values that are identical on every indoor
-  unit are shared outdoor-unit readings shown **once** per outdoor unit (`scope: outdoor`,
-  aggregated **max**): compressor frequency, refrigerant temperature, outdoor temperature. **Faikin dependency:** the firmware's
+  energy sum never republished as 0). The fan and the liquid-line temperature are each unit's own too:
+  `fan_speed` per indoor unit in rpm (= Faikin `fanfreq` Hz × 60; the S21 `RL` report is the
+  responding unit's own fan) and `refrigerant_temperature` per indoor unit (its own coil reading) —
+  0.8.2 fixed the earlier outdoor-shared misclassification of both. Values that are identical on
+  every indoor unit are shared outdoor-unit readings shown **once** per outdoor unit
+  (`scope: outdoor`, aggregated **max**): compressor frequency, outdoor temperature. **Faikin dependency:** the firmware's
   `ha.enable` gates *both* its own HA discovery *and* the AC fields in `state/<host>`
   (`revk_state_extra` returns early when off), so local reads require `ha.enable = true`; duplicate
   Faikin entities are avoided by redirecting its `topic.ha` prefix, not by disabling HA — see

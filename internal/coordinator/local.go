@@ -27,11 +27,12 @@ var localOnlyTopics = []string{
 	"econo_mode", "streamer", "outdoor_silent", "demand_control",
 	// Telemetry the cloud does not expose, read straight off the Faikin state.
 	// Per indoor unit (own value):
-	"energy_total", "heating_energy_total", "cooling_energy_total", "power_consumption", "fan_speed",
+	"energy_total", "heating_energy_total", "cooling_energy_total", "power_consumption",
+	"fan_speed", "refrigerant_temperature",
 	// System total per outdoor unit (sum):
 	"outdoor_energy_total", "outdoor_heating_energy_total", "outdoor_cooling_energy_total", "outdoor_power",
 	// Shared outdoor values (identical per unit) → one per outdoor unit:
-	"compressor_frequency", "refrigerant_temperature",
+	"compressor_frequency",
 }
 
 // faikinToDaikinMode is the inverse of [daikinToFaikinMode]: it maps a Faikin
@@ -299,9 +300,8 @@ func (c *Coordinator) publishOutdoorShared(ctx context.Context, deviceID string)
 		// System total (sum across the indoor units).
 		"outdoor_power": strconv.Itoa(agg.powerW),
 		// Shared outdoor values (identical on every unit) → one entity.
-		"compressor_frequency":    c.fmtFloat("compressor_frequency", agg.compHz),
-		"refrigerant_temperature": c.fmtFloat("refrigerant_temperature", agg.refrigerantC),
-		"outdoor_temperature":     c.fmtFloat("outdoor_temperature", agg.outsideC),
+		"compressor_frequency": c.fmtFloat("compressor_frequency", agg.compHz),
+		"outdoor_temperature":  c.fmtFloat("outdoor_temperature", agg.outsideC),
 	}
 	// Energy is a lifetime total (total_increasing); never publish 0 — when no
 	// member currently reports it (all idle), keep the retained last value
@@ -403,7 +403,7 @@ type outdoorAggregate struct {
 	powerful                             bool // any member boosting (drives econo save/restore)
 	demand                               int
 	powerW                               int     // sum across units (system total)
-	compHz, refrigerantC, outsideC       float64 // shared outdoor values (max)
+	compHz, outsideC                     float64 // shared outdoor values (max)
 	energyWh, energyHeatWh, energyCoolWh int64   // sum across units (system total)
 }
 
@@ -463,7 +463,6 @@ func (c *Coordinator) localOutdoorAgg(deviceID string) outdoorAggregate {
 		}
 		agg.powerW += st.Consumption
 		agg.compHz = max(agg.compHz, st.Comp)
-		agg.refrigerantC = max(agg.refrigerantC, st.Liquid)
 		agg.outsideC = max(agg.outsideC, st.Outside)
 		e := c.lastEnergy[m]
 		totals = append(totals, e.total)
@@ -554,6 +553,8 @@ func (c *Coordinator) localStateMessages(deviceID string, st *faikin.State) map[
 		// Faikin reports the unit's own fan as rpm/60 (Hz, firmware default
 		// ha.fanrpm off); convert back to rpm for the fan_speed sensor.
 		"fan_speed": c.fmtFloat("fan_speed", st.FanFreq*60),
+		// The unit's own liquid-line (coil) temperature — per member, not shared.
+		"refrigerant_temperature": c.fmtFloat("refrigerant_temperature", st.Liquid),
 	}
 	e := c.heldEnergy(deviceID)
 	if e.total > 0 {
@@ -567,9 +568,8 @@ func (c *Coordinator) localStateMessages(deviceID string, st *faikin.State) map[
 	}
 	// outdoor_silent, econo_mode, demand_control, the outdoor-unit sums
 	// (outdoor_power, outdoor_*_energy_total) and the shared outdoor values
-	// (compressor frequency, refrigerant + outdoor temperature) are
-	// scope: outdoor and published group-aggregated by publishOutdoorShared,
-	// not per unit.
+	// (compressor frequency, outdoor temperature) are scope: outdoor and
+	// published group-aggregated by publishOutdoorShared, not per unit.
 	if label, ok := c.localOperationModeLabel(st.Mode); ok {
 		out["operation_mode"] = label
 	}

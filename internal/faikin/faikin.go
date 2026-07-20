@@ -44,7 +44,7 @@ type State struct {
 	Temp    float64 `json:"temp"`    // room temperature °C
 	Hum     float64 `json:"hum"`     // relative humidity %
 	Outside float64 `json:"outside"` // outdoor temperature °C
-	Liquid  float64 `json:"liquid"`  // refrigerant liquid-line temperature °C
+	Liquid  float64 `json:"liquid"`  // refrigerant liquid-line temperature °C, this unit's own coil (per member, not shared)
 	Demand  int     `json:"demand"`  // demand-control limit %
 
 	// Live telemetry the cloud does not expose (local-only).

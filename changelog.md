@@ -17,10 +17,19 @@
   aggregate is gone. `compressor_frequency` stays as the genuinely shared
   outdoor value.
 
-  **Migration:** the old `fan_frequency` sensor on the outdoor unit is removed
-  automatically (discovery orphan cleanup). Its stale retained state topic
-  (`…/fan_frequency/state`) on the broker is harmless; the new
-  `fan_speed` sensors appear on each indoor unit without any action.
+- **Refrigerant temperature is per indoor unit again too.** Same 0.2.19
+  misclassification, same live disproof: the Faikin `liquid` field is each
+  unit's **own** liquid-line (coil) temperature — members read 20/18/14 °C at
+  the same moment — so the single max-aggregated outdoor sensor showed an
+  arbitrary unit's value (often an idle one's). `refrigerant_temperature` is
+  now a diagnostic sensor on each indoor unit; only `compressor_frequency` and
+  `outdoor_temperature` remain as genuinely shared outdoor readings.
+
+  **Migration:** the old `fan_frequency` and outdoor `refrigerant_temperature`
+  sensors on the outdoor unit are removed automatically (discovery orphan
+  cleanup). Their stale retained state topics on the broker are harmless; the
+  new per-unit `fan_speed` and `refrigerant_temperature` sensors appear on each
+  indoor unit without any action.
 
 # Version 0.8.1 (2026-07-19)
 
