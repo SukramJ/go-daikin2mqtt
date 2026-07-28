@@ -177,6 +177,9 @@ also triaged and analyzed with agentic help. Every change is still reviewed
 by a human maintainer and has to pass the project's tests before it lands —
 the AI accelerates the work, it does not replace the review gate.
 
+Contributions made with AI assistance are welcome under the same terms — see
+[`AI_POLICY.md`](./AI_POLICY.md) for the rules that apply.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).
