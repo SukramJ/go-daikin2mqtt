@@ -4,6 +4,19 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.10.0 (2026-08-13)
+
+New: **the outdoor unit can be scheduled.**
+
+- Silent mode, eco and the power limit act on the shared compressor rather than
+  on one room, so they now have their own schedule type. An outdoor schedule
+  targets the outdoor unit and its settings reach every indoor unit on it.
+- Each setting can be left alone, so a night block can switch on the silent
+  mode without also changing the power limit.
+- The outdoor units appear in the calendar's device picker, and two new
+  diagnostic sensors report the active outdoor block and its next change.
+- Existing schedules are unaffected and keep working as indoor schedules.
+
 # 0.9.1 (2026-08-13)
 
 Fix: **the Schedules view showed no selection.**

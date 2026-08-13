@@ -27,6 +27,7 @@ signatures. For the control backend it builds on, see
 
 | Aspect | Decision |
 | --- | --- |
+| Scope | Two schedule **types**: `indoor` drives a room's power/mode/setpoint, `outdoor` drives the settings that act on the shared compressor. |
 | Time model | **Blocks with a target state.** A block occupies a time range and sets power / HVAC mode / setpoint at its start. The state holds until the next block; a gap means "no intervention". |
 | Resolution | **30 minutes** — the week is a ring of 336 slots. |
 | Actions | **Power + HVAC mode + setpoint.** Fan, swing and presets are deliberately out of scope; the `action` object is open for them. |
@@ -40,6 +41,33 @@ signatures. For the control backend it builds on, see
 
 `internal/schedule/model.go` defines the persisted shape. The file is the
 source of truth; the engine only holds a derived resolution in memory.
+
+An outdoor schedule looks the same except for its type, its targets and the
+fields its blocks carry:
+
+```jsonc
+{
+  "id": "nachtruhe",
+  "name": "Nachtruhe",
+  "type": "outdoor",
+  "enabled": true,
+  "priority": 0,
+  "targets": [ { "outdoor_serial": "0J723746" } ],
+  "blocks": [
+    {
+      "id": "b1",
+      "label": "leise",
+      "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+      "start": "22:00",
+      "end": "06:00",
+      "action": {
+        "outdoor_silent": true,   // omit a field to leave that setting alone
+        "demand": 70              // econo would be the third
+      }
+    }
+  ]
+}
+```
 
 ```jsonc
 // $XDG_CONFIG_HOME/daikin2mqtt/schedules.json — 0600, written atomically
@@ -76,6 +104,28 @@ source of truth; the engine only holds a derived resolution in memory.
   ]
 }
 ```
+
+### Two types, not one schedule with optional fields
+
+A block that could carry both an indoor and an outdoor action would be half
+meaningless for whichever target it reached — "21.5 °C" says nothing to an
+outdoor unit, and "silent mode" says nothing to one room. So `type` is part of
+the schedule, validation enforces the split in both directions (action fields
+and targets), and the editor shows only the fields that apply.
+
+The type is fixed once a schedule exists: changing it would invalidate every
+block it already carries.
+
+**Targets and the resolver.** A target addresses either a device (`device_id`)
+or an outdoor unit (`outdoor_serial`), and `Target.Key()` maps both onto one
+opaque string — an outdoor key is namespaced `outdoor:<serial>` so a serial can
+never collide with a device id. Keeping resolution keyed on that string is what
+lets the ring, the priority rules, the catch-up window and the idempotence
+cache stay **literally unchanged** for both types.
+
+**Backwards compatible.** A `schedules.json` written by 0.9.x has no `type` and
+no outdoor targets; the empty value reads as `indoor`, so it keeps working
+untouched.
 
 Rationale:
 
@@ -189,6 +239,28 @@ What that inherits:
 | Sequential drain + cloud lock | Four devices at 06:00 produce an ordered series, not parallel requests |
 | `noteWrite` / `modeCache` | The mode-scoped setpoint path hits the mode just set, without waiting for the next poll |
 | powerful ⇄ eco | Untouched — the scheduler writes no presets and does not trigger the eco-suspend state machine |
+
+### Outdoor schedules use the existing fan-out
+
+`outdoor_silent`, `econo_mode` and `demand_control` are `scope: outdoor`
+catalog topics, so `handleWrite` already fans every write out to each indoor
+unit of the group and holds the optimistic value until a status confirms it.
+The applier therefore addresses **one** member — looping here as well would
+write each setting twice — and picks it deterministically (first sorted member
+with a known management point) so the choice does not flap between polls.
+
+Each of the three fields is optional: unset means "leave this alone", so a
+night block can enable the silent mode without also resetting the demand limit.
+econo interacts with the existing powerful ⇄ econo enforcement exactly as a
+manual write does, including econo being restored after a boost ends.
+
+The status sensors for an outdoor schedule are their own `scope: outdoor`
+catalog entries, so they collapse into a single pair on the outdoor unit. Their
+state is published on **every** member's topic, because which member's topic
+the collapsed entity reads from depends on the discovery order — the same
+reason the outdoor telemetry is published that way. They are only published
+when an outdoor schedule exists, so an indoor-only installation does not grow
+two empty sensors.
 
 ### Local-first coverage
 
@@ -333,12 +405,12 @@ uses.
 
 | Route | Purpose |
 | --- | --- |
-| `GET /api/schedules` | All schedules, known devices, localised HVAC-mode options, current revision |
+| `GET /api/schedules` | All schedules, localised HVAC-mode options, the schedulable outdoor units, current revision |
 | `POST /api/schedules` | Create; `201` with the generated slug |
 | `PUT /api/schedules/{id}` | Replace; `409` on a stale revision |
 | `DELETE /api/schedules/{id}` | Delete; also clears the retained HA config |
 | `POST /api/schedules/{id}/enable` | Toggle only — the same path the HA switch takes |
-| `GET /api/schedules/preview?device=…` | Resolved week: 336 slots, effective blocks, next switch point, mode conflicts |
+| `GET /api/schedules/preview?target=…` | Resolved week for a device id or `outdoor:<serial>`: effective blocks, next switch point, mode conflicts (indoor only). `?device=` stays accepted for an SPA cached from 0.9.x |
 
 The calendar renders exclusively from `preview`, so the browser never
 re-implements the resolution rules — the Go engine stays the single source
@@ -352,6 +424,8 @@ daikin/scheduler/<scheduleID>/enabled/set                    # subscribed
 daikin/<deviceID>/<embeddedID>/schedule_state/state          # "Werktag · Absenkung"
 daikin/<deviceID>/<embeddedID>/schedule_state/attributes     # structured, language-independent
 daikin/<deviceID>/<embeddedID>/schedule_next_change/state    # 2026-08-13T16:30:00+02:00
+daikin/<deviceID>/<embeddedID>/outdoor_schedule_state/state       # scope: outdoor → one entity per outdoor unit
+daikin/<deviceID>/<embeddedID>/outdoor_schedule_next_change/state # published on every member (see above)
 homeassistant/switch/daikin_schedule_<scheduleID>/config     # retained
 ```
 
@@ -446,9 +520,11 @@ daemon.
   high-priority schedule switched by hand or by a Home Assistant automation.
 - **Sun events, presence, conditions** — these belong in HA automations that
   operate the schedule switch. The scheduler stays a weekly clock.
-- **Fan, swing and presets** — the `action` object is open for them, but the
-  preset interactions (eco suspend, powerful mutual exclusion) would have to
-  be reasoned through first.
+- **Fan and swing** — the `action` object is open for them.
+- **powerful on a schedule** — it is per indoor unit but drives the shared
+  compressor and is mutually exclusive with econo, which an outdoor schedule
+  now sets. Scheduling both would need the suspend/restore state machine to
+  arbitrate between two automated writers, not just between a user and one.
 - **Continuous enforcement** — deliberately not implemented; see the override
   decision. If wanted for locally driven devices (where writes are free), it
   would be a per-schedule flag, not a global mode.

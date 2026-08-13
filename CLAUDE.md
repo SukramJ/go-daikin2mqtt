@@ -225,6 +225,14 @@ switchable from HA. Full rationale in `docs/schedule-design.md`.
   are modelled by `faikinCommand`, so a mapped device is driven entirely locally (no
   ONECTA quota, no `scan_ignore` window). A device the poll has not resolved yields
   `ErrDeviceUnknown` ("not yet"); each completed poll calls `engine.Wake()`.
+- **Two schedule types.** `Schedule.Type` is `indoor` (default, and what a 0.9.x file
+  omits) or `outdoor`. An outdoor schedule targets an outdoor unit by serial and its
+  blocks set `outdoor_silent` / `econo` / `demand` (each optional: unset = leave alone);
+  validation rejects the fields and targets of the other type. `Target.Key()` maps both
+  onto one opaque string (`outdoor:<serial>`), which is why the ring, priorities,
+  catch-up and idempotence are literally the same code for both. Outdoor writes go to
+  **one** group member — the `scope: outdoor` topics already fan out in `handleWrite`,
+  so looping here would write everything twice.
 - **HA:** one switch per schedule on the daemon's own device (`daikin_scheduler`), plus
   the per-device sensors `schedule_state` / `schedule_next_change` (synthetic catalog
   entries like the refresh button). The switch topic

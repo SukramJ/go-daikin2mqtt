@@ -65,6 +65,9 @@ write-back commands from Home Assistant.
   manual change in between survives. Each schedule becomes a Home Assistant
   switch, and every device gets "active block" / "next change" sensors. On a
   Faikin-mapped device the switching is entirely local — no cloud quota.
+  The **outdoor unit** can be scheduled too, as its own schedule type: silent
+  mode, eco and the power limit are one knob on the shared compressor, so they
+  are set once per outdoor unit and fan out to every indoor unit on it.
   See [`docs/schedule-design.md`](./docs/schedule-design.md).
 - Optional diagnostic **web UI** with integrated OAuth (HA-ingress ready).
 - `daikin2mqtt-util` helper CLI (auth, devices, points, set, ratelimit,

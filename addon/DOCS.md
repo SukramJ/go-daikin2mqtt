@@ -79,6 +79,11 @@ seven-day calendar per device, and the list of schedules with their switches.
 - On devices mapped for **local-first mode** the switching goes to Faikin, so it
   costs no ONECTA requests at all. For cloud devices a block change costs up to
   three requests per device.
+- The **outdoor unit** has its own schedule type. Silent mode, eco and the
+  power limit act on the shared compressor rather than on one room, so an
+  outdoor schedule sets them once for the whole unit and they fan out to every
+  indoor unit on it. Each setting can be left alone, so a night block can
+  enable the silent mode without also changing the power limit.
 - The schedules are stored in `/data/schedules.json` and survive add-on updates.
 
 ## Local-first mode (optional)
