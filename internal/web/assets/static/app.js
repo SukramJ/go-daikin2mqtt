@@ -458,10 +458,22 @@ async function loadSchedules() {
 
 // loadScheduleDevices reuses api/devices — the same call the device browser
 // makes — so the picker needs no extra endpoint.
+//
+// Only devices with a climateControl management point can be scheduled: the
+// blocks write hvac_mode and temperature_setpoint, which live there. A gateway
+// (the Home Hub) has no such point and would only be an unselectable entry.
+// Devices already referenced by a schedule are kept regardless, so a plan never
+// becomes invisible because its device is momentarily unresolvable.
 async function loadScheduleDevices() {
   try {
     const devices = await fetchJSON("api/devices");
-    SCHED.devices = devices.map((d) => ({ id: d.id, name: d.name, model: d.model }));
+    const referenced = new Set();
+    for (const s of SCHED.schedules) for (const tgt of s.targets || []) referenced.add(tgt.device_id);
+    SCHED.devices = devices
+      .filter((d) =>
+        referenced.has(d.id) ||
+        (d.management_points || []).some((mp) => mp.type === "climateControl"))
+      .map((d) => ({ id: d.id, name: d.name, model: d.model }));
   } catch (e) {
     // The cloud may be unreachable; schedules still edit fine, the picker
     // just shows the ids it finds in the existing schedules.

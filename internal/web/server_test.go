@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -548,4 +549,79 @@ func literalI18nKeys(js string) []string {
 		}
 	}
 	return out
+}
+
+// TestStylesheetDefinesUsedClasses guards against the failure that shipped in
+// 0.9.0: the ".chip" rules were left behind when the schedule UI was ported,
+// so every toggle button (device picker, weekday and mode selectors) rendered
+// unstyled and the pressed state was invisible. Nothing else catches this —
+// missing CSS is not a syntax error and no test rendered the page.
+func TestStylesheetDefinesUsedClasses(t *testing.T) {
+	css, err := staticFS.ReadFile("assets/static/style.css")
+	if err != nil {
+		t.Fatalf("read style.css: %v", err)
+	}
+	html, err := staticFS.ReadFile("assets/index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	js, err := staticFS.ReadFile("assets/static/app.js")
+	if err != nil {
+		t.Fatalf("read app.js: %v", err)
+	}
+
+	used := map[string]bool{}
+	for _, v := range attrValues(string(html), "class=") {
+		for _, cls := range strings.Fields(v) {
+			used[cls] = true
+		}
+	}
+	for _, cls := range jsClassNames(string(js)) {
+		used[cls] = true
+	}
+
+	styled := string(css)
+	for cls := range used {
+		// A class assembled at runtime ("tone-" + tone) cannot be checked.
+		if cls == "" || strings.HasSuffix(cls, "-") {
+			continue
+		}
+		// The name must end at the selector boundary: a plain substring search
+		// would accept ".chips" (or ".chipXX") as a rule for "chip".
+		re := regexp.MustCompile(`\.` + regexp.QuoteMeta(cls) + `(?:[^A-Za-z0-9_-]|$)`)
+		if !re.MatchString(styled) {
+			t.Errorf("class %q is used in the UI but has no rule in style.css", cls)
+		}
+	}
+}
+
+// jsClassNames extracts the literal class argument of el(tag, class, …) calls,
+// which is how app.js builds every element.
+func jsClassNames(js string) []string {
+	var out []string
+	rest := js
+	for {
+		i := strings.Index(rest, "el(\"")
+		if i < 0 {
+			return out
+		}
+		rest = rest[i+4:]
+		// Skip the tag name.
+		j := strings.IndexByte(rest, '"')
+		if j < 0 {
+			return out
+		}
+		rest = rest[j+1:]
+		// The class argument follows as `, "…"` when it is a literal.
+		if !strings.HasPrefix(rest, ", \"") {
+			continue
+		}
+		rest = rest[3:]
+		k := strings.IndexByte(rest, '"')
+		if k < 0 {
+			return out
+		}
+		out = append(out, strings.Fields(rest[:k])...)
+		rest = rest[k+1:]
+	}
 }
