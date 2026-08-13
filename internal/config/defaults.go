@@ -43,6 +43,11 @@ const (
 	// command topics.
 	DefaultLocalFaikinPort   = 1883
 	DefaultLocalFaikinPrefix = "Faikout"
+
+	// DefaultScheduleCatchup is one scheduling slot: a restart inside the slot
+	// that just started still establishes its state, while anything older is
+	// left alone because a manual change may have happened since.
+	DefaultScheduleCatchup = 1800
 )
 
 // applyDefaults fills in any field whose YAML+env round left it at its
@@ -90,5 +95,8 @@ func applyDefaults(c *Config) {
 	}
 	if c.LocalFaikinPrefix == "" {
 		c.LocalFaikinPrefix = DefaultLocalFaikinPrefix
+	}
+	if c.ScheduleCatchup == 0 {
+		c.ScheduleCatchup = DefaultScheduleCatchup
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ValidationError is returned by [Validate] when the loaded config fails
@@ -115,6 +116,18 @@ func Validate(c *Config) error {
 		}
 		if len(c.LocalDeviceMap) == 0 {
 			add("LOCAL_MODE is on but LOCAL_DEVICE_MAP is empty (no device → Faikin host mapping)")
+		}
+	}
+
+	// --- Weekly schedules ---
+	// Only enforced when the scheduler is on, so an unused setting cannot block
+	// startup of an installation that does not use it.
+	if c.ScheduleEnable {
+		rangeCheck("SCHEDULE_CATCHUP", c.ScheduleCatchup, 0, 86400)
+		if c.ScheduleTimezone != "" {
+			if _, err := time.LoadLocation(c.ScheduleTimezone); err != nil {
+				add("SCHEDULE_TIMEZONE %q is not a known IANA zone: %v", c.ScheduleTimezone, err)
+			}
 		}
 	}
 

@@ -31,6 +31,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/faikin"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
+	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
 )
 
 // CloudClient is the slice of the cloud client the coordinator needs.
@@ -78,6 +79,9 @@ type Coordinator struct {
 	econoLatch      map[string]bool              // outdoor group key -> last reliable econo state (see localOutdoorAgg)
 	lastDiscSig     string                       // signature of the last published discovery set
 	reconcileGate   sync.Mutex                   // try-locked gate so only one orphan reconcile runs at a time
+	// schedule is the weekly-programme engine, attached by AttachScheduler.
+	// nil (the default) leaves the scheduler disabled.
+	schedule scheduler
 }
 
 // econoSuspendState tracks the powerful<->econo save/restore per outdoor group.
@@ -233,6 +237,8 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	}
 	// The manual cloud-refresh button: a daemon action, not a device value.
 	points = append(points, c.refreshPoints(devices)...)
+	// The scheduler's per-device status sensors (only when it is enabled).
+	points = append(points, c.schedulePoints(devices)...)
 
 	if c.deps.HASS != nil {
 		infos := deviceInfos(devices)
@@ -264,6 +270,13 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	c.publishClimateAux(ctx, devices)
 	c.deps.Logger.Info("coordinator.published",
 		slog.Int("devices", len(devices)), slog.Int("points", published))
+
+	// The device caches (climateEmbedded, modeCache) are now populated, so a
+	// schedule block that could not be applied before can be applied now. The
+	// engine re-evaluates idempotently, so this costs nothing when nothing is due.
+	if eng := c.scheduleEngine(); eng != nil {
+		eng.Wake()
+	}
 }
 
 // climateState accumulates the inputs to the combined HA hvac mode.
@@ -368,7 +381,9 @@ func (c *Coordinator) updateModeCache(devices []model.Device) {
 // maybePublishDiscovery (re)publishes discovery only when the topic set
 // changed, since configs are retained.
 func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []process.Point, infos map[string]hass.DeviceInfo, climateInfos map[string]hass.ClimateInfo) {
-	sig := discoverySignature(points)
+	// The schedule set is part of the signature: adding, renaming or deleting a
+	// schedule changes the published entities without changing any point.
+	sig := discoverySignature(points) + c.scheduleSignature()
 	c.mu.Lock()
 	changed := sig != c.lastDiscSig
 	c.mu.Unlock()
@@ -530,6 +545,14 @@ func (c *Coordinator) drainWrites(ctx context.Context) error {
 }
 
 func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
+	// The reserved "scheduler" device carries the daemon's own schedule
+	// switches, not a Daikin device. Its topics fit the same /set filter, so
+	// they arrive here and are branched off before any catalog lookup.
+	if req.deviceID == schedule.SchedulerDeviceID {
+		c.handleSchedulerWrite(req)
+		return
+	}
+
 	// Synthetic climate-entity topics map to onOffMode/operationMode/fanControl/
 	// powerfulMode rather than a single catalog characteristic.
 	switch req.topic {
