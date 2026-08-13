@@ -4,6 +4,20 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.10.1 (2026-08-13)
+
+Fix: **the UI kept looking unchanged after an update.**
+
+- The add-on's stylesheet and script were served without cache validators, so
+  browsers kept using the previous copy after an upgrade and UI fixes appeared not
+  to ship. They now revalidate against the build version. If the schedule view
+  still looks wrong after this update, reload once with Ctrl-Shift-R.
+- An empty orange bar above the calendar (the conflict banner) is gone.
+- The weekday buttons read Mo/Di/Mi/… instead of the ambiguous single letters.
+- The calendar now names the unit it belongs to, so it is never unclear which
+  device is being edited.
+- The rate-limit panel no longer shows "undefined / undefined".
+
 # 0.10.0 (2026-08-13)
 
 New: **the outdoor unit can be scheduled.**
