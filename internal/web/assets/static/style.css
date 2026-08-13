@@ -106,6 +106,8 @@ html, body {
   margin-bottom: 18px;
 }
 .topbar-title h1 { margin: 0; font-size: 22px; }
+/* Holds the status badges; a flex row so several can sit side by side. */
+.topbar-status { display: flex; align-items: center; gap: 8px; }
 
 /* ---------- cards ---------- */
 .section { margin-bottom: 34px; scroll-margin-top: 16px; }
@@ -201,6 +203,9 @@ html, body {
 }
 .dp-table td { padding: 6px 8px; border-bottom: 1px solid var(--card-border); vertical-align: top; }
 .dp-value { font-family: var(--mono); }
+/* The characteristic column carries a name plus its raw key, so give it room
+   instead of letting the value column squeeze it. */
+.dp-name { min-width: 150px; }
 .dp-table tr.clickable { cursor: pointer; }
 .dp-table tr.clickable:hover td { background: var(--bg-elev); }
 
@@ -247,6 +252,43 @@ html, body {
   .nav { flex-direction: row; flex-wrap: wrap; }
   .sidebar-foot { margin: 0; flex-direction: row; }
 }
+
+/* ---------- chips (toggle buttons) ---------- */
+/* Used for the device picker, weekday/mode/state selectors and the target
+   list. The pressed state is the only thing distinguishing a selected chip,
+   so it must be unmistakable — filled, not just tinted. */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+/* Label in front of a chip group, so the row reads as "Device: [a] [b]"
+   rather than as an unexplained set of buttons. */
+.picker-label {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.chip {
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.2;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--bg-elev);
+  color: var(--text-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover { color: var(--text); border-color: var(--primary); }
+.chip[aria-pressed="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+.chip[aria-pressed="true"]:hover { filter: brightness(1.08); }
+.chip:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ---------- weekly schedules ---------- */
 /* HVAC-mode colours. Semantic, not accents: they encode what a block does,
