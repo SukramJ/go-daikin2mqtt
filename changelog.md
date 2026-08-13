@@ -1,3 +1,58 @@
+# Version 0.10.1 (2026-08-13)
+
+## What's Changed
+
+### Fixed
+
+- **The UI kept looking unchanged after an upgrade.** Files embedded with
+  `go:embed` carry no modification time, so the server sent neither
+  `Last-Modified` nor `ETag` for the stylesheet and the script — and a response
+  with no validator and no `Cache-Control` is cached heuristically. Browsers
+  therefore kept serving the previous `style.css` and `app.js` after the daemon
+  was updated, which made every UI fix look like it had not shipped. Assets now
+  carry `Cache-Control: no-cache` and an `ETag` derived from the build version,
+  so the browser revalidates and gets a cheap `304` when nothing changed. **If
+  the schedule view still looks wrong after updating, reload once with
+  Ctrl-Shift-R — this release is the last one that needs it.**
+
+- **An empty orange bar sat above the calendar.** The conflict banner's own
+  rule set `display: flex`, which outranks the `hidden` attribute the script
+  sets, so the banner was permanently visible with no content. `[hidden]` is
+  now enforced globally, which rules out the whole class of bug rather than
+  this one instance.
+
+- **The weekday buttons were ambiguous in German.** They used the "narrow"
+  locale format, in which Monday/Wednesday, Tuesday/Thursday and
+  Saturday/Sunday are all rendered as the same single letter (M D M D F S S).
+  They now use the short format (Mo, Di, Mi, …).
+
+- **The rate-limit panel showed "undefined / undefined".** `/api/ratelimit`
+  serialised Go field names (`LimitMinute`) while the UI reads snake_case. The
+  test that covered this decoded the response back into the same Go struct, so
+  it passed regardless of the field names on the wire; it now checks the names
+  the UI actually reads.
+
+- The edit button of a schedule wrapped onto its own line in the sidebar, and
+  the summary line broke across three lines.
+
+### Changed
+
+- **The calendar now names the unit it belongs to**, directly above the grid.
+  The device picker scrolls out of sight on a long page, which left it
+  ambiguous which unit was being edited; the heading also states whether it is
+  an indoor or an outdoor schedule and how many active schedules apply.
+- The legend only explains the colours the current view can show — an outdoor
+  calendar lists no HVAC modes.
+- A block shows its own label first and the schedule name second: the label is
+  what distinguishes the blocks of one schedule, and it was the part being
+  truncated in narrow columns.
+
+### Internal
+
+- A manual UI harness (`UI_SERVER=1 go test ./internal/web/ -run
+  TestManualUIServer`) serves the real SPA against fixture devices, which is
+  how the above were found. It is skipped by default.
+
 # Version 0.10.0 (2026-08-13)
 
 ## What's Changed

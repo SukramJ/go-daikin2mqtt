@@ -36,6 +36,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
 	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
+	"github.com/SukramJ/go-daikin2mqtt/internal/version"
 )
 
 // staticFS holds the compiled single-page app. It is hand-written vanilla
@@ -180,9 +181,31 @@ func (s *Server) routes() *http.ServeMux {
 		// correctly built binary.
 		panic("web: embed sub fs: " + err.Error())
 	}
-	mux.Handle("GET /", http.FileServerFS(sub))
+	mux.Handle("GET /", revalidating(http.FileServerFS(sub)))
 
 	return mux
+}
+
+// revalidating makes the browser check back before reusing an embedded asset.
+//
+// Files in an embed.FS carry no modification time, so net/http sends neither
+// Last-Modified nor ETag — and a response with no validator and no
+// Cache-Control is cached heuristically, which in practice means a browser
+// keeps serving the previous style.css and app.js after the daemon is
+// upgraded. The symptom is a UI that looks unchanged no matter what the new
+// version fixed.
+//
+// The build version is the right validator: the assets are baked into the
+// binary, so they can only change when it does. With an ETag set before the
+// file server runs, it answers a conditional request with 304 itself, so the
+// revalidation costs a round trip and no body.
+func revalidating(next http.Handler) http.Handler {
+	etag := `"` + version.Version + `"`
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("ETag", etag)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // withAuth wraps next with HTTP Basic auth when both credentials are

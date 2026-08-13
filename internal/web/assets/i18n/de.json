@@ -125,5 +125,7 @@
   "sched.keep": "nicht setzen",
   "sched.outdoorHint": "Diese Einstellungen wirken auf das gemeinsame Außengerät und damit auf alle daran hängenden Innengeräte. Was auf „nicht setzen“ steht, wird nicht geschrieben.",
   "sched.noOutdoor": "Noch kein Außengerät bekannt — es erscheint nach dem ersten Cloud-Poll.",
-  "sched.noDevices": "Noch keine Geräte bekannt."
+  "sched.noDevices": "Noch keine Geräte bekannt.",
+  "sched.noSelection": "Keine Einheit gewählt",
+  "sched.activePlans": "{n} aktive(r) Plan/Pläne"
 }

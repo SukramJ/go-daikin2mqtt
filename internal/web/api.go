@@ -11,6 +11,7 @@ import (
 	"mime"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
@@ -209,13 +210,38 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, rootRedirect(r), http.StatusFound) //nolint:gosec // internal relative redirect only
 }
 
+// rateLimitView is the snake_case projection of client.RateLimit the SPA
+// reads. The client struct carries no JSON tags — encoding it directly emitted
+// Go field names (LimitMinute), which the UI does not know, so the status
+// panel showed "undefined / undefined". Tagging the client struct would make
+// an internal type answer to the web UI's field names; a view here keeps that
+// coupling in the layer that needs it.
+type rateLimitView struct {
+	LimitMinute     int    `json:"limit_minute"`
+	RemainingMinute int    `json:"remaining_minute"`
+	LimitDay        int    `json:"limit_day"`
+	RemainingDay    int    `json:"remaining_day"`
+	RetryAfter      int    `json:"retry_after"`
+	ResetAt         string `json:"reset_at"`
+	Updated         string `json:"updated"`
+}
+
 // handleRateLimit returns the current rate-limit accounting snapshot.
 func (s *Server) handleRateLimit(w http.ResponseWriter, _ *http.Request) {
 	if s.client == nil {
 		writeError(w, http.StatusServiceUnavailable, "client unavailable")
 		return
 	}
-	writeJSON(w, http.StatusOK, s.client.RateLimit())
+	rl := s.client.RateLimit()
+	writeJSON(w, http.StatusOK, rateLimitView{
+		LimitMinute:     rl.LimitMinute,
+		RemainingMinute: rl.RemainingMinute,
+		LimitDay:        rl.LimitDay,
+		RemainingDay:    rl.RemainingDay,
+		RetryAfter:      rl.RetryAfter,
+		ResetAt:         rl.ResetAt.Format(time.RFC3339),
+		Updated:         rl.Updated.Format(time.RFC3339),
+	})
 }
 
 // deviceView is the JSON shape returned by /api/devices.
