@@ -538,11 +538,32 @@ async function refreshPreview() {
 
 function renderSchedules() {
   renderScheduleDevices();
+  renderCalTitle();
   renderScheduleList();
   renderCalendar();
   renderScheduleStatus();
   renderConflicts();
   renderLegend();
+}
+
+// renderCalTitle names the unit the calendar belongs to. The picker scrolls
+// out of sight on a long page; this sits directly above the grid, so the view
+// is never ambiguous about which unit is being edited.
+function renderCalTitle() {
+  const title = document.getElementById("cal-target");
+  const sub = document.getElementById("cal-target-sub");
+  if (!SCHED.target) {
+    title.textContent = t("sched.noSelection");
+    sub.textContent = "";
+    return;
+  }
+  title.textContent = targetName(SCHED.target);
+  const outdoor = isOutdoorKey(SCHED.target);
+  const n = SCHED.schedules.filter(
+    (s) => s.enabled && (s.targets || []).some((x) => targetKey(x) === SCHED.target)
+  ).length;
+  sub.textContent = (outdoor ? t("sched.typeOutdoor") : t("sched.typeIndoor")) +
+    " · " + tf("sched.activePlans", { n });
 }
 
 function renderScheduleDevices() {
@@ -629,6 +650,7 @@ function renderScheduleList() {
 
     const sub = el("span", "sub",
       tf("sched.summary", { prio: s.priority, dev: targets.length, blocks: (s.blocks || []).length }));
+    sub.title = (s.targets || []).map((x) => targetName(targetKey(x))).join(", ");
 
     row.append(nm, knob, sub);
     row.addEventListener("click", () => toggleSchedule(s));
@@ -641,28 +663,31 @@ function renderScheduleList() {
       openPlanDialog(s);
     });
 
-    const wrap = el("div", "inline");
-    wrap.style.cssText = "align-items:stretch;gap:4px";
+    const wrap = el("div", "sched-item");
     wrap.append(row, edit);
     host.appendChild(wrap);
   }
 }
 
+// renderLegend explains only the colours the current view can actually show:
+// an outdoor calendar has no HVAC modes, so listing them would be noise.
 function renderLegend() {
   const host = document.getElementById("sched-legend");
   host.innerHTML = "";
-  for (const m of SCHED.modes) {
+  const entry = (color, text) => {
     const s = el("span");
     const i = el("i");
-    i.style.background = MODE_COLOR[m.value] || MODE_COLOR.auto;
-    s.append(i, document.createTextNode(m.label));
+    i.style.background = color;
+    s.append(i, document.createTextNode(text));
     host.appendChild(s);
+  };
+
+  if (isOutdoorKey(SCHED.target)) {
+    entry("var(--mode-outdoor)", t("sched.typeOutdoor"));
+  } else {
+    for (const m of SCHED.modes) entry(MODE_COLOR[m.value] || MODE_COLOR.auto, m.label);
+    entry(MODE_COLOR.off, t("sched.off"));
   }
-  const off = el("span");
-  const oi = el("i");
-  oi.style.background = MODE_COLOR.off;
-  off.append(oi, document.createTextNode(t("sched.off")));
-  host.appendChild(off);
 
   const ghost = el("span");
   const gi = el("i");
@@ -768,7 +793,9 @@ function effectiveEl(seg) {
   btn.style.setProperty("--c", segColor(seg));
   placeBlock(btn, toMin(seg.from), toMin(seg.to));
   btn.appendChild(el("b", null, blockSummary(seg)));
-  btn.appendChild(el("span", null, seg.schedule_name + (seg.label ? " · " + seg.label : "")));
+  // Label first: it is what distinguishes the blocks of one schedule, and the
+  // schedule name repeats in every block anyway (and is what gets truncated).
+  btn.appendChild(el("span", null, seg.label ? seg.label + " · " + seg.schedule_name : seg.schedule_name));
   btn.title = seg.schedule_name + " · " + seg.from + "–" + seg.to +
     (seg.hvac_mode ? " · " + modeLabel(seg.hvac_mode) : "");
   btn.addEventListener("click", () => {
@@ -1127,7 +1154,10 @@ function buildOutdoorBlockEditor(b) {
 // dayChips builds the weekday selector shared by both block editors.
 function dayChips(b) {
   const days = el("div", "inline");
-  dayNames("narrow").forEach((n, i) => {
+  // "short" rather than "narrow": German narrow names are M D M D F S S, in
+  // which Monday/Wednesday, Tuesday/Thursday and Saturday/Sunday are
+  // indistinguishable.
+  dayNames("short").forEach((n, i) => {
     const key = SCHED.days[i];
     const c = el("button", "chip", n);
     c.type = "button";

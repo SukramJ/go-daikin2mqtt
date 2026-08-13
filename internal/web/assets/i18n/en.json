@@ -125,5 +125,7 @@
   "sched.keep": "leave alone",
   "sched.outdoorHint": "These act on the shared outdoor unit and apply to every indoor unit on it. Anything left on “leave alone” is not written.",
   "sched.noOutdoor": "No outdoor unit known yet — it appears after the first cloud poll.",
-  "sched.noDevices": "No devices known yet."
+  "sched.noDevices": "No devices known yet.",
+  "sched.noSelection": "No unit selected",
+  "sched.activePlans": "{n} active schedule(s)"
 }

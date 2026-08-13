@@ -370,11 +370,15 @@ func TestRateLimitEndpoint(t *testing.T) {
 
 	res, _ := http.Get(ts.URL + "/api/ratelimit")
 	defer func() { _ = res.Body.Close() }()
-	var rl client.RateLimit
+	// Decode into a map, not back into client.RateLimit: a round trip through
+	// the same struct passes no matter what the field names are on the wire,
+	// which is exactly how the snake_case mismatch survived until the UI
+	// showed "undefined / undefined".
+	var rl map[string]any
 	if err := json.NewDecoder(res.Body).Decode(&rl); err != nil {
 		t.Fatal(err)
 	}
-	if rl.LimitMinute != 200 || rl.RemainingMinute != 199 {
+	if rl["limit_minute"] != float64(200) || rl["remaining_minute"] != float64(199) {
 		t.Errorf("ratelimit = %+v", rl)
 	}
 }
@@ -623,5 +627,76 @@ func jsClassNames(js string) []string {
 		}
 		out = append(out, strings.Fields(rest[:k])...)
 		rest = rest[k+1:]
+	}
+}
+
+// TestAssetsRevalidate guards the fix for a UI that looked unchanged after an
+// upgrade: files in an embed.FS carry no modification time, so net/http sends
+// neither Last-Modified nor ETag, and a response with no validator and no
+// Cache-Control is cached heuristically — the browser kept serving the
+// previous style.css and app.js.
+func TestAssetsRevalidate(t *testing.T) {
+	ts := newTestServer(baseDeps())
+	defer ts.Close()
+
+	for _, asset := range []string{"/", "/static/style.css", "/static/app.js", "/i18n/de.json"} {
+		res, err := http.Get(ts.URL + asset)
+		if err != nil {
+			t.Fatalf("GET %s: %v", asset, err)
+		}
+		etag := res.Header.Get("ETag")
+		cc := res.Header.Get("Cache-Control")
+		_ = res.Body.Close()
+
+		if cc != "no-cache" {
+			t.Errorf("%s: Cache-Control = %q, want no-cache", asset, cc)
+		}
+		if etag == "" {
+			t.Errorf("%s: no ETag, so the browser has nothing to revalidate against", asset)
+			continue
+		}
+
+		// A matching validator must produce 304, otherwise revalidation would
+		// cost a full body on every request.
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL+asset, http.NoBody)
+		if err != nil {
+			t.Fatalf("request: %v", err)
+		}
+		req.Header.Set("If-None-Match", etag)
+		res2, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("conditional GET %s: %v", asset, err)
+		}
+		_ = res2.Body.Close()
+		if res2.StatusCode != http.StatusNotModified {
+			t.Errorf("%s: conditional GET = %d, want 304", asset, res2.StatusCode)
+		}
+	}
+}
+
+// TestRateLimitViewUsesSnakeCase pins the field names the SPA reads. The
+// client struct has no JSON tags, so encoding it directly emitted Go field
+// names and the status panel rendered "undefined / undefined".
+func TestRateLimitViewUsesSnakeCase(t *testing.T) {
+	ts := newTestServer(baseDeps())
+	defer ts.Close()
+
+	res, err := http.Get(ts.URL + "/api/ratelimit")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	var got map[string]any
+	err = json.NewDecoder(res.Body).Decode(&got)
+	_ = res.Body.Close()
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	for _, key := range []string{
+		"limit_minute", "remaining_minute", "limit_day", "remaining_day",
+		"retry_after", "reset_at", "updated",
+	} {
+		if _, ok := got[key]; !ok {
+			t.Errorf("response has no %q field: %v", key, got)
+		}
 	}
 }
