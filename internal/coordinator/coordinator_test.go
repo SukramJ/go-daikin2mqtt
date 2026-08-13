@@ -212,6 +212,15 @@ const testCatalogYAML = `
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: outdoor_cooling_energy_total, name: Cooling energy total (system), platform: sensor, unit: kWh, scope: outdoor, precision: 3}
 - {match: {managementPointType: climateControl, characteristic: faikinLocal}, topic: outdoor_power, name: Power (system), platform: sensor, unit: W, scope: outdoor, precision: 0}
 - {match: {managementPointType: climateControl, characteristic: daemonRefresh}, topic: refresh, name: Refresh from cloud, platform: button, icon: mdi:cloud-refresh, scope: outdoor, settable: true}
+- match: {managementPointType: climateControl, characteristic: daemonSchedule}
+  topic: schedule_state
+  name: Active schedule
+  name_de: Aktiver Zeitplan
+  platform: sensor
+  category: diagnostic
+  values:
+    - {value: idle, label: No block, label_de: Kein Block}
+- {match: {managementPointType: climateControl, characteristic: daemonScheduleNext}, topic: schedule_next_change, name: Next schedule change, name_de: Nächste Zeitplan-Schaltung, platform: sensor, device_class: timestamp, category: diagnostic}
 `
 
 func loadTestCatalog(t *testing.T) *catalog.Catalog {

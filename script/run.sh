@@ -97,10 +97,24 @@ export DAIKIN_MULTISPLIT_MODE_SYNC="$(bashio::config 'multisplit_mode_sync')"
 export DAIKIN_MULTISPLIT_OUTDOOR_AGGREGATE="$(bashio::config 'multisplit_outdoor_aggregate')"
 export DAIKIN_ENFORCE_MUTUAL_EXCLUSIVE="$(bashio::config 'enforce_mutual_exclusive')"
 
+# --- Weekly schedules ---
+export DAIKIN_SCHEDULE_ENABLE="$(bashio::config 'schedule_enable')"
+if bashio::config.true 'schedule_enable'; then
+  export DAIKIN_SCHEDULE_CATCHUP="$(bashio::config 'schedule_catchup')"
+  # Empty means "the daemon's own zone", which under Home Assistant is the
+  # Supervisor's TZ — usually what the operator expects.
+  if bashio::config.has_value 'schedule_timezone'; then
+    export DAIKIN_SCHEDULE_TIMEZONE="$(bashio::config 'schedule_timezone')"
+  fi
+  bashio::log.info "Weekly schedules on; timezone: ${DAIKIN_SCHEDULE_TIMEZONE:-<system>}"
+fi
+
 # --- Persistent state ---
 # Store the rotated refresh token on the add-on's /data volume so it
 # survives add-on restarts and updates.
 export DAIKIN_TOKEN_STORE_PATH="/data/token-store.json"
+# Same for the schedules, so they survive add-on updates.
+export DAIKIN_SCHEDULE_STORE_PATH="/data/schedules.json"
 
 bashio::log.info "Configuration prepared; MQTT server: ${DAIKIN_MQTT_SERVER}:${DAIKIN_MQTT_PORT}"
 bashio::log.info "Web UI / OAuth callback bound to ${DAIKIN_WEB_BIND} (served via Ingress)."

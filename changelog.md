@@ -1,3 +1,84 @@
+# Version 0.9.0 (2026-08-13)
+
+## What's Changed
+
+### Added
+
+- **Weekly schedules.** A seven-day / 24-hour programme run by the daemon
+  itself, edited in a calendar view in the diagnostic web UI and switchable
+  from Home Assistant. Off by default — set `SCHEDULE_ENABLE: true` (add-on
+  option `schedule_enable`) to turn it on. The design document is
+  [`docs/schedule-design.md`](docs/schedule-design.md).
+
+  - **Blocks with a target state.** A block occupies a time range and sets
+    power, HVAC mode and setpoint **at its start**; the state holds until the
+    next block, and a gap means "no intervention". Leaving the setpoint unset
+    lets a block switch on/off or change the mode without touching a manually
+    chosen temperature. Blocks snap to a 30-minute grid and may run past
+    midnight (and past Sunday into Monday).
+
+  - **Manual changes win until the next block.** The scheduler writes at block
+    boundaries only. Change the temperature by hand — in Home Assistant, the
+    Daikin app or on the remote — and it stays until the next block starts.
+    There is no continuous enforcement fighting the user.
+
+  - **Several schedules per device, layered by priority.** Each schedule
+    carries a list of target devices and a priority; per half-hour slot the
+    highest priority wins (on a tie, the block that started more recently). A
+    base programme can therefore be overridden by "home office" or "holiday"
+    without editing it, and the covered blocks stay visible as hatching in the
+    calendar.
+
+  - **Home Assistant entities.** Every schedule becomes a switch on a new
+    device *daikin2mqtt Scheduler* (`switch.daikin_schedule_<id>`), so
+    "holiday on when everyone leaves" is an ordinary HA automation. Each
+    climate device gains two diagnostic sensors: *Active schedule* and *Next
+    schedule change* (RFC 3339 with `device_class: timestamp`, so Home
+    Assistant formats it in the viewer's language).
+
+  - **Local-first switching.** All three scheduled characteristics
+    (`onOffMode`, `operationMode`, `temperatureControl`) are modelled by the
+    Faikin command set, so on a device mapped for local mode a scheduled switch
+    never falls back to the cloud: no ONECTA request quota is consumed and no
+    `scan_ignore` window is opened. For cloud-only devices a block change costs
+    up to three requests per device.
+
+  - **Multi-split aware.** Scheduled switching goes through the same write path
+    as an MQTT command, so the existing mode sync, the local/cloud backend
+    choice and the cloud lock all apply unchanged. The calendar additionally
+    warns while editing when two devices on one outdoor unit are scheduled to
+    heat and cool at the same time — something the hardware cannot do.
+
+  - **Correct across restarts and time changes.** A missed block start is only
+    caught up within `SCHEDULE_CATCHUP` (default 30 minutes), so a restart
+    hours into a block does not overwrite a manual change made in the meantime.
+    Switch points are computed as wall-clock times in the configured zone, so
+    daylight-saving transitions shift the schedule with the clock; the doubled
+    hour in autumn does not switch twice.
+
+  - New settings: `SCHEDULE_ENABLE`, `SCHEDULE_STORE_PATH` (default
+    `<config dir>/schedules.json`, written atomically with `0600`),
+    `SCHEDULE_TIMEZONE` (IANA zone, empty = the daemon's own) and
+    `SCHEDULE_CATCHUP`. In the add-on the schedules live on `/data`, so they
+    survive updates.
+
+### Changed
+
+- `/api/devices` now also reports each device's friendly name, which the
+  schedule editor's device picker uses.
+- The daemon embeds the IANA time-zone database (`time/tzdata`). The distroless
+  image ships no system zone data, and a wall-clock scheduler would otherwise
+  silently fall back to UTC.
+
+### Notes
+
+- Schedule ids are derived from the name once, when the schedule is created,
+  and then frozen. Renaming a schedule changes only its display name, so its
+  Home Assistant entity survives the rename. The editor shows the resulting
+  entity id read-only.
+- Schedule and block names are user content: they are stored and displayed
+  verbatim in every language and are never translated.
+
 # Version 0.8.2 (2026-07-20)
 
 ## What's Changed

@@ -24,6 +24,8 @@ type configView struct {
 	Language   string  `json:"language"`
 	HASSEnable bool    `json:"hass_enable"`
 	Web        webView `json:"web"`
+	// ScheduleEnable tells the SPA whether to offer the calendar section at all.
+	ScheduleEnable bool `json:"schedule_enable"`
 }
 
 // webView exposes only the non-sensitive web settings (the bind address and
@@ -40,8 +42,9 @@ func (s *Server) handleConfig(w http.ResponseWriter, _ *http.Request) {
 		lang = "en"
 	}
 	writeJSON(w, http.StatusOK, configView{
-		Language:   lang,
-		HASSEnable: s.cfg.HASSEnable,
+		Language:       lang,
+		HASSEnable:     s.cfg.HASSEnable,
+		ScheduleEnable: s.cfg.ScheduleEnable,
 		Web: webView{
 			Bind:     s.cfg.WebBind,
 			AuthOn:   s.cfg.WebUser != "",
@@ -217,8 +220,12 @@ func (s *Server) handleRateLimit(w http.ResponseWriter, _ *http.Request) {
 
 // deviceView is the JSON shape returned by /api/devices.
 type deviceView struct {
-	ID               string                `json:"id"`
-	Model            string                `json:"model"`
+	ID    string `json:"id"`
+	Model string `json:"model"`
+	// Name is the device's friendly name (the climate/DHW "name"
+	// characteristic). The scheduler's device picker needs it without walking
+	// the characteristic tree.
+	Name             string                `json:"name,omitempty"`
 	ManagementPoints []managementPointView `json:"management_points"`
 }
 
@@ -273,6 +280,13 @@ func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
 	for _, d := range devices {
 		dv := deviceView{ID: d.ID, Model: d.Model}
 		for _, mp := range d.ManagementPoints {
+			if dv.Name == "" && (mp.Type == "climateControl" || mp.Type == "domesticHotWaterTank") {
+				if ch, ok := mp.Characteristics["name"]; ok {
+					if n, ok := ch.String(); ok {
+						dv.Name = n
+					}
+				}
+			}
 			mpv := managementPointView{
 				EmbeddedID: mp.EmbeddedID,
 				Type:       mp.Type,

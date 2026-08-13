@@ -278,8 +278,12 @@ and made unique with a numeric suffix when it collides:
 | Name as typed | Slug | Entity |
 | --- | --- | --- |
 | `Werktag` | `werktag` | `switch.daikin_schedule_werktag` |
-| `Bürozeit` | `buerozeit` | `switch.daikin_schedule_buerozeit` |
+| `Bürozeit` | `burozeit` | `switch.daikin_schedule_burozeit` |
 | `Urlaub / Reise` | `urlaub_reise` | `switch.daikin_schedule_urlaub_reise` |
+
+`ü→u` rather than `ue` is not a typo: it is what `hass.slugify` — and Home
+Assistant's own `slugify` — does, and a schedule id that transliterated
+differently from every other entity id would be the odd one out.
 
 The slug is then **frozen**: renaming a schedule changes `name` only, and
 switching `LANGUAGE` changes nothing at all. That is what the project's

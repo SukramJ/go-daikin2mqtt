@@ -68,6 +68,26 @@ MULTISPLIT_MODE_SYNC: true          # propagate heat/cool to all units of an out
 MULTISPLIT_OUTDOOR_AGGREGATE: true  # one entity per outdoor unit for outdoor-shared settings
 ENFORCE_MUTUAL_EXCLUSIVE: true      # econo on clears powerful; powerful on suspends+restores econo group-wide
 
+# --- Weekly schedules (off by default) ---
+# A seven-day / 24-hour programme that drives the climate devices from the
+# daemon itself. Blocks set power, mode and setpoint at their start; the state
+# holds until the next block, so a manual change in between survives until then.
+# Edit them in the web UI's calendar; each schedule also becomes a Home
+# Assistant switch. See docs/schedule-design.md.
+SCHEDULE_ENABLE: false
+# Where the schedules are stored. Empty -> XDG default
+# ($XDG_CONFIG_HOME|~/.config/daikin2mqtt/schedules.json), written atomically
+# with 0600 like the token store.
+SCHEDULE_STORE_PATH: ""
+# IANA zone the blocks' wall-clock times are read in. Empty -> the daemon's
+# own zone. Set this when the host runs on UTC but the schedule should follow
+# local time (including daylight saving).
+SCHEDULE_TIMEZONE: ""
+# How long (seconds) after a missed block start the target state is still
+# applied. Covers a restart that interrupted a switch, without overwriting a
+# manual change made hours ago. 1800 = one scheduling slot.
+SCHEDULE_CATCHUP: 1800
+
 # --- Misc ---
 LANGUAGE: en   # en | de
 DEBUG: false

@@ -79,6 +79,8 @@ const (
 	ConfigFile = "config.yaml"
 	// TokenStoreFile is the default token-store file name under the app dir.
 	TokenStoreFile = "token-store.json"
+	// ScheduleStoreFile is the default schedule-store file name under the app dir.
+	ScheduleStoreFile = "schedules.json"
 )
 
 // Config is the validated daemon configuration. Fields are flat to match
@@ -198,8 +200,29 @@ type Config struct {
 	// (powerful ⇄ econo) when one is switched on.
 	EnforceMutualExclusive *bool `yaml:"ENFORCE_MUTUAL_EXCLUSIVE"`
 
+	// --- Weekly schedules ---
+	// ScheduleEnable turns on the weekly programme: the engine, the REST routes
+	// and the calendar section of the web UI. Off by default, so an existing
+	// installation is unaffected until the operator opts in.
+	ScheduleEnable bool `yaml:"SCHEDULE_ENABLE"`
+	// ScheduleStorePath is the file the schedules are persisted to. Empty
+	// selects the XDG default (see [Config.ResolveScheduleStorePath]).
+	ScheduleStorePath string `yaml:"SCHEDULE_STORE_PATH"`
+	// ScheduleTimezone is the IANA zone the schedules' wall-clock times are
+	// interpreted in (e.g. "Europe/Berlin"). Empty uses the daemon's zone.
+	ScheduleTimezone string `yaml:"SCHEDULE_TIMEZONE"`
+	// ScheduleCatchup is how long (seconds) after a missed block start the
+	// target state is still applied — the window that lets a restart finish an
+	// interrupted switch without overwriting a later manual change.
+	ScheduleCatchup int `yaml:"SCHEDULE_CATCHUP"`
+
 	// --- Misc ---
 	Debug bool `yaml:"DEBUG"`
+}
+
+// ScheduleCatchupDuration returns ScheduleCatchup as a duration.
+func (c *Config) ScheduleCatchupDuration() time.Duration {
+	return time.Duration(c.ScheduleCatchup) * time.Second
 }
 
 // LocalEnabled reports whether local-first control is active and usable: the

@@ -438,3 +438,114 @@ func TestRootRedirectIngressAware(t *testing.T) {
 		t.Errorf("rootRedirect with ingress = %q", got)
 	}
 }
+
+// TestI18nBundlesCoverEveryKey guards the i18n contract: every key the SPA
+// asks for must exist in both bundles, and the two bundles must agree on the
+// key set. Without this a new UI string silently renders as its raw key in one
+// language — the failure mode the fallback in t() is designed to survive but
+// nobody wants to ship.
+func TestI18nBundlesCoverEveryKey(t *testing.T) {
+	load := func(lang string) map[string]string {
+		t.Helper()
+		b, err := staticFS.ReadFile("assets/i18n/" + lang + ".json")
+		if err != nil {
+			t.Fatalf("read %s bundle: %v", lang, err)
+		}
+		var m map[string]string
+		if err := json.Unmarshal(b, &m); err != nil {
+			t.Fatalf("decode %s bundle: %v", lang, err)
+		}
+		return m
+	}
+	en, de := load("en"), load("de")
+
+	for k := range en {
+		if _, ok := de[k]; !ok {
+			t.Errorf("key %q is missing from de.json", k)
+		}
+	}
+	for k := range de {
+		if _, ok := en[k]; !ok {
+			t.Errorf("key %q is missing from en.json (English is the canonical set)", k)
+		}
+	}
+
+	// Keys referenced from the markup.
+	html, err := staticFS.ReadFile("assets/index.html")
+	if err != nil {
+		t.Fatalf("read index.html: %v", err)
+	}
+	for _, attr := range []string{"data-i18n=", "data-i18n-title="} {
+		for _, key := range attrValues(string(html), attr) {
+			if _, ok := en[key]; !ok {
+				t.Errorf("index.html references unknown i18n key %q", key)
+			}
+		}
+	}
+
+	// Literal keys referenced from the script, i.e. t("...") / tf("...", …).
+	js, err := staticFS.ReadFile("assets/static/app.js")
+	if err != nil {
+		t.Fatalf("read app.js: %v", err)
+	}
+	for _, key := range literalI18nKeys(string(js)) {
+		if _, ok := en[key]; !ok {
+			t.Errorf("app.js references unknown i18n key %q", key)
+		}
+	}
+}
+
+// attrValues extracts the double-quoted values of an HTML attribute.
+func attrValues(html, attr string) []string {
+	var out []string
+	for rest := html; ; {
+		i := strings.Index(rest, attr+`"`)
+		if i < 0 {
+			return out
+		}
+		rest = rest[i+len(attr)+1:]
+		j := strings.IndexByte(rest, '"')
+		if j < 0 {
+			return out
+		}
+		out = append(out, rest[:j])
+		rest = rest[j+1:]
+	}
+}
+
+// literalI18nKeys extracts t("key") / tf("key", …) call sites. Computed keys
+// (t("sched.err." + code)) are skipped: the closing quote follows immediately
+// only for literals, which is exactly the distinction made here.
+func literalI18nKeys(js string) []string {
+	var out []string
+	for _, call := range []string{`t("`, `tf("`} {
+		rest := js
+		for {
+			i := strings.Index(rest, call)
+			if i < 0 {
+				break
+			}
+			// Reject a match inside a longer identifier (e.g. "format(").
+			if i > 0 {
+				c := rest[i-1]
+				if c == '.' || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+					rest = rest[i+len(call):]
+					continue
+				}
+			}
+			rest = rest[i+len(call):]
+			j := strings.IndexByte(rest, '"')
+			if j < 0 {
+				break
+			}
+			key := rest[:j]
+			// A literal key is followed by ')' or ','; anything else is a
+			// concatenation and cannot be checked statically.
+			if k := j + 1; k < len(rest) && (rest[k] == ')' || rest[k] == ',') {
+				out = append(out, key)
+			}
+			rest = rest[j+1:]
+		}
+	}
+	return out
+}

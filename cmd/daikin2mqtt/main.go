@@ -18,6 +18,11 @@ import (
 	"syscall"
 	"time"
 
+	// Embed the IANA time-zone database: the scheduler interprets its blocks as
+	// wall-clock times in a named zone, and the distroless image the daemon ships
+	// in carries no system tzdata.
+	_ "time/tzdata"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/SukramJ/go-mqtt"
@@ -28,6 +33,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
+	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
 	"github.com/SukramJ/go-daikin2mqtt/internal/version"
 	"github.com/SukramJ/go-daikin2mqtt/internal/web"
 )
@@ -196,12 +202,41 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	// Re-announce availability after every (re)connect.
 	lifecycle.OnConnect(func(cctx context.Context) { coord.PublishOnline(cctx) })
 
+	// --- Weekly schedules (optional) ---
+	// The engine and the coordinator reference each other: the engine applies
+	// through the coordinator, the coordinator routes the HA enable switch back
+	// to the engine. Build the engine second and attach it, which keeps the
+	// dependency explicit instead of hiding it behind a lazy lookup.
+	var scheduleEngine *schedule.Engine
+	if cfg.ScheduleEnable {
+		storePath := cfg.ResolveScheduleStorePath(config.OSEnv{})
+		scheduleEngine, err = schedule.NewEngine(schedule.Options{
+			Store:    schedule.NewStore(storePath),
+			Logger:   logger,
+			Timezone: cfg.ScheduleTimezone,
+			Catchup:  cfg.ScheduleCatchupDuration(),
+			Applier:  coord,
+			States:   coord,
+		})
+		if err != nil {
+			return fmt.Errorf("schedule: %w", err)
+		}
+		coord.AttachScheduler(scheduleEngine)
+		logger.Info("daikin2mqtt.schedule_enabled",
+			slog.String("store", storePath),
+			slog.String("timezone", scheduleEngine.Location().String()))
+	}
+
 	logger.Info("daikin2mqtt.starting",
 		slog.String("mqtt", cfg.MQTTServer), slog.Bool("hass", cfg.HASSEnable),
-		slog.Bool("web", cfg.WebEnable), slog.String("lang", cfg.Language))
+		slog.Bool("web", cfg.WebEnable), slog.Bool("schedule", cfg.ScheduleEnable),
+		slog.String("lang", cfg.Language))
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return coord.Run(gctx) })
+	if scheduleEngine != nil {
+		g.Go(func() error { return scheduleEngine.Run(gctx) })
+	}
 
 	if cfg.WebEnable {
 		srv := web.New(web.Deps{
@@ -210,7 +245,11 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 			Tokens:  tokens,
 			Client:  cloud,
 			Catalog: cat,
-			Logger:  logger,
+			// Only the coordinator knows which indoor units share an outdoor
+			// unit, which is what makes a scheduled heat/cool clash detectable.
+			Schedule: scheduleEngine,
+			Groups:   coord.OutdoorGroups,
+			Logger:   logger,
 		})
 		g.Go(func() error { return srv.Run(gctx) })
 	}

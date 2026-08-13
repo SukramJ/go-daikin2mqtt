@@ -4,6 +4,28 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.9.0 (2026-08-13)
+
+New: **weekly schedules.** A seven-day programme run by the add-on itself,
+edited in a calendar view and switchable from Home Assistant. Off by default —
+turn on the `schedule_enable` option.
+
+- Blocks set power, mode and setpoint **at their start**; the state holds until
+  the next block, so a change you make by hand stays until then.
+- Several schedules can target the same device and are layered by **priority**,
+  so a base programme can be overridden by "home office" or "holiday" that you
+  switch on when needed.
+- Every schedule becomes a **switch** entity under the new device
+  *daikin2mqtt Scheduler*, and each climate device gains *Active schedule* and
+  *Next schedule change* sensors — so schedules can be driven from ordinary HA
+  automations.
+- On devices mapped for local-first mode the switching goes to Faikin and
+  consumes **no ONECTA requests** at all.
+- The calendar warns when two units on one outdoor unit are scheduled to heat
+  and cool at the same time.
+- Schedules are stored on `/data` and survive add-on updates. New options:
+  `schedule_enable`, `schedule_timezone`, `schedule_catchup`.
+
 # 0.8.2 (2026-07-20)
 
 Fix: **fan speed and refrigerant temperature are shown per indoor unit again.**

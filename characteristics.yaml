@@ -635,3 +635,30 @@
   icon: mdi:cloud-refresh
   scope: outdoor
   settable: true
+
+# The scheduler's per-device status sensors. Like the refresh button above they
+# are daemon state, not device data: `daemonSchedule*` is never reported by the
+# cloud, so these entries are only ever published through schedulePoints. The
+# state payload carries the operator's own schedule and block names verbatim;
+# the one string the daemon produces itself — "no block in force" — is an enum
+# value here, so it follows LANGUAGE like every other label.
+- match: {managementPointType: climateControl, characteristic: daemonSchedule}
+  topic: schedule_state
+  name: Active schedule
+  name_de: Aktiver Zeitplan
+  platform: sensor
+  category: diagnostic
+  icon: mdi:calendar-clock
+  values:
+    - {value: idle, label: No block, label_de: Kein Block}
+
+# RFC 3339 with device_class timestamp, so Home Assistant formats it in the
+# viewer's language rather than the daemon's.
+- match: {managementPointType: climateControl, characteristic: daemonScheduleNext}
+  topic: schedule_next_change
+  name: Next schedule change
+  name_de: Nächste Zeitplan-Schaltung
+  platform: sensor
+  device_class: timestamp
+  category: diagnostic
+  icon: mdi:calendar-arrow-right

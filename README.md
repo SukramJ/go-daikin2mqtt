@@ -57,6 +57,15 @@ write-back commands from Home Assistant.
   **summed** once per outdoor unit; values identical across the units (compressor
   / fan frequency, refrigerant / outdoor temperature) are shown **once** at the
   outdoor unit.
+- **Weekly schedules** (optional): a seven-day / 24-hour programme run by the
+  daemon itself, edited in a calendar view in the web UI. Several schedules can
+  target the same device and are layered by priority, so a base programme can be
+  overridden by "home office" or "holiday" without editing it. Blocks set power,
+  mode and setpoint at their start and the state holds until the next block, so a
+  manual change in between survives. Each schedule becomes a Home Assistant
+  switch, and every device gets "active block" / "next change" sensors. On a
+  Faikin-mapped device the switching is entirely local — no cloud quota.
+  See [`docs/schedule-design.md`](./docs/schedule-design.md).
 - Optional diagnostic **web UI** with integrated OAuth (HA-ingress ready).
 - `daikin2mqtt-util` helper CLI (auth, devices, points, set, ratelimit,
   catalog-check) and a `--mock` mode using the ONECTA mock endpoint.

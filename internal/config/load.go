@@ -118,6 +118,26 @@ func (c *Config) ResolveTokenStorePath(env Env) string {
 	return cands[len(cands)-1]
 }
 
+// ResolveScheduleStorePath returns the configured ScheduleStorePath, or the
+// XDG default ($XDG_CONFIG_HOME|~/.config/daikin2mqtt/schedules.json) when
+// unset — the same directory the token store lives in.
+func (c *Config) ResolveScheduleStorePath(env Env) string {
+	if c.ScheduleStorePath != "" {
+		return c.ScheduleStorePath
+	}
+	if env == nil {
+		env = OSEnv{}
+	}
+	// Skip the CWD entry for the same reason the token store does: operator
+	// state belongs in a stable per-user location, not wherever the daemon
+	// happened to be started from.
+	cands := configCandidates(env, ScheduleStoreFile)
+	if len(cands) > 1 {
+		return cands[1]
+	}
+	return cands[len(cands)-1]
+}
+
 // configCandidates returns the ordered lookup paths for file name: CWD
 // first, then the platform config dir, then ~/.config.
 func configCandidates(env Env, name string) []string {
