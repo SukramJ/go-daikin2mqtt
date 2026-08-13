@@ -39,6 +39,10 @@ type schedulesResponse struct {
 	// the catalog's operation_mode entry, so the UI needs no second translation
 	// table for words it already shows elsewhere.
 	Modes []modeOption `json:"modes"`
+	// Outdoor lists the outdoor units an outdoor schedule can target. Only the
+	// coordinator learns them from the poll, so an installation whose groups are
+	// not yet known simply offers none.
+	Outdoor []outdoorUnitView `json:"outdoor_units"`
 	// SlotMinutes is the editing grid, so the UI does not hard-code it.
 	SlotMinutes int `json:"slot_minutes"`
 	// Days are the weekday keys in storage order (Monday first, in every
@@ -50,6 +54,34 @@ type schedulesResponse struct {
 type modeOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
+}
+
+// outdoorUnitView is one schedulable outdoor unit: its serial (the target
+// identity) and the devices sharing it, which the UI shows so the operator can
+// tell one unit from another.
+type outdoorUnitView struct {
+	Serial  string   `json:"serial"`
+	Key     string   `json:"key"`
+	Members []string `json:"members"`
+}
+
+// outdoorUnits lists the outdoor groups, sorted for a stable UI order.
+func (s *Server) outdoorUnits() []outdoorUnitView {
+	out := []outdoorUnitView{}
+	if s.groups == nil {
+		return out
+	}
+	for serial, members := range s.groups() {
+		sorted := append([]string(nil), members...)
+		sort.Strings(sorted)
+		out = append(out, outdoorUnitView{
+			Serial:  serial,
+			Key:     schedule.OutdoorKey(serial),
+			Members: sorted,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Serial < out[j].Serial })
+	return out
 }
 
 // hvacToONECTA maps the scheduler's HA mode names to the ONECTA values the
@@ -116,6 +148,7 @@ func (s *Server) handleSchedulesList(w http.ResponseWriter, _ *http.Request) {
 		Timezone:    tz,
 		Schedules:   doc.Schedules,
 		Modes:       s.modeOptions(),
+		Outdoor:     s.outdoorUnits(),
 		SlotMinutes: schedule.SlotMinutes,
 		Days:        weekdayKeys(),
 	})
@@ -258,6 +291,8 @@ func (s *Server) handleScheduleEnable(w http.ResponseWriter, r *http.Request) {
 // truth the calendar renders from, so the browser never re-implements the
 // priority rules.
 type previewResponse struct {
+	// DeviceID carries the resolved target key (a device id, or
+	// "outdoor:<serial>"). The field name is kept for compatibility.
 	DeviceID   string         `json:"device_id"`
 	Segments   []segmentView  `json:"segments"`
 	Active     *claimView     `json:"active"`
@@ -268,28 +303,34 @@ type previewResponse struct {
 
 // segmentView is one effective block of the calendar, bounded within a day.
 type segmentView struct {
-	Day      int      `json:"day"`
-	From     string   `json:"from"`
-	To       string   `json:"to"`
-	Schedule string   `json:"schedule_id"`
-	Name     string   `json:"schedule_name"`
-	Block    string   `json:"block_id"`
-	Label    string   `json:"label,omitempty"`
-	Priority int      `json:"priority"`
-	Power    string   `json:"power"`
-	HVACMode string   `json:"hvac_mode,omitempty"`
-	Setpoint *float64 `json:"setpoint,omitempty"`
+	Day           int      `json:"day"`
+	From          string   `json:"from"`
+	To            string   `json:"to"`
+	Schedule      string   `json:"schedule_id"`
+	Name          string   `json:"schedule_name"`
+	Block         string   `json:"block_id"`
+	Label         string   `json:"label,omitempty"`
+	Priority      int      `json:"priority"`
+	Power         string   `json:"power,omitempty"`
+	HVACMode      string   `json:"hvac_mode,omitempty"`
+	Setpoint      *float64 `json:"setpoint,omitempty"`
+	OutdoorSilent *bool    `json:"outdoor_silent,omitempty"`
+	Econo         *bool    `json:"econo,omitempty"`
+	Demand        *float64 `json:"demand,omitempty"`
 }
 
 // claimView is the block in force right now.
 type claimView struct {
-	Schedule string   `json:"schedule_id"`
-	Name     string   `json:"schedule_name"`
-	Block    string   `json:"block_id"`
-	Label    string   `json:"label,omitempty"`
-	Power    string   `json:"power"`
-	HVACMode string   `json:"hvac_mode,omitempty"`
-	Setpoint *float64 `json:"setpoint,omitempty"`
+	Schedule      string   `json:"schedule_id"`
+	Name          string   `json:"schedule_name"`
+	Block         string   `json:"block_id"`
+	Label         string   `json:"label,omitempty"`
+	Power         string   `json:"power,omitempty"`
+	HVACMode      string   `json:"hvac_mode,omitempty"`
+	Setpoint      *float64 `json:"setpoint,omitempty"`
+	OutdoorSilent *bool    `json:"outdoor_silent,omitempty"`
+	Econo         *bool    `json:"econo,omitempty"`
+	Demand        *float64 `json:"demand,omitempty"`
 }
 
 // conflictView is a window where one outdoor unit is asked to heat and cool at
@@ -309,20 +350,25 @@ func (s *Server) handleSchedulePreview(w http.ResponseWriter, r *http.Request) {
 	if !s.requireScheduler(w) {
 		return
 	}
-	deviceID := r.URL.Query().Get("device")
-	if deviceID == "" {
-		writeAPIError(w, http.StatusBadRequest, errCodeBadRequest, "query parameter 'device' is required", "device")
+	// "target" is the current name; "device" stays accepted so an older cached
+	// SPA keeps working after an upgrade.
+	targetKey := r.URL.Query().Get("target")
+	if targetKey == "" {
+		targetKey = r.URL.Query().Get("device")
+	}
+	if targetKey == "" {
+		writeAPIError(w, http.StatusBadRequest, errCodeBadRequest, "query parameter 'target' is required", "target")
 		return
 	}
 
 	doc := s.schedule.Document()
 	loc := s.schedule.Location()
-	week := schedule.Resolve(doc, deviceID)
+	week := schedule.Resolve(doc, targetKey)
 	now := time.Now().In(loc)
 	cur := schedule.SlotAt(now)
 
 	resp := previewResponse{
-		DeviceID:  deviceID,
+		DeviceID:  targetKey,
 		Segments:  []segmentView{},
 		Conflicts: []conflictView{},
 		Counts:    map[string]int{},
@@ -336,13 +382,18 @@ func (s *Server) handleSchedulePreview(w http.ResponseWriter, r *http.Request) {
 		resp.Active = &claimView{
 			Schedule: c.ScheduleID, Name: c.ScheduleName, Block: c.BlockID, Label: c.Label,
 			Power: string(c.Action.Power), HVACMode: string(c.Action.HVACMode), Setpoint: c.Action.Setpoint,
+			OutdoorSilent: c.Action.OutdoorSilent, Econo: c.Action.Econo, Demand: c.Action.Demand,
 		}
 	}
 	if next, _, ok := week.NextChange(cur); ok {
 		resp.NextChange = schedule.SlotStart(next, now, loc).Format(time.RFC3339)
 	}
 	resp.Counts["switches_per_week"] = countSwitches(week)
-	resp.Conflicts = s.conflictsFor(doc, deviceID)
+	// A mode conflict is an indoor notion: it needs two units that could run in
+	// opposite directions. An outdoor target has no such pair.
+	if _, isOutdoor := schedule.OutdoorSerialOf(targetKey); !isOutdoor {
+		resp.Conflicts = s.conflictsFor(doc, targetKey)
+	}
 
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -350,17 +401,20 @@ func (s *Server) handleSchedulePreview(w http.ResponseWriter, r *http.Request) {
 // segmentViewOf renders one resolved segment.
 func segmentViewOf(seg schedule.Segment) segmentView {
 	return segmentView{
-		Day:      seg.Day,
-		From:     schedule.FormatClock(seg.FromMinute),
-		To:       schedule.FormatClock(seg.ToMinute),
-		Schedule: seg.Claim.ScheduleID,
-		Name:     seg.Claim.ScheduleName,
-		Block:    seg.Claim.BlockID,
-		Label:    seg.Claim.Label,
-		Priority: seg.Claim.Priority,
-		Power:    string(seg.Claim.Action.Power),
-		HVACMode: string(seg.Claim.Action.HVACMode),
-		Setpoint: seg.Claim.Action.Setpoint,
+		Day:           seg.Day,
+		From:          schedule.FormatClock(seg.FromMinute),
+		To:            schedule.FormatClock(seg.ToMinute),
+		Schedule:      seg.Claim.ScheduleID,
+		Name:          seg.Claim.ScheduleName,
+		Block:         seg.Claim.BlockID,
+		Label:         seg.Claim.Label,
+		Priority:      seg.Claim.Priority,
+		Power:         string(seg.Claim.Action.Power),
+		HVACMode:      string(seg.Claim.Action.HVACMode),
+		Setpoint:      seg.Claim.Action.Setpoint,
+		OutdoorSilent: seg.Claim.Action.OutdoorSilent,
+		Econo:         seg.Claim.Action.Econo,
+		Demand:        seg.Claim.Action.Demand,
 	}
 }
 

@@ -28,6 +28,12 @@ const (
 	// ScheduleNextTopic carries the next switch point as RFC 3339, so Home
 	// Assistant renders it in the viewer's language rather than the daemon's.
 	ScheduleNextTopic = "schedule_next_change"
+	// OutdoorScheduleStateTopic / OutdoorScheduleNextTopic are the same two
+	// sensors for an outdoor schedule. They are separate topics because their
+	// catalog entries are scope: outdoor, which collapses them into one pair on
+	// the outdoor unit instead of one per indoor unit.
+	OutdoorScheduleStateTopic = "outdoor_schedule_state"
+	OutdoorScheduleNextTopic  = "outdoor_schedule_next_change"
 	// ScheduleEnabledTopic is the per-schedule enable switch, published under
 	// the reserved device id "scheduler".
 	ScheduleEnabledTopic = "enabled"
@@ -60,17 +66,26 @@ func (c *Coordinator) scheduleEngine() scheduler {
 	return c.schedule
 }
 
-// ApplySchedule applies a block's target state to one device. It implements
+// ApplySchedule applies a block's target state. It implements
 // schedule.Applier by producing the same write requests an inbound MQTT /set
 // produces, so the scheduled write inherits the whole existing path:
-// sequential drain, cloud lock, multi-split mode sync, and the backend choice
-// between the local Faikin interface and the cloud.
+// sequential drain, cloud lock, multi-split mode sync, the outdoor fan-out and
+// the backend choice between the local Faikin interface and the cloud.
+func (c *Coordinator) ApplySchedule(_ context.Context, target schedule.Target, a schedule.Action) error {
+	if target.IsOutdoor() {
+		return c.applyOutdoorSchedule(target.OutdoorSerial, a)
+	}
+	return c.applyIndoorSchedule(target, a)
+}
+
+// applyIndoorSchedule writes power, mode and setpoint to one indoor unit.
 //
 // The order is not arbitrary: the setpoint's PATCH path contains {mode}, which
 // handleWrite resolves from modeCache. Writing the mode first means noteWrite
 // has updated that cache by the time the setpoint request is drained.
-func (c *Coordinator) ApplySchedule(_ context.Context, deviceID, embeddedID string, a schedule.Action) error {
-	emb := embeddedID
+func (c *Coordinator) applyIndoorSchedule(target schedule.Target, a schedule.Action) error {
+	deviceID := target.DeviceID
+	emb := target.EmbeddedID
 	if emb == "" {
 		var ok bool
 		emb, ok = c.climateEmbeddedID(deviceID)
@@ -106,8 +121,69 @@ func (c *Coordinator) ApplySchedule(_ context.Context, deviceID, embeddedID stri
 	return nil
 }
 
-// setpointTopic is the catalog topic of the room-temperature setpoint.
-const setpointTopic = "temperature_setpoint"
+// applyOutdoorSchedule writes the outdoor-shared settings of one outdoor unit.
+//
+// These are `scope: outdoor` catalog topics, so handleWrite already fans each
+// write out to every indoor unit of the group and holds the optimistic value
+// until a status confirms it. That is why this addresses a single member
+// rather than looping itself: doing both would write each setting twice.
+func (c *Coordinator) applyOutdoorSchedule(serial string, a schedule.Action) error {
+	member, emb, ok := c.outdoorGroupMember(serial)
+	if !ok {
+		// The outdoor group is only known after a poll has resolved the
+		// devices' serials — same "not yet" as an unknown device.
+		return schedule.ErrDeviceUnknown
+	}
+
+	writes := []struct {
+		topic   string
+		payload string
+		set     bool
+	}{
+		{outdoorSilentTopic, onOff(boolValue(a.OutdoorSilent)), a.OutdoorSilent != nil},
+		{econoTopic, onOff(boolValue(a.Econo)), a.Econo != nil},
+		{demandTopic, a.DemandPayload(), a.Demand != nil},
+	}
+	for _, w := range writes {
+		if !w.set {
+			continue // "leave this alone"
+		}
+		if !c.enqueueWrite(writeReq{
+			deviceID:   member,
+			embeddedID: emb,
+			topic:      w.topic,
+			payload:    w.payload,
+		}) {
+			return fmt.Errorf("schedule: write queue full for outdoor unit %s", serial)
+		}
+	}
+	return nil
+}
+
+// outdoorGroupMember picks the indoor unit an outdoor-scoped write is
+// addressed to: the first member (sorted, so the choice is stable across
+// polls) whose management point is known. Which member wins does not matter —
+// the fan-out reaches all of them.
+func (c *Coordinator) outdoorGroupMember(serial string) (deviceID, embeddedID string, ok bool) {
+	for _, dev := range c.OutdoorGroups()[serial] {
+		if emb, known := c.climateEmbeddedID(dev); known {
+			return dev, emb, true
+		}
+	}
+	return "", "", false
+}
+
+// Catalog topics of the settings that act on the shared outdoor unit.
+const (
+	setpointTopic      = "temperature_setpoint"
+	outdoorSilentTopic = "outdoor_silent"
+	econoTopic         = "econo_mode"
+	demandTopic        = "demand_control"
+)
+
+// boolValue dereferences an optional bool, treating nil as false. Callers
+// check for nil separately; this only keeps the write table readable.
+func boolValue(v *bool) bool { return v != nil && *v }
 
 // enqueueWrite queues a write request, reporting whether it was accepted.
 func (c *Coordinator) enqueueWrite(req writeReq) bool {
@@ -143,22 +219,45 @@ func (c *Coordinator) handleSchedulerWrite(req writeReq) {
 		slog.String("schedule", req.embeddedID), slog.String("enabled", req.payload))
 }
 
-// PublishScheduleState publishes the two per-device status sensors. It reports
-// intent — what the schedule says should be in force — not a device reading.
-func (c *Coordinator) PublishScheduleState(ctx context.Context, deviceID string, st schedule.DeviceState) {
-	emb, ok := c.climateEmbeddedID(deviceID)
-	if !ok {
-		return // device not resolved yet; the next poll will publish it
-	}
-
+// PublishScheduleState publishes the two status sensors of one target. It
+// reports intent — what the schedule says should be in force — not a device
+// reading.
+func (c *Coordinator) PublishScheduleState(ctx context.Context, target schedule.Target, st schedule.DeviceState) {
 	state := c.scheduleStateLabel(st)
-	c.publishRetained(ctx, fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, deviceID, emb, ScheduleStateTopic), state)
-
 	next := ""
 	if !st.NextChange.IsZero() {
 		next = st.NextChange.Format(time.RFC3339)
 	}
-	c.publishRetained(ctx, fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, deviceID, emb, ScheduleNextTopic), next)
+
+	if target.IsOutdoor() {
+		c.publishOutdoorScheduleState(ctx, target.OutdoorSerial, state, next)
+		return
+	}
+
+	emb, ok := c.climateEmbeddedID(target.DeviceID)
+	if !ok {
+		return // device not resolved yet; the next poll will publish it
+	}
+	c.publishRetained(ctx, fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, target.DeviceID, emb, ScheduleStateTopic), state)
+	c.publishRetained(ctx, fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, target.DeviceID, emb, ScheduleNextTopic), next)
+}
+
+// publishOutdoorScheduleState publishes an outdoor schedule's status on every
+// member of the group. The entities are `scope: outdoor`, so discovery
+// collapses them into one pair on the outdoor unit — but which member's topic
+// that entity reads from depends on the discovery order, so every member has
+// to carry the value. This mirrors how the outdoor telemetry is published.
+func (c *Coordinator) publishOutdoorScheduleState(ctx context.Context, serial, state, next string) {
+	for _, member := range c.OutdoorGroups()[serial] {
+		emb, ok := c.climateEmbeddedID(member)
+		if !ok {
+			continue
+		}
+		c.publishRetained(ctx,
+			fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, member, emb, OutdoorScheduleStateTopic), state)
+		c.publishRetained(ctx,
+			fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, member, emb, OutdoorScheduleNextTopic), next)
+	}
 }
 
 // scheduleStateLabel renders the active-block sensor value. The schedule and
@@ -209,13 +308,22 @@ func (c *Coordinator) schedulePoints(devices []model.Device) []process.Point {
 	if c.scheduleEngine() == nil {
 		return nil
 	}
-	out := make([]process.Point, 0, 2*len(devices))
+	// The outdoor pair is only published when an outdoor schedule exists —
+	// otherwise every installation would grow two empty sensors on the outdoor
+	// unit. The indoor pair is unconditional: an indoor schedule can be added
+	// at any time, and the sensor then reports "no block" rather than nothing.
+	topics := []string{ScheduleStateTopic, ScheduleNextTopic}
+	if c.hasOutdoorSchedule() {
+		topics = append(topics, OutdoorScheduleStateTopic, OutdoorScheduleNextTopic)
+	}
+
+	out := make([]process.Point, 0, len(topics)*len(devices))
 	for _, d := range devices {
 		emb, ok := c.climateEmbeddedID(d.ID)
 		if !ok {
 			continue
 		}
-		for _, topic := range []string{ScheduleStateTopic, ScheduleNextTopic} {
+		for _, topic := range topics {
 			entry, ok := c.deps.Catalog.ByTopic(topic)
 			if !ok {
 				continue
@@ -230,6 +338,21 @@ func (c *Coordinator) schedulePoints(devices []model.Device) []process.Point {
 		}
 	}
 	return out
+}
+
+// hasOutdoorSchedule reports whether any schedule drives an outdoor unit.
+func (c *Coordinator) hasOutdoorSchedule() bool {
+	eng := c.scheduleEngine()
+	if eng == nil {
+		return false
+	}
+	doc := eng.Document()
+	for i := range doc.Schedules {
+		if doc.Schedules[i].Kind() == schedule.TypeOutdoor {
+			return true
+		}
+	}
+	return false
 }
 
 // OutdoorGroups returns the outdoor-unit groups as serial → member device ids.

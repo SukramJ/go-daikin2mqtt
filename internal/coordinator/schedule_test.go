@@ -5,7 +5,9 @@ package coordinator
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,7 +66,7 @@ func TestApplyScheduleQueuesModeBeforeSetpoint(t *testing.T) {
 	// A poll populates climateEmbedded, which the applier needs.
 	c.pollOnce(context.Background())
 
-	err := c.ApplySchedule(context.Background(), dev, "", schedule.Action{
+	err := c.ApplySchedule(context.Background(), schedule.Target{DeviceID: dev}, schedule.Action{
 		Power: schedule.PowerOn, HVACMode: schedule.ModeHeat, Setpoint: ptr(21.5),
 	})
 	if err != nil {
@@ -93,7 +95,7 @@ func TestApplyScheduleOffSkipsSetpoint(t *testing.T) {
 
 	// A setpoint alongside "off" is meaningless and must not be written: the
 	// mode-scoped path could not be resolved for a unit being switched off.
-	err := c.ApplySchedule(context.Background(), dev, "", schedule.Action{
+	err := c.ApplySchedule(context.Background(), schedule.Target{DeviceID: dev}, schedule.Action{
 		Power: schedule.PowerOff, Setpoint: ptr(21.5),
 	})
 	if err != nil {
@@ -115,7 +117,7 @@ func TestApplyScheduleWithoutSetpoint(t *testing.T) {
 	c.pollOnce(context.Background())
 
 	// No setpoint means "leave the temperature alone".
-	err := c.ApplySchedule(context.Background(), dev, "", schedule.Action{
+	err := c.ApplySchedule(context.Background(), schedule.Target{DeviceID: dev}, schedule.Action{
 		Power: schedule.PowerOn, HVACMode: schedule.ModeCool,
 	})
 	if err != nil {
@@ -134,7 +136,7 @@ func TestApplyScheduleWithoutSetpoint(t *testing.T) {
 func TestApplyScheduleUnknownDevice(t *testing.T) {
 	// No poll has run, so no management point is known.
 	c := newCoordinator(t, &stubCloud{}, newStubMQTT())
-	err := c.ApplySchedule(context.Background(), "dev1", "", schedule.Action{
+	err := c.ApplySchedule(context.Background(), schedule.Target{DeviceID: "dev1"}, schedule.Action{
 		Power: schedule.PowerOn, HVACMode: schedule.ModeHeat,
 	})
 	if !errors.Is(err, schedule.ErrDeviceUnknown) {
@@ -150,7 +152,7 @@ func TestApplyScheduleUnknownDevice(t *testing.T) {
 func TestApplyScheduleExplicitEmbeddedIDSkipsLookup(t *testing.T) {
 	// An explicit embedded id works even before the first poll.
 	c := newCoordinator(t, &stubCloud{}, newStubMQTT())
-	err := c.ApplySchedule(context.Background(), "dev1", "zone2", schedule.Action{
+	err := c.ApplySchedule(context.Background(), schedule.Target{DeviceID: "dev1", EmbeddedID: "zone2"}, schedule.Action{
 		Power: schedule.PowerOn, HVACMode: schedule.ModeHeat,
 	})
 	if err != nil {
@@ -227,7 +229,7 @@ func TestPublishScheduleState(t *testing.T) {
 	c.pollOnce(context.Background())
 
 	next := time.Date(2026, 8, 13, 22, 0, 0, 0, time.UTC)
-	c.PublishScheduleState(context.Background(), dev, schedule.DeviceState{
+	c.PublishScheduleState(context.Background(), schedule.Target{DeviceID: dev}, schedule.DeviceState{
 		Active: &schedule.Claim{
 			ScheduleID: "werktag", ScheduleName: "Werktag", BlockID: "b1", Label: "Nacht",
 		},
@@ -255,7 +257,7 @@ func TestPublishScheduleStateIdleIsLocalized(t *testing.T) {
 
 	// The test config is German, so the idle label comes from label_de — the
 	// only string in this sensor the daemon produces itself.
-	c.PublishScheduleState(context.Background(), dev, schedule.DeviceState{})
+	c.PublishScheduleState(context.Background(), schedule.Target{DeviceID: dev}, schedule.DeviceState{})
 
 	got, ok := m.get("daikin/" + dev + "/" + emb + "/" + ScheduleStateTopic + "/state")
 	if !ok || got.payload != "Kein Block" {
@@ -274,7 +276,7 @@ func TestPublishScheduleStateWithoutLabel(t *testing.T) {
 	c := newCoordinator(t, &stubCloud{devices: devicesJSON(dev, emb)}, m)
 	c.pollOnce(context.Background())
 
-	c.PublishScheduleState(context.Background(), dev, schedule.DeviceState{
+	c.PublishScheduleState(context.Background(), schedule.Target{DeviceID: dev}, schedule.DeviceState{
 		Active: &schedule.Claim{ScheduleID: "s", ScheduleName: "Urlaub"},
 	})
 	got, _ := m.get("daikin/" + dev + "/" + emb + "/" + ScheduleStateTopic + "/state")
@@ -287,7 +289,7 @@ func TestPublishScheduleStateUnknownDevice(t *testing.T) {
 	m := newStubMQTT()
 	c := newCoordinator(t, &stubCloud{}, m)
 	// No poll: nothing must be published for a device we cannot address.
-	c.PublishScheduleState(context.Background(), "dev1", schedule.DeviceState{})
+	c.PublishScheduleState(context.Background(), schedule.Target{DeviceID: "dev1"}, schedule.DeviceState{})
 	if n := m.count(); n != 0 {
 		t.Errorf("published %d messages for an unknown device, want 0", n)
 	}
@@ -381,5 +383,188 @@ func TestPollWakesScheduler(t *testing.T) {
 	c.pollOnce(context.Background())
 	if sched.woken == 0 {
 		t.Error("a completed poll must wake the engine so pending blocks can be applied")
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
+
+// outdoorDevicesJSON builds two indoor devices sharing one outdoor unit, which
+// is what an outdoor schedule addresses.
+func outdoorDevicesJSON(serial string, deviceIDs ...string) json.RawMessage {
+	parts := make([]string, 0, len(deviceIDs))
+	for _, id := range deviceIDs {
+		parts = append(parts, `{
+          "id": "`+id+`",
+          "deviceModel": "test-model",
+          "managementPoints": [
+            {
+              "embeddedId": "climateControl",
+              "managementPointType": "climateControl",
+              "onOffMode": {"value": "on", "settable": true},
+              "operationMode": {"value": "cooling", "settable": true,
+                "values": ["heating", "cooling"]}
+            },
+            {
+              "embeddedId": "outdoorUnit",
+              "managementPointType": "outdoorUnit",
+              "serialNumber": {"value": "`+serial+`"}
+            }
+          ]
+        }`)
+	}
+	return json.RawMessage("[" + strings.Join(parts, ",") + "]")
+}
+
+// outdoorCoordinator returns a coordinator that has resolved an outdoor group.
+func outdoorCoordinator(t *testing.T, serial string, devices ...string) (*Coordinator, *stubMQTT) {
+	t.Helper()
+	m := newStubMQTT()
+	c := newCoordinator(t, &stubCloud{devices: outdoorDevicesJSON(serial, devices...)}, m)
+	c.pollOnce(context.Background())
+	return c, m
+}
+
+func TestApplyOutdoorScheduleWritesOnceAndFansOut(t *testing.T) {
+	c, _ := outdoorCoordinator(t, "0J723746", "dev-a", "dev-b")
+
+	err := c.ApplySchedule(context.Background(), schedule.Target{OutdoorSerial: "0J723746"},
+		schedule.Action{OutdoorSilent: boolPtr(true), Econo: boolPtr(false), Demand: ptr(70)})
+	if err != nil {
+		t.Fatalf("ApplySchedule: %v", err)
+	}
+
+	// Exactly one request per setting: these are scope: outdoor topics, and
+	// handleWrite already fans each one out to every member. Writing per member
+	// here would send each setting twice.
+	var got []writeReq
+	for {
+		select {
+		case req := <-c.writes:
+			got = append(got, req)
+			continue
+		default:
+		}
+		break
+	}
+	if len(got) != 3 {
+		t.Fatalf("queued %d requests, want 3: %+v", len(got), got)
+	}
+	want := map[string]string{
+		outdoorSilentTopic: "on",
+		econoTopic:         "off",
+		demandTopic:        "70",
+	}
+	seenDevice := ""
+	for _, req := range got {
+		if w, ok := want[req.topic]; !ok || w != req.payload {
+			t.Errorf("unexpected request %+v", req)
+		}
+		delete(want, req.topic)
+		if seenDevice == "" {
+			seenDevice = req.deviceID
+		} else if req.deviceID != seenDevice {
+			t.Errorf("all writes must address one member, got %s and %s", seenDevice, req.deviceID)
+		}
+	}
+	if len(want) != 0 {
+		t.Errorf("missing writes for %v", want)
+	}
+	// The member is picked deterministically (sorted), so the choice does not
+	// flap between polls.
+	if seenDevice != "dev-a" {
+		t.Errorf("addressed member = %s, want the first sorted member dev-a", seenDevice)
+	}
+}
+
+func TestApplyOutdoorScheduleSkipsUnsetFields(t *testing.T) {
+	c, _ := outdoorCoordinator(t, "0J723746", "dev-a")
+
+	// Only the silent mode is set: a nil field means "leave this alone", so
+	// the night block must not also reset the demand limit.
+	err := c.ApplySchedule(context.Background(), schedule.Target{OutdoorSerial: "0J723746"},
+		schedule.Action{OutdoorSilent: boolPtr(true)})
+	if err != nil {
+		t.Fatalf("ApplySchedule: %v", err)
+	}
+	req := drainOne(t, c)
+	if req.topic != outdoorSilentTopic || req.payload != "on" {
+		t.Errorf("request = %+v, want %s/on", req, outdoorSilentTopic)
+	}
+	select {
+	case extra := <-c.writes:
+		t.Errorf("unset fields must not be written, got %+v", extra)
+	default:
+	}
+}
+
+func TestApplyOutdoorScheduleUnknownGroup(t *testing.T) {
+	// No poll has resolved any outdoor serial yet.
+	c := newCoordinator(t, &stubCloud{}, newStubMQTT())
+	err := c.ApplySchedule(context.Background(), schedule.Target{OutdoorSerial: "nope"},
+		schedule.Action{OutdoorSilent: boolPtr(true)})
+	if !errors.Is(err, schedule.ErrDeviceUnknown) {
+		t.Fatalf("ApplySchedule = %v, want ErrDeviceUnknown", err)
+	}
+	select {
+	case req := <-c.writes:
+		t.Errorf("nothing must be queued for an unknown group, got %+v", req)
+	default:
+	}
+}
+
+func TestPublishOutdoorScheduleStateOnEveryMember(t *testing.T) {
+	c, m := outdoorCoordinator(t, "0J723746", "dev-a", "dev-b")
+
+	next := time.Date(2026, 8, 13, 22, 0, 0, 0, time.UTC)
+	c.PublishScheduleState(context.Background(), schedule.Target{OutdoorSerial: "0J723746"},
+		schedule.DeviceState{
+			Active:     &schedule.Claim{ScheduleID: "nachtruhe", ScheduleName: "Nachtruhe", Label: "leise"},
+			NextChange: next,
+		})
+
+	// Discovery collapses these into one pair on the outdoor unit, but which
+	// member's topic that entity reads from depends on the discovery order —
+	// so every member has to carry the value.
+	for _, dev := range []string{"dev-a", "dev-b"} {
+		got, ok := m.get("daikin/" + dev + "/climateControl/" + OutdoorScheduleStateTopic + "/state")
+		if !ok || got.payload != "Nachtruhe · leise" {
+			t.Errorf("%s state = %+v, want 'Nachtruhe · leise'", dev, got)
+		}
+		got, ok = m.get("daikin/" + dev + "/climateControl/" + OutdoorScheduleNextTopic + "/state")
+		if !ok || got.payload != next.Format(time.RFC3339) {
+			t.Errorf("%s next change = %+v", dev, got)
+		}
+	}
+}
+
+func TestSchedulePointsIncludeOutdoorOnlyWhenUsed(t *testing.T) {
+	c, _ := outdoorCoordinator(t, "0J723746", "dev-a")
+	devices, err := model.ParseDevices(outdoorDevicesJSON("0J723746", "dev-a"))
+	if err != nil {
+		t.Fatalf("ParseDevices: %v", err)
+	}
+
+	// An indoor-only installation must not grow two empty outdoor sensors.
+	indoorOnly := schedule.NewDocument()
+	indoorOnly.Schedules = []schedule.Schedule{{ID: "werktag", Name: "Werktag"}}
+	c.AttachScheduler(&stubScheduler{doc: indoorOnly})
+	for _, p := range c.schedulePoints(devices) {
+		if p.Topic == OutdoorScheduleStateTopic || p.Topic == OutdoorScheduleNextTopic {
+			t.Fatalf("outdoor sensors must not appear without an outdoor schedule: %s", p.Topic)
+		}
+	}
+
+	withOutdoor := schedule.NewDocument()
+	withOutdoor.Schedules = []schedule.Schedule{{
+		ID: "nachtruhe", Name: "Nachtruhe", Type: schedule.TypeOutdoor,
+		Targets: []schedule.Target{{OutdoorSerial: "0J723746"}},
+	}}
+	c.AttachScheduler(&stubScheduler{doc: withOutdoor})
+	seen := map[string]bool{}
+	for _, p := range c.schedulePoints(devices) {
+		seen[p.Topic] = true
+	}
+	if !seen[OutdoorScheduleStateTopic] || !seen[OutdoorScheduleNextTopic] {
+		t.Errorf("outdoor sensors missing with an outdoor schedule: %v", seen)
 	}
 }

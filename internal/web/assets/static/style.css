@@ -300,6 +300,9 @@ html, body {
   --mode-dry: #2dd4bf;
   --mode-fan: #94a3b8;
   --mode-off: #7c8ba3;
+  /* Outdoor blocks carry no HVAC mode, so they get one distinct hue of their
+     own rather than borrowing a mode colour. */
+  --mode-outdoor: #c084fc;
 }
 [data-theme="light"] {
   --mode-heat: #ea580c;
@@ -308,7 +311,11 @@ html, body {
   --mode-dry: #0d9488;
   --mode-fan: #64748b;
   --mode-off: #64748b;
+  --mode-outdoor: #9333ea;
 }
+
+/* Separator between the indoor devices and the outdoor units in the picker. */
+.chip-sep { color: var(--text-soft); padding: 0 2px; }
 
 .spacer { flex: 1; }
 

@@ -410,3 +410,135 @@ func TestNormalizeBlockIDs(t *testing.T) {
 		seen[b.ID] = true
 	}
 }
+
+func boolPtr(b bool) *bool { return &b }
+
+// newOutdoorSchedule builds a valid outdoor schedule payload.
+func newOutdoorSchedule(name, serial string) schedule.Schedule {
+	demand := 70.0
+	return schedule.Schedule{
+		Name:    name,
+		Type:    schedule.TypeOutdoor,
+		Enabled: true,
+		Targets: []schedule.Target{{OutdoorSerial: serial}},
+		Blocks: []schedule.Block{{
+			Days: []string{"mon", "tue"}, Start: "22:00", End: "06:00",
+			Action: schedule.Action{OutdoorSilent: boolPtr(true), Demand: &demand},
+		}},
+	}
+}
+
+func TestSchedulesListOffersOutdoorUnits(t *testing.T) {
+	groups := func() map[string][]string {
+		return map[string][]string{"0J723746": {"dev-b", "dev-a"}}
+	}
+	srv, _ := scheduleServer(t, groups)
+
+	w := do(t, srv, http.MethodGet, "/api/schedules", nil)
+	var list schedulesResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(list.Outdoor) != 1 {
+		t.Fatalf("outdoor units = %+v, want 1", list.Outdoor)
+	}
+	u := list.Outdoor[0]
+	if u.Serial != "0J723746" || u.Key != "outdoor:0J723746" {
+		t.Errorf("unit = %+v", u)
+	}
+	// Members are sorted so the UI order is stable across polls.
+	if len(u.Members) != 2 || u.Members[0] != "dev-a" {
+		t.Errorf("members = %v, want them sorted", u.Members)
+	}
+
+	// Without a group source there is nothing to offer — but the field is an
+	// empty array rather than null, so the UI can iterate unconditionally.
+	srvNoGroups, _ := scheduleServer(t, nil)
+	w = do(t, srvNoGroups, http.MethodGet, "/api/schedules", nil)
+	_ = json.Unmarshal(w.Body.Bytes(), &list)
+	if list.Outdoor == nil || len(list.Outdoor) != 0 {
+		t.Errorf("outdoor units without groups = %+v, want an empty array", list.Outdoor)
+	}
+}
+
+func TestOutdoorScheduleCRUD(t *testing.T) {
+	groups := func() map[string][]string {
+		return map[string][]string{"0J723746": {"dev-a", "dev-b"}}
+	}
+	srv, eng := scheduleServer(t, groups)
+
+	w := do(t, srv, http.MethodPost, "/api/schedules",
+		scheduleWrite{Schedule: newOutdoorSchedule("Nachtruhe", "0J723746")})
+	if w.Code != http.StatusCreated {
+		t.Fatalf("POST = %d (%s), want 201", w.Code, w.Body)
+	}
+	got := eng.Document().Schedules[0]
+	if got.Kind() != schedule.TypeOutdoor {
+		t.Errorf("type = %q, want outdoor", got.Type)
+	}
+	if got.Targets[0].OutdoorSerial != "0J723746" {
+		t.Errorf("target = %+v", got.Targets[0])
+	}
+	if got.Blocks[0].Action.OutdoorSilent == nil || !*got.Blocks[0].Action.OutdoorSilent {
+		t.Errorf("action = %+v", got.Blocks[0].Action)
+	}
+
+	// The preview resolves it under the outdoor key.
+	w = do(t, srv, http.MethodGet, "/api/schedules/preview?target=outdoor:0J723746", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("preview = %d (%s)", w.Code, w.Body)
+	}
+	var prev previewResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &prev); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(prev.Segments) == 0 {
+		t.Fatal("preview has no segments")
+	}
+	seg := prev.Segments[0]
+	if seg.OutdoorSilent == nil || !*seg.OutdoorSilent {
+		t.Errorf("segment carries no outdoor_silent: %+v", seg)
+	}
+	if seg.Demand == nil || *seg.Demand != 70 {
+		t.Errorf("segment demand = %v, want 70", seg.Demand)
+	}
+	// An outdoor target cannot have a heat/cool conflict with itself.
+	if len(prev.Conflicts) != 0 {
+		t.Errorf("outdoor preview must report no mode conflicts, got %+v", prev.Conflicts)
+	}
+}
+
+func TestOutdoorScheduleRejectsIndoorFields(t *testing.T) {
+	srv, _ := scheduleServer(t, nil)
+	bad := newOutdoorSchedule("Kaputt", "0J723746")
+	bad.Blocks[0].Action.Power = schedule.PowerOn
+	bad.Blocks[0].Action.HVACMode = schedule.ModeHeat
+
+	w := do(t, srv, http.MethodPost, "/api/schedules", scheduleWrite{Schedule: bad})
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("POST = %d, want 400", w.Code)
+	}
+	var e apiError
+	_ = json.Unmarshal(w.Body.Bytes(), &e)
+	if e.Code != errCodeValidation || !strings.Contains(e.Error, "indoor schedule") {
+		t.Errorf("error = %+v, want a type mismatch", e)
+	}
+}
+
+func TestPreviewAcceptsLegacyDeviceParam(t *testing.T) {
+	srv, _ := scheduleServer(t, nil)
+	if w := do(t, srv, http.MethodPost, "/api/schedules",
+		scheduleWrite{Schedule: newSchedule("Werktag", "dev-1")}); w.Code != http.StatusCreated {
+		t.Fatalf("POST = %d (%s)", w.Code, w.Body)
+	}
+	// An SPA cached from 0.9.x still sends ?device=.
+	w := do(t, srv, http.MethodGet, "/api/schedules/preview?device=dev-1", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("preview with ?device = %d", w.Code)
+	}
+	var prev previewResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &prev)
+	if len(prev.Segments) != 2 {
+		t.Errorf("segments = %d, want 2", len(prev.Segments))
+	}
+}

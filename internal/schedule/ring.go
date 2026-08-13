@@ -38,17 +38,17 @@ func (c *Claim) Key() string {
 // no block applies (a gap means "no intervention").
 type Week [SlotsPerWeek]*Claim
 
-// Resolve resolves the whole week for one device: for every slot the claim of
-// the enabled schedule with the highest priority (ties go to the block that
-// started later).
-func Resolve(d *Document, deviceID string) *Week {
+// Resolve resolves the whole week for one target (an indoor device id or an
+// outdoor key, see [Target.Key]): for every slot the claim of the enabled
+// schedule with the highest priority (ties go to the block that started later).
+func Resolve(d *Document, targetKey string) *Week {
 	var w Week
 	if d == nil {
 		return &w
 	}
 	for i := range d.Schedules {
 		s := &d.Schedules[i]
-		if !s.Enabled || !s.Applies(deviceID) {
+		if !s.Enabled || !s.Applies(targetKey) {
 			continue
 		}
 		for j := range s.Blocks {

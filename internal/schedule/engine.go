@@ -28,7 +28,7 @@ var ErrStaleRevision = errors.New("schedule: stale revision")
 // in a poll, so nothing was written and the engine must not record the action
 // as applied.
 type Applier interface {
-	ApplySchedule(ctx context.Context, deviceID, embeddedID string, a Action) error
+	ApplySchedule(ctx context.Context, target Target, a Action) error
 }
 
 // ErrDeviceUnknown is returned by an [Applier] that does not (yet) know the
@@ -39,7 +39,7 @@ var ErrDeviceUnknown = errors.New("schedule: device unknown")
 // StatePublisher receives the per-device scheduler status after every
 // evaluation, for the two Home Assistant status sensors. Optional.
 type StatePublisher interface {
-	PublishScheduleState(ctx context.Context, deviceID string, st DeviceState)
+	PublishScheduleState(ctx context.Context, target Target, st DeviceState)
 	PublishScheduleSwitches(ctx context.Context, doc *Document)
 }
 
@@ -314,33 +314,38 @@ func (e *Engine) Evaluate(ctx context.Context) {
 
 	now := e.clock().In(loc)
 	cur := SlotAt(now)
-	for _, deviceID := range doc.DeviceIDs() {
-		week := Resolve(doc, deviceID)
-		e.evaluateDevice(ctx, doc, deviceID, week, cur, now, loc)
+	for _, key := range doc.TargetKeys() {
+		week := Resolve(doc, key)
+		e.evaluateTarget(ctx, doc, key, week, cur, now, loc)
 	}
 }
 
-// evaluateDevice applies the due action for one device and publishes its state.
-func (e *Engine) evaluateDevice(ctx context.Context, doc *Document, deviceID string, week *Week, cur int, now time.Time, loc *time.Location) {
+// evaluateTarget applies the due action for one target and publishes its state.
+func (e *Engine) evaluateTarget(ctx context.Context, doc *Document, targetKey string, week *Week, cur int, now time.Time, loc *time.Location) {
 	claim := week.At(cur)
+
+	// The target carries the identity the applier needs (device id plus
+	// optional embedded id, or an outdoor serial). It is looked up from the
+	// winning schedule, since that is the one whose block is being applied.
+	target := targetOf(doc, claim, targetKey)
 
 	st := DeviceState{Active: claim}
 	if next, _, ok := week.NextChange(cur); ok {
 		st.NextChange = SlotStart(next, now, loc)
 	}
 	if e.states != nil {
-		e.states.PublishScheduleState(ctx, deviceID, st)
+		e.states.PublishScheduleState(ctx, target, st)
 	}
 
 	if claim == nil {
 		// A gap means "no intervention". Forget the last action so the next
 		// block start is applied even if it repeats the previous one.
-		e.forget(deviceID)
+		e.forget(targetKey)
 		return
 	}
 
 	sig := claim.Action.Signature()
-	if e.lastSignature(deviceID) == sig {
+	if e.lastSignature(targetKey) == sig {
 		return // already in force — nothing to write
 	}
 
@@ -351,38 +356,51 @@ func (e *Engine) evaluateDevice(ctx context.Context, doc *Document, deviceID str
 	started := SlotStartBefore(claim.Start, now, loc)
 	age := now.Sub(started)
 	if age > e.catchup {
-		e.remember(deviceID, sig)
+		e.remember(targetKey, sig)
 		e.log.Debug("schedule.seeded",
-			slog.String("device", deviceID), slog.String("schedule", claim.ScheduleID),
+			slog.String("target", targetKey), slog.String("schedule", claim.ScheduleID),
 			slog.Duration("age", age))
 		return
 	}
 
 	if e.applier == nil {
-		e.remember(deviceID, sig)
+		e.remember(targetKey, sig)
 		return
 	}
-	embedded := ""
-	if s, ok := doc.Find(claim.ScheduleID); ok {
-		embedded = s.EmbeddedFor(deviceID)
-	}
-	if err := e.applier.ApplySchedule(ctx, deviceID, embedded, claim.Action); err != nil {
-		// A device the daemon has not seen yet is not a failure: the next poll
+	if err := e.applier.ApplySchedule(ctx, target, claim.Action); err != nil {
+		// A target the daemon has not seen yet is not a failure: the next poll
 		// wakes the engine and the catch-up window covers the delay.
 		if errors.Is(err, ErrDeviceUnknown) {
-			e.log.Debug("schedule.device_not_ready", slog.String("device", deviceID))
+			e.log.Debug("schedule.target_not_ready", slog.String("target", targetKey))
 			return
 		}
 		e.log.Warn("schedule.apply_failed",
-			slog.String("device", deviceID), slog.String("err", err.Error()))
+			slog.String("target", targetKey), slog.String("err", err.Error()))
 		return
 	}
-	e.remember(deviceID, sig)
+	e.remember(targetKey, sig)
 	e.log.Info("schedule.applied",
-		slog.String("device", deviceID),
+		slog.String("target", targetKey),
 		slog.String("schedule", claim.ScheduleID),
 		slog.String("block", claim.BlockID),
 		slog.String("action", sig))
+}
+
+// targetOf resolves a target key back to the full target of the winning
+// schedule, falling back to a key-only target when the schedule is gone (which
+// can only happen if the document changed underneath).
+func targetOf(doc *Document, claim *Claim, key string) Target {
+	if claim != nil {
+		if s, ok := doc.Find(claim.ScheduleID); ok {
+			if t, ok := s.TargetFor(key); ok {
+				return t
+			}
+		}
+	}
+	if serial, ok := OutdoorSerialOf(key); ok {
+		return Target{OutdoorSerial: serial}
+	}
+	return Target{DeviceID: key}
 }
 
 // untilNext returns how long to sleep: exactly until the earliest next switch
@@ -398,8 +416,8 @@ func (e *Engine) untilNext() time.Duration {
 	now := e.clock().In(loc)
 	cur := SlotAt(now)
 	var best time.Time
-	for _, deviceID := range doc.DeviceIDs() {
-		week := Resolve(doc, deviceID)
+	for _, key := range doc.TargetKeys() {
+		week := Resolve(doc, key)
 		next, _, ok := week.NextChange(cur)
 		if !ok {
 			continue

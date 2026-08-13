@@ -1,3 +1,48 @@
+# Version 0.10.0 (2026-08-13)
+
+## What's Changed
+
+### Added
+
+- **The outdoor unit can be scheduled.** Silent mode, eco and the power limit
+  are one physical knob on the shared compressor rather than a per-room state,
+  so they now have their own schedule type: an **outdoor schedule** targets an
+  outdoor unit and its settings fan out to every indoor unit on it.
+
+  - A schedule is now either an **indoor** schedule (power, HVAC mode,
+    setpoint — what 0.9.x did) or an **outdoor** schedule (silent mode, eco,
+    power limit). The editor shows only the fields that apply, because a block
+    carrying both would be half meaningless for whichever target it reached.
+    The type is chosen when the schedule is created and fixed afterwards.
+
+  - Each outdoor setting can be left alone. A night block can enable the silent
+    mode and cap the power limit without touching eco, and a morning block can
+    release both without saying anything about the third.
+
+  - The outdoor units appear in the calendar's picker after the rooms. Their
+    blocks are drawn in a colour of their own, since "heat" or "cool" has no
+    meaning there.
+
+  - Two new diagnostic sensors on the outdoor unit report the active outdoor
+    block and its next change, mirroring the per-room ones. They only appear
+    once an outdoor schedule exists.
+
+### Changed
+
+- The schedule preview endpoint takes `?target=` (a device or an outdoor unit)
+  instead of `?device=`; the old parameter is still accepted so a browser
+  holding a cached page from 0.9.x keeps working across the upgrade.
+
+### Notes
+
+- **Existing schedules are unaffected.** A `schedules.json` written by 0.9.x
+  has no type and reads back as an indoor schedule, unchanged.
+- Scheduling **powerful** remains out of scope: it is per indoor unit but drives
+  the same shared compressor and is mutually exclusive with eco, which an
+  outdoor schedule now sets. Letting both be automated would require the
+  suspend/restore logic to arbitrate between two automated writers rather than
+  between a person and one.
+
 # Version 0.9.1 (2026-08-13)
 
 ## What's Changed

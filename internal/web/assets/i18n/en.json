@@ -112,5 +112,18 @@
   "sched.err.store_failed": "The schedules could not be saved.",
   "btn.save": "Save",
   "btn.cancel": "Cancel",
-  "btn.delete": "Delete"
+  "btn.delete": "Delete",
+  "sched.outdoorUnit": "Outdoor unit {serial}",
+  "sched.type": "Type",
+  "sched.typeIndoor": "Indoor units",
+  "sched.typeOutdoor": "Outdoor unit",
+  "sched.silent": "Silent mode",
+  "sched.silentShort": "silent",
+  "sched.econo": "Eco",
+  "sched.econoShort": "eco",
+  "sched.demand": "Power limit",
+  "sched.keep": "leave alone",
+  "sched.outdoorHint": "These act on the shared outdoor unit and apply to every indoor unit on it. Anything left on “leave alone” is not written.",
+  "sched.noOutdoor": "No outdoor unit known yet — it appears after the first cloud poll.",
+  "sched.noDevices": "No devices known yet."
 }

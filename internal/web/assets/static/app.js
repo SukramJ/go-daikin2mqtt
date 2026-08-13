@@ -383,7 +383,10 @@ const SCHED = {
   slotMinutes: 30,
   days: [],
   devices: [],
-  device: null,
+  outdoor: [],
+  // target is the resolver key of the unit shown in the calendar: a device id,
+  // or "outdoor:<serial>" for an outdoor unit.
+  target: null,
   preview: null,
 };
 
@@ -447,12 +450,13 @@ async function loadSchedules() {
   SCHED.revision = data.revision;
   SCHED.schedules = data.schedules || [];
   SCHED.modes = data.modes || [];
+  SCHED.outdoor = data.outdoor_units || [];
   SCHED.slotMinutes = data.slot_minutes || 30;
   SCHED.days = data.days || [];
   document.getElementById("tz-note")?.replaceChildren(document.createTextNode(data.timezone || ""));
 
   if (!SCHED.devices.length) await loadScheduleDevices();
-  if (!SCHED.device) SCHED.device = pickDefaultDevice();
+  if (!SCHED.target || !targetExists(SCHED.target)) SCHED.target = pickDefaultTarget();
   await refreshPreview();
 }
 
@@ -483,21 +487,46 @@ async function loadScheduleDevices() {
   }
 }
 
-function pickDefaultDevice() {
+// targetKey returns the resolver key of a stored target, matching Target.Key()
+// on the server.
+function targetKey(t) {
+  return t.outdoor_serial ? "outdoor:" + t.outdoor_serial : t.device_id;
+}
+
+function targetExists(key) {
+  return SCHED.devices.some((d) => d.id === key) || SCHED.outdoor.some((u) => u.key === key);
+}
+
+function pickDefaultTarget() {
   for (const s of SCHED.schedules) {
-    if (s.targets && s.targets.length) return s.targets[0].device_id;
+    if (s.targets && s.targets.length) return targetKey(s.targets[0]);
   }
-  return SCHED.devices.length ? SCHED.devices[0].id : null;
+  if (SCHED.devices.length) return SCHED.devices[0].id;
+  return SCHED.outdoor.length ? SCHED.outdoor[0].key : null;
+}
+
+// isOutdoorKey reports whether the calendar currently shows an outdoor unit.
+function isOutdoorKey(key) {
+  return typeof key === "string" && key.startsWith("outdoor:");
+}
+
+// targetName resolves a target key to what the operator should read.
+function targetName(key) {
+  if (isOutdoorKey(key)) {
+    const u = SCHED.outdoor.find((x) => x.key === key);
+    return u ? tf("sched.outdoorUnit", { serial: u.serial }) : key;
+  }
+  return deviceName(key);
 }
 
 async function refreshPreview() {
-  if (!SCHED.device) {
+  if (!SCHED.target) {
     SCHED.preview = null;
     renderSchedules();
     return;
   }
   try {
-    SCHED.preview = await fetchJSON("api/schedules/preview?device=" + encodeURIComponent(SCHED.device));
+    SCHED.preview = await fetchJSON("api/schedules/preview?target=" + encodeURIComponent(SCHED.target));
   } catch (e) {
     SCHED.preview = null;
     toast(t("sched.err.load") + e.message, "err");
@@ -519,22 +548,59 @@ function renderSchedules() {
 function renderScheduleDevices() {
   const host = document.getElementById("sched-devices");
   host.innerHTML = "";
-  for (const d of SCHED.devices) {
-    const c = el("button", "chip", d.name || d.model || d.id);
+  const add = (key, label, title) => {
+    const c = el("button", "chip", label);
     c.type = "button";
-    c.setAttribute("aria-pressed", String(d.id === SCHED.device));
+    if (title) c.title = title;
+    c.setAttribute("aria-pressed", String(key === SCHED.target));
     c.addEventListener("click", async () => {
-      SCHED.device = d.id;
+      SCHED.target = key;
       await refreshPreview();
     });
     host.appendChild(c);
+  };
+  for (const d of SCHED.devices) add(d.id, d.name || d.model || d.id);
+  // The outdoor units follow, separated: they carry the settings that act on
+  // the shared compressor rather than on one room.
+  if (SCHED.outdoor.length && SCHED.devices.length) {
+    host.appendChild(el("span", "chip-sep", "·"));
+  }
+  for (const u of SCHED.outdoor) {
+    add(u.key, tf("sched.outdoorUnit", { serial: u.serial }),
+      u.members.map(deviceName).join(", "));
   }
 }
 
 function scheduleColor(s) {
+  if ((s.type || "indoor") === "outdoor") return "var(--mode-outdoor)";
   const b = (s.blocks || [])[0];
   if (!b) return "var(--mode-fan)";
   return b.action.power === "off" ? MODE_COLOR.off : MODE_COLOR[b.action.hvac_mode] || MODE_COLOR.auto;
+}
+
+// scheduleKind returns a schedule's effective type, mapping the legacy empty
+// value to indoor exactly as the server does.
+function scheduleKind(s) {
+  return (s && s.type) === "outdoor" ? "outdoor" : "indoor";
+}
+
+// blockSummary renders a block's target state for the calendar and the status
+// line — the indoor fields or the outdoor ones, depending on what is set.
+function blockSummary(a) {
+  if (!a) return "";
+  if (a.outdoor_silent !== undefined || a.econo !== undefined || a.demand !== undefined) {
+    const parts = [];
+    if (a.outdoor_silent !== undefined) {
+      parts.push(t("sched.silentShort") + " " + (a.outdoor_silent ? t("sched.on") : t("sched.off")));
+    }
+    if (a.econo !== undefined) {
+      parts.push(t("sched.econoShort") + " " + (a.econo ? t("sched.on") : t("sched.off")));
+    }
+    if (a.demand !== undefined) parts.push(a.demand.toLocaleString(LOCALE) + " %");
+    return parts.join(" · ");
+  }
+  if (a.power === "off") return t("sched.off");
+  return fmtTemp(a.setpoint);
 }
 
 function renderScheduleList() {
@@ -546,8 +612,8 @@ function renderScheduleList() {
   }
   const sorted = [...SCHED.schedules].sort((a, b) => b.priority - a.priority);
   for (const s of sorted) {
-    const targets = (s.targets || []).map((x) => x.device_id);
-    const row = el("button", "sched-row" + (targets.includes(SCHED.device) ? "" : " dim"));
+    const targets = (s.targets || []).map(targetKey);
+    const row = el("button", "sched-row" + (targets.includes(SCHED.target) ? "" : " dim"));
     row.type = "button";
     row.setAttribute("role", "switch");
     row.setAttribute("aria-checked", String(s.enabled));
@@ -613,7 +679,7 @@ function coveredSegments() {
   const out = [];
   for (const s of SCHED.schedules) {
     if (!s.enabled) continue;
-    if (!(s.targets || []).some((x) => x.device_id === SCHED.device)) continue;
+    if (!(s.targets || []).some((x) => targetKey(x) === SCHED.target)) continue;
     for (const b of s.blocks || []) {
       const start = toMin(b.start);
       let dur = toMin(b.end) - start;
@@ -699,11 +765,12 @@ function placeBlock(node, from, to) {
 function effectiveEl(seg) {
   const btn = el("button", "blk");
   btn.type = "button";
-  btn.style.setProperty("--c", seg.power === "off" ? MODE_COLOR.off : MODE_COLOR[seg.hvac_mode] || MODE_COLOR.auto);
+  btn.style.setProperty("--c", segColor(seg));
   placeBlock(btn, toMin(seg.from), toMin(seg.to));
-  btn.appendChild(el("b", null, seg.power === "off" ? t("sched.off") : fmtTemp(seg.setpoint)));
+  btn.appendChild(el("b", null, blockSummary(seg)));
   btn.appendChild(el("span", null, seg.schedule_name + (seg.label ? " · " + seg.label : "")));
-  btn.title = seg.schedule_name + " · " + seg.from + "–" + seg.to + " · " + modeLabel(seg.hvac_mode);
+  btn.title = seg.schedule_name + " · " + seg.from + "–" + seg.to +
+    (seg.hvac_mode ? " · " + modeLabel(seg.hvac_mode) : "");
   btn.addEventListener("click", () => {
     const s = SCHED.schedules.find((x) => x.id === seg.schedule_id);
     const b = s && (s.blocks || []).find((x) => x.id === seg.block_id);
@@ -712,12 +779,21 @@ function effectiveEl(seg) {
   return btn;
 }
 
+// segColor picks a block's colour: the HVAC mode for indoor blocks, a single
+// distinct hue for outdoor ones (where "mode" has no meaning).
+function segColor(a) {
+  if (a.outdoor_silent !== undefined || a.econo !== undefined || a.demand !== undefined) {
+    return "var(--mode-outdoor)";
+  }
+  return a.power === "off" ? MODE_COLOR.off : MODE_COLOR[a.hvac_mode] || MODE_COLOR.auto;
+}
+
 function coveredEl(c) {
   const div = el("div", "blk ghost");
   const a = c.block.action;
-  div.style.setProperty("--c", a.power === "off" ? MODE_COLOR.off : MODE_COLOR[a.hvac_mode] || MODE_COLOR.auto);
+  div.style.setProperty("--c", segColor(a));
   placeBlock(div, c.from, c.to);
-  div.appendChild(el("b", null, a.power === "off" ? t("sched.off") : fmtTemp(a.setpoint)));
+  div.appendChild(el("b", null, blockSummary(a)));
   div.title = c.schedule.name + " · " + t("sched.covered");
   return div;
 }
@@ -734,8 +810,7 @@ function renderScheduleStatus() {
 
   const active = p && p.active;
   add(t("sched.now"), active
-    ? active.schedule_name + (active.label ? " · " + active.label : "") +
-      (active.power === "off" ? " (" + t("sched.off") + ")" : " · " + fmtTemp(active.setpoint))
+    ? active.schedule_name + (active.label ? " · " + active.label : "") + " · " + blockSummary(active)
     : t("sched.idle"));
   add(t("sched.next"), p && p.next_change
     ? new Date(p.next_change).toLocaleString(LOCALE, { weekday: "short", hour: "2-digit", minute: "2-digit" })
@@ -803,13 +878,16 @@ function openNewBlock(day, startMin) {
     return;
   }
   const end = Math.min(startMin + 60, 1440);
+  const action = scheduleKind(s) === "outdoor"
+    ? { outdoor_silent: true }
+    : { power: "on", hvac_mode: SCHED.modes.length ? SCHED.modes[0].value : "heat", setpoint: 21 };
   openBlockDialog(s, {
     id: "",
     label: "",
     days: [SCHED.days[day]],
     start: fmtMin(startMin),
     end: fmtMin(end),
-    action: { power: "on", hvac_mode: SCHED.modes.length ? SCHED.modes[0].value : "heat", setpoint: 21 },
+    action,
     on_end: "none",
   }, true);
 }
@@ -818,7 +896,7 @@ function openNewBlock(day, startMin) {
 // highest-priority enabled one that targets the current device.
 function pickTargetSchedule() {
   const candidates = SCHED.schedules
-    .filter((s) => s.enabled && (s.targets || []).some((x) => x.device_id === SCHED.device))
+    .filter((s) => s.enabled && (s.targets || []).some((x) => targetKey(x) === SCHED.target))
     .sort((a, b) => b.priority - a.priority);
   return candidates[0] || null;
 }
@@ -830,7 +908,9 @@ function openBlockDialog(sched, block, isNew) {
   document.getElementById("dlg-delete").hidden = isNew;
   const body = document.getElementById("dlg-body");
   body.innerHTML = "";
-  body.appendChild(buildBlockEditor(copy));
+  body.appendChild(scheduleKind(sched) === "outdoor"
+    ? buildOutdoorBlockEditor(copy)
+    : buildBlockEditor(copy));
   document.getElementById("block-dialog").showModal();
 }
 
@@ -851,19 +931,7 @@ function buildBlockEditor(b) {
   label.addEventListener("input", () => (b.label = label.value));
   row("sched.label", label);
 
-  const days = el("div", "inline");
-  dayNames("narrow").forEach((n, i) => {
-    const key = SCHED.days[i];
-    const c = el("button", "chip", n);
-    c.type = "button";
-    c.setAttribute("aria-pressed", String((b.days || []).includes(key)));
-    c.addEventListener("click", () => {
-      b.days = (b.days || []).includes(key) ? b.days.filter((x) => x !== key) : [...(b.days || []), key];
-      c.setAttribute("aria-pressed", String(b.days.includes(key)));
-    });
-    days.appendChild(c);
-  });
-  row("sched.days", days);
+  row("sched.days", dayChips(b));
 
   const times = el("div", "inline");
   times.append(
@@ -954,6 +1022,125 @@ function buildBlockEditor(b) {
   return wrap;
 }
 
+// buildOutdoorBlockEditor is the editor for a block on an outdoor unit. The
+// three settings are independent and each is optional: an unset one means
+// "leave this alone", so a night block can enable the silent mode without also
+// resetting the demand limit.
+function buildOutdoorBlockEditor(b) {
+  const wrap = el("div");
+  wrap.style.cssText = "display:flex;flex-direction:column;gap:13px";
+  const row = (labelKey, node) => {
+    const r = el("div", "field-row");
+    r.appendChild(el("label", null, t(labelKey)));
+    r.appendChild(node);
+    wrap.appendChild(r);
+    return r;
+  };
+
+  const label = el("input", "field");
+  label.type = "text";
+  label.value = b.label || "";
+  label.addEventListener("input", () => (b.label = label.value));
+  row("sched.label", label);
+
+  row("sched.days", dayChips(b));
+
+  const times = el("div", "inline");
+  times.append(
+    timeSelect(b.start, false, (v) => (b.start = v)),
+    el("span", "muted", "–"),
+    timeSelect(b.end, true, (v) => (b.end = v))
+  );
+  row("sched.time", times);
+
+  // Each switch is tri-state: on / off / leave alone.
+  const triState = (get, set) => {
+    const seg = el("div", "inline");
+    const options = [
+      ["on", t("sched.on"), true],
+      ["off", t("sched.off"), false],
+      ["keep", t("sched.keep"), undefined],
+    ];
+    const sync = () => {
+      [...seg.children].forEach((c, i) => {
+        const want = options[i][2];
+        c.setAttribute("aria-pressed", String(get() === want));
+      });
+    };
+    for (const [, text, value] of options) {
+      const c = el("button", "chip", text);
+      c.type = "button";
+      c.addEventListener("click", () => {
+        set(value);
+        sync();
+      });
+      seg.appendChild(c);
+    }
+    sync();
+    return seg;
+  };
+
+  row("sched.silent", triState(
+    () => b.action.outdoor_silent,
+    (v) => (v === undefined ? delete b.action.outdoor_silent : (b.action.outdoor_silent = v))
+  ));
+  row("sched.econo", triState(
+    () => b.action.econo,
+    (v) => (v === undefined ? delete b.action.econo : (b.action.econo = v))
+  ));
+
+  // Demand limit: a percentage, or "leave alone".
+  const stepper = el("div", "stepper");
+  const val = el("span", "val", b.action.demand === undefined ? "—" : b.action.demand + " %");
+  const step = (delta) => {
+    const base = b.action.demand === undefined ? 100 : b.action.demand;
+    b.action.demand = Math.min(100, Math.max(0, base + delta));
+    val.textContent = b.action.demand + " %";
+    keep.setAttribute("aria-pressed", "false");
+  };
+  const minus = el("button", "iconbtn", "−");
+  const plus = el("button", "iconbtn", "+");
+  minus.type = plus.type = "button";
+  minus.addEventListener("click", () => step(-5));
+  plus.addEventListener("click", () => step(5));
+  const keep = el("button", "chip", t("sched.keep"));
+  keep.type = "button";
+  keep.setAttribute("aria-pressed", String(b.action.demand === undefined));
+  keep.addEventListener("click", () => {
+    if (b.action.demand === undefined) {
+      b.action.demand = 100;
+    } else {
+      delete b.action.demand;
+    }
+    val.textContent = b.action.demand === undefined ? "—" : b.action.demand + " %";
+    keep.setAttribute("aria-pressed", String(b.action.demand === undefined));
+  });
+  stepper.append(minus, val, plus, keep);
+  row("sched.demand", stepper);
+
+  const hint = el("p", null, t("sched.outdoorHint"));
+  hint.style.cssText = "font-size:12.4px;color:var(--text-soft);margin:0";
+  wrap.appendChild(hint);
+  return wrap;
+}
+
+// dayChips builds the weekday selector shared by both block editors.
+function dayChips(b) {
+  const days = el("div", "inline");
+  dayNames("narrow").forEach((n, i) => {
+    const key = SCHED.days[i];
+    const c = el("button", "chip", n);
+    c.type = "button";
+    c.setAttribute("aria-pressed", String((b.days || []).includes(key)));
+    c.addEventListener("click", () => {
+      b.days = (b.days || []).includes(key) ? b.days.filter((x) => x !== key) : [...(b.days || []), key];
+      c.setAttribute("aria-pressed", String(b.days.includes(key)));
+    });
+    days.appendChild(c);
+  });
+  return days;
+}
+
 // timeSelect builds a 30-minute grid dropdown; allow24 adds the "24:00" end.
 function timeSelect(value, allow24, set) {
   const s = el("select", "field");
@@ -1013,7 +1200,14 @@ function openPlanDialog(s) {
   const isNew = !s;
   const copy = s
     ? JSON.parse(JSON.stringify(s))
-    : { name: "", enabled: true, priority: nextPriority(), targets: SCHED.device ? [{ device_id: SCHED.device }] : [], blocks: [] };
+    : {
+        name: "",
+        type: isOutdoorKey(SCHED.target) ? "outdoor" : "indoor",
+        enabled: true,
+        priority: nextPriority(),
+        targets: SCHED.target ? [defaultTarget(SCHED.target)] : [],
+        blocks: [],
+      };
   planCtx = { original: s, copy, isNew };
   document.getElementById("plan-title").textContent = isNew ? t("sched.newSchedule") : copy.name;
   document.getElementById("plan-delete").hidden = isNew;
@@ -1039,24 +1233,62 @@ function openPlanDialog(s) {
   prioRow.appendChild(prio);
   body.appendChild(prioRow);
 
+  // Type. Only selectable while the schedule is new: changing it later would
+  // invalidate every block it already carries.
+  const typeRow = el("div", "field-row");
+  typeRow.appendChild(el("label", null, t("sched.type")));
+  const types = el("div", "inline");
+  for (const [value, key] of [["indoor", "sched.typeIndoor"], ["outdoor", "sched.typeOutdoor"]]) {
+    const c = el("button", "chip", t(key));
+    c.type = "button";
+    c.setAttribute("aria-pressed", String(scheduleKind(copy) === value));
+    c.disabled = !isNew;
+    c.addEventListener("click", () => {
+      copy.type = value;
+      copy.targets = [];
+      openPlanDialogRefreshTargets();
+      [...types.children].forEach((x, i) =>
+        x.setAttribute("aria-pressed", String(["indoor", "outdoor"][i] === value)));
+    });
+    types.appendChild(c);
+  }
+  typeRow.appendChild(types);
+  body.appendChild(typeRow);
+
   const devRow = el("div", "field-row");
   devRow.appendChild(el("label", null, t("sched.targets")));
   const devs = el("div", "inline");
-  for (const d of SCHED.devices) {
-    const c = el("button", "chip", d.name || d.id);
-    c.type = "button";
-    const has = () => (copy.targets || []).some((x) => x.device_id === d.id);
-    c.setAttribute("aria-pressed", String(has()));
-    c.addEventListener("click", () => {
-      copy.targets = has()
-        ? copy.targets.filter((x) => x.device_id !== d.id)
-        : [...(copy.targets || []), { device_id: d.id }];
-      c.setAttribute("aria-pressed", String(has()));
-    });
-    devs.appendChild(c);
-  }
   devRow.appendChild(devs);
   body.appendChild(devRow);
+
+  // The target list depends on the type: rooms for an indoor schedule, outdoor
+  // units for an outdoor one.
+  function openPlanDialogRefreshTargets() {
+    devs.innerHTML = "";
+    const outdoor = scheduleKind(copy) === "outdoor";
+    const items = outdoor
+      ? SCHED.outdoor.map((u) => ({ label: tf("sched.outdoorUnit", { serial: u.serial }), target: { outdoor_serial: u.serial } }))
+      : SCHED.devices.map((d) => ({ label: d.name || d.id, target: { device_id: d.id } }));
+    if (!items.length) {
+      devs.appendChild(el("span", "muted", t(outdoor ? "sched.noOutdoor" : "sched.noDevices")));
+      return;
+    }
+    for (const it of items) {
+      const key = targetKey(it.target);
+      const c = el("button", "chip", it.label);
+      c.type = "button";
+      const has = () => (copy.targets || []).some((x) => targetKey(x) === key);
+      c.setAttribute("aria-pressed", String(has()));
+      c.addEventListener("click", () => {
+        copy.targets = has()
+          ? copy.targets.filter((x) => targetKey(x) !== key)
+          : [...(copy.targets || []), it.target];
+        c.setAttribute("aria-pressed", String(has()));
+      });
+      devs.appendChild(c);
+    }
+  }
+  openPlanDialogRefreshTargets();
 
   if (!isNew) {
     const idRow = el("div", "field-row");
@@ -1071,6 +1303,12 @@ function openPlanDialog(s) {
   }
 
   document.getElementById("plan-dialog").showModal();
+}
+
+// defaultTarget turns the currently shown target key back into a stored target.
+function defaultTarget(key) {
+  const serial = isOutdoorKey(key) ? key.slice("outdoor:".length) : "";
+  return serial ? { outdoor_serial: serial } : { device_id: key };
 }
 
 function nextPriority() {

@@ -98,13 +98,56 @@ func DayKey(i int) string {
 	return weekdayKeys[i]
 }
 
-// Action is the target state a block establishes at its start. A nil Setpoint
-// means "leave the temperature alone", which keeps a pure on/off or mode block
-// from overwriting a manually chosen temperature.
+// Type distinguishes what a schedule drives. An indoor schedule sets an
+// indoor unit's power, mode and setpoint; an outdoor schedule sets the
+// settings that act on the shared outdoor unit and are therefore one physical
+// knob for the whole group.
+//
+// The two are separate types rather than one schedule with optional fields,
+// because a block that carried both would be half meaningless for either
+// target — "21.5 °C" says nothing to an outdoor unit.
+type Type string
+
+// Type values. The empty string reads as TypeIndoor, so a schedules.json
+// written before this existed keeps working unchanged.
+const (
+	TypeIndoor  Type = "indoor"
+	TypeOutdoor Type = "outdoor"
+)
+
+// Normalized returns the effective type, mapping the empty legacy value to
+// indoor.
+func (t Type) Normalized() Type {
+	if t == TypeOutdoor {
+		return TypeOutdoor
+	}
+	return TypeIndoor
+}
+
+// Action is the target state a block establishes at its start.
+//
+// Which fields apply depends on the schedule's [Type]. For an indoor schedule
+// that is Power/HVACMode/Setpoint; for an outdoor schedule it is
+// OutdoorSilent/Econo/Demand. Every optional field means "leave this alone",
+// so a block can set the silent mode at night without touching the demand
+// limit — or set a mode without overwriting a manually chosen temperature.
 type Action struct {
-	Power    Power    `json:"power"`
+	// --- indoor ---
+	Power    Power    `json:"power,omitempty"`
 	HVACMode HVACMode `json:"hvac_mode,omitempty"`
 	Setpoint *float64 `json:"setpoint,omitempty"`
+
+	// --- outdoor ---
+	// OutdoorSilent caps the outdoor unit's fan/noise (catalog topic
+	// outdoor_silent).
+	OutdoorSilent *bool `json:"outdoor_silent,omitempty"`
+	// Econo limits the shared compressor (catalog topic econo_mode). It is
+	// mutually exclusive with powerful on any member; the coordinator's
+	// existing enforcement handles that, including restoring econo after a
+	// boost ends.
+	Econo *bool `json:"econo,omitempty"`
+	// Demand is the power limit in percent (catalog topic demand_control).
+	Demand *float64 `json:"demand,omitempty"`
 }
 
 // HVACPayload renders the action as a payload for the synthetic hvac_mode
@@ -125,18 +168,61 @@ func (a Action) SetpointPayload() string {
 	return strconv.FormatFloat(*a.Setpoint, 'f', -1, 64)
 }
 
-// Signature is a stable fingerprint of the action, used to suppress writes
-// that would not change anything (see the engine's idempotence cache).
-func (a Action) Signature() string {
-	if a.Power == PowerOff {
-		return "off"
+// DemandPayload renders the demand limit for the demand_control topic.
+func (a Action) DemandPayload() string {
+	if a.Demand == nil {
+		return ""
 	}
-	s := "on/" + string(a.HVACMode)
-	if a.Setpoint != nil {
-		s += "/" + a.SetpointPayload()
-	}
-	return s
+	return strconv.FormatFloat(*a.Demand, 'f', -1, 64)
 }
+
+// Signature is a stable fingerprint of the action, used to suppress writes
+// that would not change anything (see the engine's idempotence cache). It
+// covers both schedule types; the fields a type does not use are absent, so an
+// indoor and an outdoor action can never compare equal by accident.
+func (a Action) Signature() string {
+	var b strings.Builder
+	switch a.Power {
+	case PowerOff:
+		// An off block ignores mode and setpoint, so they must not enter the
+		// signature: two identical off blocks have to compare equal.
+		b.WriteString("off")
+	case PowerOn:
+		b.WriteString("on/")
+		b.WriteString(string(a.HVACMode))
+		if a.Setpoint != nil {
+			b.WriteString("/")
+			b.WriteString(a.SetpointPayload())
+		}
+	}
+	writeBool := func(name string, v *bool) {
+		if v == nil {
+			return
+		}
+		if b.Len() > 0 {
+			b.WriteString(";")
+		}
+		b.WriteString(name)
+		if *v {
+			b.WriteString("=on")
+		} else {
+			b.WriteString("=off")
+		}
+	}
+	writeBool("silent", a.OutdoorSilent)
+	writeBool("econo", a.Econo)
+	if a.Demand != nil {
+		if b.Len() > 0 {
+			b.WriteString(";")
+		}
+		b.WriteString("demand=")
+		b.WriteString(a.DemandPayload())
+	}
+	return b.String()
+}
+
+// IsEmpty reports whether the action would write nothing at all.
+func (a Action) IsEmpty() bool { return a.Signature() == "" }
 
 // Block is one time range with a target state. Days lists the weekdays the
 // block starts on; End may be less than or equal to Start, in which case the
@@ -170,44 +256,93 @@ func (b *Block) Duration() int {
 	return d
 }
 
-// Target is one device a schedule applies to. EmbeddedID is optional: left
-// empty, the coordinator uses the device's climateControl management point,
-// which is the right answer for every device that exposes a single zone.
+// Target is one thing a schedule applies to: either an indoor device
+// (DeviceID) or an outdoor unit identified by its serial (OutdoorSerial).
+// EmbeddedID is optional and indoor-only: left empty, the coordinator uses the
+// device's climateControl management point, which is the right answer for
+// every device that exposes a single zone.
 type Target struct {
-	DeviceID   string `json:"device_id"`
+	DeviceID   string `json:"device_id,omitempty"`
 	EmbeddedID string `json:"embedded_id,omitempty"`
+	// OutdoorSerial addresses an outdoor unit. The settings an outdoor
+	// schedule writes are one physical knob shared by every indoor unit on
+	// that unit, so the target is the unit itself, not any one of its members.
+	OutdoorSerial string `json:"outdoor_serial,omitempty"`
 }
+
+// outdoorKeyPrefix namespaces outdoor targets so a serial can never collide
+// with a device id in the resolution maps.
+const outdoorKeyPrefix = "outdoor:"
+
+// Key is the identity the resolver works on. Keeping resolution keyed on an
+// opaque string is what lets the ring, the engine and the conflict check stay
+// identical for both schedule types.
+func (t Target) Key() string {
+	if t.OutdoorSerial != "" {
+		return outdoorKeyPrefix + t.OutdoorSerial
+	}
+	return t.DeviceID
+}
+
+// IsOutdoor reports whether the target addresses an outdoor unit.
+func (t Target) IsOutdoor() bool { return t.OutdoorSerial != "" }
+
+// OutdoorSerialOf returns the serial encoded in a target key, or ("", false)
+// for an indoor key.
+func OutdoorSerialOf(key string) (string, bool) {
+	if s, ok := strings.CutPrefix(key, outdoorKeyPrefix); ok {
+		return s, true
+	}
+	return "", false
+}
+
+// OutdoorKey builds the resolver key for an outdoor serial.
+func OutdoorKey(serial string) string { return outdoorKeyPrefix + serial }
 
 // Schedule is one weekly programme. Several schedules may target the same
 // device; per slot the highest Priority wins (see ring.go).
 type Schedule struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Type is "indoor" (default, and what an older file omits) or "outdoor".
+	Type     Type     `json:"type,omitempty"`
 	Enabled  bool     `json:"enabled"`
 	Priority int      `json:"priority"`
 	Targets  []Target `json:"targets"`
 	Blocks   []Block  `json:"blocks"`
 }
 
-// Applies reports whether the schedule targets the given device.
-func (s *Schedule) Applies(deviceID string) bool {
+// Kind returns the schedule's effective type.
+func (s *Schedule) Kind() Type { return s.Type.Normalized() }
+
+// Applies reports whether the schedule targets the given key.
+func (s *Schedule) Applies(key string) bool {
 	for i := range s.Targets {
-		if s.Targets[i].DeviceID == deviceID {
+		if s.Targets[i].Key() == key {
 			return true
 		}
 	}
 	return false
 }
 
-// EmbeddedFor returns the explicit embedded id configured for a device, or ""
-// when the coordinator should resolve the climateControl point itself.
-func (s *Schedule) EmbeddedFor(deviceID string) string {
+// TargetFor returns the target matching a key.
+func (s *Schedule) TargetFor(key string) (Target, bool) {
 	for i := range s.Targets {
-		if s.Targets[i].DeviceID == deviceID {
-			return s.Targets[i].EmbeddedID
+		if s.Targets[i].Key() == key {
+			return s.Targets[i], true
 		}
 	}
-	return ""
+	return Target{}, false
+}
+
+// EmbeddedFor returns the explicit embedded id configured for a device, or ""
+// when the coordinator should resolve the climateControl point itself.
+func (s *Schedule) EmbeddedFor(key string) string {
+	t, ok := s.TargetFor(key)
+	if !ok {
+		return ""
+	}
+	return t.EmbeddedID
 }
 
 // Document is the persisted root object.
@@ -244,15 +379,33 @@ func (d *Document) Clone() *Document {
 			b := &s.Blocks[j]
 			cb := *b
 			cb.Days = append([]string(nil), b.Days...)
-			if b.Action.Setpoint != nil {
-				v := *b.Action.Setpoint
-				cb.Action.Setpoint = &v
-			}
+			// Every optional field is a pointer, so each needs its own copy —
+			// otherwise editing a clone would reach back into the live document.
+			cb.Action.Setpoint = copyFloat(b.Action.Setpoint)
+			cb.Action.Demand = copyFloat(b.Action.Demand)
+			cb.Action.OutdoorSilent = copyBool(b.Action.OutdoorSilent)
+			cb.Action.Econo = copyBool(b.Action.Econo)
 			c.Blocks[j] = cb
 		}
 		out.Schedules[i] = c
 	}
 	return out
+}
+
+func copyFloat(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	c := *v
+	return &c
+}
+
+func copyBool(v *bool) *bool {
+	if v == nil {
+		return nil
+	}
+	c := *v
+	return &c
 }
 
 // Find returns the schedule with the given id.
@@ -265,18 +418,20 @@ func (d *Document) Find(id string) (*Schedule, bool) {
 	return nil, false
 }
 
-// DeviceIDs returns every device id referenced by any schedule, sorted, so the
-// engine knows which devices it has to evaluate.
-func (d *Document) DeviceIDs() []string {
+// TargetKeys returns every target key referenced by any schedule, sorted, so
+// the engine knows what it has to evaluate. Indoor devices and outdoor units
+// live in the same list — the resolver treats them identically.
+func (d *Document) TargetKeys() []string {
 	seen := map[string]bool{}
 	var out []string
 	for i := range d.Schedules {
 		for _, t := range d.Schedules[i].Targets {
-			if t.DeviceID == "" || seen[t.DeviceID] {
+			key := t.Key()
+			if key == "" || seen[key] {
 				continue
 			}
-			seen[t.DeviceID] = true
-			out = append(out, t.DeviceID)
+			seen[key] = true
+			out = append(out, key)
 		}
 	}
 	sort.Strings(out)
@@ -317,6 +472,14 @@ const (
 	MaxSetpoint = 60.0
 )
 
+// Demand bounds. The ONECTA characteristic is a percentage; Faikin accepts
+// 0..100 and the units treat everything below 40 % as 40 %, but the limit
+// itself is the device's business — these bounds only reject nonsense.
+const (
+	MinDemand = 0.0
+	MaxDemand = 100.0
+)
+
 // Validate checks the whole document and returns a [*ValidationError] listing
 // every problem. Unknown device ids are deliberately not an error: the cloud
 // may be unreachable, and a temporary outage must not invalidate schedules.
@@ -351,17 +514,19 @@ func (d *Document) Validate() error {
 		if strings.TrimSpace(s.Name) == "" {
 			add("%s: name is required", id)
 		}
+		if s.Type != "" && s.Type != TypeIndoor && s.Type != TypeOutdoor {
+			add("%s: type must be indoor or outdoor, got %q", id, s.Type)
+		}
+		kind := s.Kind()
 		if len(s.Targets) == 0 {
-			add("%s: at least one target device is required", id)
+			add("%s: at least one target is required", id)
 		}
 		for j := range s.Targets {
-			if s.Targets[j].DeviceID == "" {
-				add("%s: target %d: device_id is required", id, j)
-			}
+			validateTarget(add, id, j, s.Targets[j], kind)
 		}
 		seenBlock := map[string]bool{}
 		for j := range s.Blocks {
-			validateBlock(add, id, j, &s.Blocks[j], seenBlock)
+			validateBlock(add, id, j, &s.Blocks[j], kind, seenBlock)
 		}
 	}
 
@@ -371,8 +536,31 @@ func (d *Document) Validate() error {
 	return nil
 }
 
+// validateTarget checks that a target matches its schedule's type. Mixing the
+// two would produce a block that is half meaningless for the target it
+// reaches, so it is rejected rather than silently ignored.
+func validateTarget(add func(string, ...any), schedID string, idx int, t Target, kind Type) {
+	where := fmt.Sprintf("%s: target %d", schedID, idx)
+	switch kind {
+	case TypeOutdoor:
+		if t.OutdoorSerial == "" {
+			add("%s: outdoor_serial is required in an outdoor schedule", where)
+		}
+		if t.DeviceID != "" {
+			add("%s: device_id is not allowed in an outdoor schedule", where)
+		}
+	case TypeIndoor:
+		if t.DeviceID == "" {
+			add("%s: device_id is required", where)
+		}
+		if t.OutdoorSerial != "" {
+			add("%s: outdoor_serial is only allowed in an outdoor schedule", where)
+		}
+	}
+}
+
 // validateBlock checks one block, reporting problems through add.
-func validateBlock(add func(string, ...any), schedID string, idx int, b *Block, seen map[string]bool) {
+func validateBlock(add func(string, ...any), schedID string, idx int, b *Block, kind Type, seen map[string]bool) {
 	where := fmt.Sprintf("%s: block %d", schedID, idx)
 	if b.ID == "" {
 		add("%s: id is required", where)
@@ -409,19 +597,49 @@ func validateBlock(add func(string, ...any), schedID string, idx int, b *Block, 
 		add("%s: start and end are identical (%s); use 00:00–24:00 for a whole day", where, b.Start)
 	}
 
-	if !validPower[b.Action.Power] {
-		add("%s: power must be on or off, got %q", where, b.Action.Power)
+	switch kind {
+	case TypeOutdoor:
+		validateOutdoorAction(add, where, b.Action)
+	case TypeIndoor:
+		validateIndoorAction(add, where, b.Action)
 	}
-	if b.Action.Power == PowerOn && !validModes[b.Action.HVACMode] {
-		add("%s: hvac_mode must be one of [auto cool dry fan_only heat], got %q", where, b.Action.HVACMode)
+	if b.OnEnd != "" && !validEnd[b.OnEnd] {
+		add("%s: on_end must be none or off, got %q", where, b.OnEnd)
 	}
-	if sp := b.Action.Setpoint; sp != nil {
+}
+
+// validateIndoorAction checks the fields an indoor block may carry.
+func validateIndoorAction(add func(string, ...any), where string, a Action) {
+	if !validPower[a.Power] {
+		add("%s: power must be on or off, got %q", where, a.Power)
+	}
+	if a.Power == PowerOn && !validModes[a.HVACMode] {
+		add("%s: hvac_mode must be one of [auto cool dry fan_only heat], got %q", where, a.HVACMode)
+	}
+	if sp := a.Setpoint; sp != nil {
 		if *sp < MinSetpoint || *sp > MaxSetpoint {
 			add("%s: setpoint must be %.0f..%.0f °C, got %g", where, MinSetpoint, MaxSetpoint, *sp)
 		}
 	}
-	if b.OnEnd != "" && !validEnd[b.OnEnd] {
-		add("%s: on_end must be none or off, got %q", where, b.OnEnd)
+	if a.OutdoorSilent != nil || a.Econo != nil || a.Demand != nil {
+		add("%s: outdoor_silent, econo and demand belong to an outdoor schedule", where)
+	}
+}
+
+// validateOutdoorAction checks the fields an outdoor block may carry. At least
+// one must be set — a block that writes nothing would occupy the slot (and
+// suppress a lower-priority schedule) without doing anything.
+func validateOutdoorAction(add func(string, ...any), where string, a Action) {
+	if a.Power != "" || a.HVACMode != "" || a.Setpoint != nil {
+		add("%s: power, hvac_mode and setpoint belong to an indoor schedule", where)
+	}
+	if a.OutdoorSilent == nil && a.Econo == nil && a.Demand == nil {
+		add("%s: set at least one of outdoor_silent, econo or demand", where)
+	}
+	if d := a.Demand; d != nil {
+		if *d < MinDemand || *d > MaxDemand {
+			add("%s: demand must be %.0f..%.0f %%, got %g", where, MinDemand, MaxDemand, *d)
+		}
 	}
 }
 

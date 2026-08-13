@@ -112,5 +112,18 @@
   "sched.err.store_failed": "Die Pläne konnten nicht gespeichert werden.",
   "btn.save": "Speichern",
   "btn.cancel": "Abbrechen",
-  "btn.delete": "Löschen"
+  "btn.delete": "Löschen",
+  "sched.outdoorUnit": "Außengerät {serial}",
+  "sched.type": "Typ",
+  "sched.typeIndoor": "Innengeräte",
+  "sched.typeOutdoor": "Außengerät",
+  "sched.silent": "Leise-Modus",
+  "sched.silentShort": "leise",
+  "sched.econo": "Eco",
+  "sched.econoShort": "eco",
+  "sched.demand": "Leistungsgrenze",
+  "sched.keep": "nicht setzen",
+  "sched.outdoorHint": "Diese Einstellungen wirken auf das gemeinsame Außengerät und damit auf alle daran hängenden Innengeräte. Was auf „nicht setzen“ steht, wird nicht geschrieben.",
+  "sched.noOutdoor": "Noch kein Außengerät bekannt — es erscheint nach dem ersten Cloud-Poll.",
+  "sched.noDevices": "Noch keine Geräte bekannt."
 }

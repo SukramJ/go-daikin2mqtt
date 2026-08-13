@@ -35,9 +35,8 @@ func (c *fakeClock) Set(t time.Time) {
 
 // applyCall records one ApplySchedule invocation.
 type applyCall struct {
-	deviceID   string
-	embeddedID string
-	action     Action
+	target Target
+	action Action
 }
 
 // stubApplier records the applications and can fail on demand.
@@ -47,13 +46,13 @@ type stubApplier struct {
 	err   error
 }
 
-func (s *stubApplier) ApplySchedule(_ context.Context, deviceID, embeddedID string, a Action) error {
+func (s *stubApplier) ApplySchedule(_ context.Context, target Target, a Action) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
 		return s.err
 	}
-	s.calls = append(s.calls, applyCall{deviceID, embeddedID, a})
+	s.calls = append(s.calls, applyCall{target, a})
 	return nil
 }
 
@@ -85,13 +84,13 @@ type stubStates struct {
 	switches int
 }
 
-func (s *stubStates) PublishScheduleState(_ context.Context, deviceID string, st DeviceState) {
+func (s *stubStates) PublishScheduleState(_ context.Context, target Target, st DeviceState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.states == nil {
 		s.states = map[string]DeviceState{}
 	}
-	s.states[deviceID] = st
+	s.states[target.Key()] = st
 }
 
 func (s *stubStates) PublishScheduleSwitches(_ context.Context, _ *Document) {
@@ -163,7 +162,7 @@ func TestEngineAppliesAtBlockStart(t *testing.T) {
 		t.Fatalf("applications = %d, want 1", applier.n())
 	}
 	got := applier.last()
-	if got.deviceID != "dev-1" || got.action.HVACMode != ModeHeat || *got.action.Setpoint != 21.5 {
+	if got.target.DeviceID != "dev-1" || got.action.HVACMode != ModeHeat || *got.action.Setpoint != 21.5 {
 		t.Errorf("applied %+v, want dev-1 heat 21.5", got)
 	}
 }
@@ -363,7 +362,7 @@ func TestEnginePassesExplicitEmbeddedID(t *testing.T) {
 	e, applier, _, _ := testEngine(t, doc, monday(6, 0))
 	e.Evaluate(context.Background())
 
-	if got := applier.last().embeddedID; got != "climateControlMainZone" {
+	if got := applier.last().target.EmbeddedID; got != "climateControlMainZone" {
 		t.Errorf("embeddedID = %q, want climateControlMainZone", got)
 	}
 }
