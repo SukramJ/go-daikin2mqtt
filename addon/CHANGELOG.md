@@ -4,6 +4,15 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.10.3 (2026-08-13)
+
+- The Home Hub is no longer offered when picking a device for a schedule — a
+  gateway has no climate control to set.
+- The outdoor unit is simply called "outdoor unit" instead of carrying its
+  serial number.
+- The UI assets are now fingerprinted by content, so a browser also picks up
+  changes in builds between releases.
+
 # 0.10.2 (2026-08-13)
 
 Security: two findings from the repository's code scan, both in the web UI.

@@ -1,3 +1,28 @@
+# Version 0.10.3 (2026-08-13)
+
+## What's Changed
+
+### Fixed
+
+- **The Home Hub is no longer offered as a schedulable device.** A gateway has
+  no climate control, so a block has nothing to set on it. The rule now lives
+  on the server (`/api/devices` reports `schedulable` per device) instead of
+  being re-derived in the browser, so there is one definition of it.
+
+- **The outdoor unit is called "outdoor unit".** It used to carry its serial
+  number, which is an identifier rather than a name. The serial moved to the
+  tooltip. With more than one outdoor unit the rooms it serves are appended,
+  since that is what actually tells them apart; in the schedule dialog they are
+  always shown, which also keeps the target distinct from the identically named
+  type button above it.
+
+- **Assets are fingerprinted by content, not by version.** The revalidation
+  added in 0.10.1 used the build version as the ETag, which is stale for anyone
+  running a build between releases — a `main` build, the `:latest` image or a
+  local `make build` carries the same version string with different files, so
+  the browser kept the old copy on the strength of a matching ETag. The
+  validator is now a hash of the embedded asset tree.
+
 # Version 0.10.2 (2026-08-13)
 
 ## What's Changed
