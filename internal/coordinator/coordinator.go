@@ -397,6 +397,13 @@ func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []proces
 		c.deps.Logger.Warn("coordinator.discovery_failed", slog.String("err", err.Error()))
 		return
 	}
+	// The schedule switches live on the daemon's own HA device. Folding their
+	// config topics into the published set lets the orphan reconcile clear a
+	// deleted schedule's config along with everything else.
+	if err := c.publishScheduleDiscovery(ctx, published); err != nil {
+		c.deps.Logger.Warn("coordinator.schedule_discovery_failed", slog.String("err", err.Error()))
+		return
+	}
 	c.mu.Lock()
 	c.lastDiscSig = sig
 	c.mu.Unlock()

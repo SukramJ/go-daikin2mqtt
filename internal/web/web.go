@@ -35,6 +35,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
+	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
 )
 
 // staticFS holds the compiled single-page app. It is hand-written vanilla
@@ -62,6 +63,16 @@ type tokenSource interface {
 	SetToken(t *auth.Token) error
 }
 
+// scheduleEngine is the subset of the schedule engine the API needs.
+// *schedule.Engine satisfies it structurally; nil disables the schedule routes.
+type scheduleEngine interface {
+	Document() *schedule.Document
+	Replace(doc *schedule.Document, expectRev int) (*schedule.Document, error)
+	SetEnabled(id string, on bool) error
+	Delete(id string) error
+	Location() *time.Location
+}
+
 // Deps carries the collaborators the server needs. Cloud client and token
 // source are interfaces so tests can inject fakes; the concrete daikin types
 // satisfy them.
@@ -71,20 +82,30 @@ type Deps struct {
 	Tokens  tokenSource
 	Client  cloudClient
 	Catalog *catalog.Catalog
-	Logger  *slog.Logger
+	// Schedule is the weekly-programme engine. nil answers the schedule routes
+	// with 503 (scheduler disabled) rather than 404, so the UI can tell "off"
+	// from "missing".
+	Schedule scheduleEngine
+	// Groups reports the outdoor-unit groups (serial → device ids). Only the
+	// coordinator knows them, so it is injected; nil disables the mode-conflict
+	// check, which is meaningless without knowing who shares an outdoor unit.
+	Groups func() map[string][]string
+	Logger *slog.Logger
 }
 
 // Server is the embedded diagnostic web server. Construct it with [New] and
 // run it with [Run]; mount [Handler] directly for tests or future ingress
 // embedding.
 type Server struct {
-	cfg     *config.Config
-	auth    auth.Config
-	tokens  tokenSource
-	client  cloudClient
-	catalog *catalog.Catalog
-	log     *slog.Logger
-	handler http.Handler
+	cfg      *config.Config
+	auth     auth.Config
+	tokens   tokenSource
+	client   cloudClient
+	catalog  *catalog.Catalog
+	schedule scheduleEngine
+	groups   func() map[string][]string
+	log      *slog.Logger
+	handler  http.Handler
 
 	states *stateStore
 }
@@ -100,13 +121,21 @@ func New(d Deps) *Server {
 		cfg = &config.Config{}
 	}
 	s := &Server{
-		cfg:     cfg,
-		auth:    d.Auth,
-		tokens:  d.Tokens,
-		client:  d.Client,
-		catalog: d.Catalog,
-		log:     log,
-		states:  newStateStore(),
+		cfg:      cfg,
+		auth:     d.Auth,
+		tokens:   d.Tokens,
+		client:   d.Client,
+		catalog:  d.Catalog,
+		schedule: d.Schedule,
+		groups:   d.Groups,
+		log:      log,
+		states:   newStateStore(),
+	}
+	// A nil interface value carrying a nil *schedule.Engine would pass a
+	// plain `!= nil` check and panic on first use; normalise it here so every
+	// handler can rely on a simple nil test.
+	if e, ok := d.Schedule.(*schedule.Engine); ok && e == nil {
+		s.schedule = nil
 	}
 	s.handler = s.withAuth(s.routes())
 	return s
@@ -130,6 +159,16 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/devices", s.handleDevices)
 	mux.HandleFunc("POST /api/patch", s.handlePatch)
 	mux.HandleFunc("GET /api/ratelimit", s.handleRateLimit)
+
+	// Weekly schedules. Registered unconditionally: with the scheduler off they
+	// answer 503 with a code the UI understands, which is a clearer signal than
+	// a 404 that could equally mean "old version".
+	mux.HandleFunc("GET /api/schedules", s.handleSchedulesList)
+	mux.HandleFunc("POST /api/schedules", s.handleScheduleCreate)
+	mux.HandleFunc("PUT /api/schedules/{id}", s.handleScheduleUpdate)
+	mux.HandleFunc("DELETE /api/schedules/{id}", s.handleScheduleDelete)
+	mux.HandleFunc("POST /api/schedules/{id}/enable", s.handleScheduleEnable)
+	mux.HandleFunc("GET /api/schedules/preview", s.handleSchedulePreview)
 
 	// Embedded SPA: index.html + static/* assets + i18n/* bundles. The
 	// FileServerFS serves "/" as index.html, /static/* and /i18n/* directly,

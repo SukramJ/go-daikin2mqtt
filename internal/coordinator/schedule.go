@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
+	"sort"
 	"time"
 
 	"github.com/SukramJ/go-mqtt"
@@ -228,6 +230,66 @@ func (c *Coordinator) schedulePoints(devices []model.Device) []process.Point {
 		}
 	}
 	return out
+}
+
+// OutdoorGroups returns the outdoor-unit groups as serial → member device ids.
+// The scheduler's conflict check needs to know who shares a compressor, and
+// only the coordinator learns that from the poll. Devices with no known
+// outdoor serial are omitted: a single-member group cannot conflict.
+func (c *Coordinator) OutdoorGroups() map[string][]string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := map[string][]string{}
+	for dev, serial := range c.outdoorSerial {
+		if serial == "" {
+			continue
+		}
+		out[serial] = append(out[serial], dev)
+	}
+	for serial := range out {
+		sort.Strings(out[serial])
+	}
+	return out
+}
+
+// publishScheduleDiscovery publishes the per-schedule switch configs and adds
+// their topics to published, so the orphan reconcile treats them like every
+// other entity this daemon owns.
+func (c *Coordinator) publishScheduleDiscovery(ctx context.Context, published map[string]bool) error {
+	eng := c.scheduleEngine()
+	if eng == nil || c.deps.HASS == nil {
+		return nil
+	}
+	doc := eng.Document()
+	infos := make([]hass.ScheduleInfo, 0, len(doc.Schedules))
+	for i := range doc.Schedules {
+		s := &doc.Schedules[i]
+		infos = append(infos, hass.ScheduleInfo{ID: s.ID, Name: s.Name})
+	}
+	topics, err := c.deps.HASS.PublishSchedules(ctx, infos, c.webConfigURL())
+	for t := range topics {
+		published[t] = true
+	}
+	return err
+}
+
+// webConfigURL returns the URL of the diagnostic web UI for the scheduler's HA
+// device page, or "" when the UI is disabled. A wildcard bind has no single
+// reachable address, so no link is offered rather than a wrong one.
+func (c *Coordinator) webConfigURL() string {
+	cfg := c.deps.Cfg
+	if !cfg.WebEnable || cfg.WebBind == "" {
+		return ""
+	}
+	host, port, err := net.SplitHostPort(cfg.WebBind)
+	if err != nil {
+		return ""
+	}
+	switch host {
+	case "", "0.0.0.0", "::", "[::]":
+		return ""
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/"
 }
 
 // scheduleSignature contributes the scheduler's entity set to the discovery

@@ -245,7 +245,11 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 			Tokens:  tokens,
 			Client:  cloud,
 			Catalog: cat,
-			Logger:  logger,
+			// Only the coordinator knows which indoor units share an outdoor
+			// unit, which is what makes a scheduled heat/cool clash detectable.
+			Schedule: scheduleEngine,
+			Groups:   coord.OutdoorGroups,
+			Logger:   logger,
 		})
 		g.Go(func() error { return srv.Run(gctx) })
 	}
