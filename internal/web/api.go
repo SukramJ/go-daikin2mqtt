@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"log/slog"
 	"mime"
 	"net/http"
@@ -441,13 +442,25 @@ func rootRedirect(r *http.Request) string {
 
 // ingressPrefix returns the validated Home-Assistant X-Ingress-Path prefix
 // (without a trailing slash), or "" when the header is absent or unsafe. Only
-// an internal, absolute path ("/...") with no scheme or protocol-relative
-// ("//") prefix is honored, so the header cannot drive an open redirect or
-// inject an external host into the derived redirect_uri.
+// an internal, absolute path ("/...") is honored, so the header cannot drive
+// an open redirect or inject an external host into the derived redirect_uri.
+//
+// Checking for a leading "/" and rejecting "//" is not enough: browsers also
+// read "/\host" as protocol-relative, so "/\evil.example" would pass a
+// naive check and redirect off-site. Both separators are rejected in the
+// second position, and a backslash anywhere is rejected outright — it has no
+// business in a URL path and only exists here as a normalisation trick.
 func ingressPrefix(r *http.Request) string {
 	p := r.Header.Get("X-Ingress-Path")
-	if p == "" || !strings.HasPrefix(p, "/") || strings.HasPrefix(p, "//") ||
-		strings.Contains(p, ":") {
+	if p == "" || p[0] != '/' {
+		return ""
+	}
+	if len(p) > 1 && (p[1] == '/' || p[1] == '\\') {
+		return ""
+	}
+	// A colon could introduce a scheme; a backslash could be normalised into a
+	// slash by the browser.
+	if strings.ContainsAny(p, `:\`) {
 		return ""
 	}
 	return strings.TrimRight(p, "/")
@@ -465,35 +478,30 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
-// errorPage renders a minimal HTML error page for the human-facing OAuth
-// endpoints (login / callback), where a JSON envelope would be unhelpful.
+// errorPageTmpl renders the human-facing error page for the OAuth endpoints,
+// where a JSON envelope would be unhelpful.
+//
+// html/template rather than fmt.Fprintf with a hand-written escaper: the
+// message can contain query parameters echoed back from the identity provider
+// (?error=…&error_description=…), and only a context-aware template is
+// guaranteed to escape them correctly no matter where in the document the
+// value ends up. A hand-rolled replacer covering <, > and & is one careless
+// edit — moving the value into an attribute — away from being exploitable.
+var errorPageTmpl = template.Must(template.New("error").Parse(
+	`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">` +
+		`<title>daikin2mqtt — error</title><meta name="viewport" content="width=device-width, initial-scale=1">` +
+		`<style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1120;color:#e6edf7;` +
+		`display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}` +
+		`.box{max-width:520px;padding:2rem;background:#16223c;border:1px solid #243352;border-radius:14px}` +
+		`h1{margin-top:0;font-size:1.25rem}a{color:#5aa9ff}</style></head><body><div class="box">` +
+		`<h1>Authentication error</h1><p>{{.Message}}</p><p><a href="./">Back to dashboard</a></p></div></body></html>`,
+))
+
+// errorPage renders the error page with the given message.
 func (s *Server) errorPage(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">`+
-		`<title>daikin2mqtt — error</title><meta name="viewport" content="width=device-width, initial-scale=1">`+
-		`<style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1120;color:#e6edf7;`+
-		`display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}`+
-		`.box{max-width:520px;padding:2rem;background:#16223c;border:1px solid #243352;border-radius:14px}`+
-		`h1{margin-top:0;font-size:1.25rem}a{color:#5aa9ff}</style></head><body><div class="box">`+
-		`<h1>Authentication error</h1><p>%s</p><p><a href="./">Back to dashboard</a></p></div></body></html>`,
-		htmlEscape(msg))
-}
-
-// htmlEscape minimally escapes a string for safe embedding in HTML text.
-func htmlEscape(s string) string {
-	r := make([]rune, 0, len(s))
-	for _, c := range s {
-		switch c {
-		case '<':
-			r = append(r, []rune("&lt;")...)
-		case '>':
-			r = append(r, []rune("&gt;")...)
-		case '&':
-			r = append(r, []rune("&amp;")...)
-		default:
-			r = append(r, c)
-		}
+	if err := errorPageTmpl.Execute(w, struct{ Message string }{Message: msg}); err != nil {
+		s.log.Warn("web.error_page_failed", slog.String("err", err.Error()))
 	}
-	return string(r)
 }
