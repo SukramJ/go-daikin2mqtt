@@ -1,3 +1,36 @@
+# Version 0.10.2 (2026-08-13)
+
+## What's Changed
+
+### Security
+
+Both findings come from the repository's CodeQL scan and are in the optional
+web UI. They are only reachable when `WEB_ENABLE` is on, and neither is
+exploitable without getting the operator to open a crafted link (or, for the
+second, without control of the reverse proxy in front of the daemon) — but
+both were real gaps rather than false positives.
+
+- **Reflected XSS on the OAuth error page** (`go/reflected-xss`, high). The
+  page shows the `error` and `error_description` query parameters the identity
+  provider echoes back, and escaped them with a hand-written replacer covering
+  `<`, `>` and `&`. In the text position they occupy that happened to be
+  enough, but the escaping did not cover quotes, so the page was one careless
+  edit — moving the value into an attribute — away from being exploitable. The
+  page is now an `html/template`, which escapes according to the position a
+  value actually appears in.
+
+- **Incomplete redirect check** (`go/bad-redirect-check`, medium). The
+  Home-Assistant ingress prefix (`X-Ingress-Path`) was validated by requiring a
+  leading `/` and rejecting `//`. Browsers also read `/\host` as
+  protocol-relative, so a header of `/\evil.example` passed the check and
+  became an off-site redirect after the OAuth callback — and could also be
+  injected into the derived `redirect_uri`. Both separators are now rejected in
+  the second position, and a backslash anywhere in the path is rejected
+  outright.
+
+Regression tests cover both, and each was verified to fail against the previous
+implementation.
+
 # Version 0.10.1 (2026-08-13)
 
 ## What's Changed

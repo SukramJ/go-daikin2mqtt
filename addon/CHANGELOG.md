@@ -4,6 +4,19 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.10.2 (2026-08-13)
+
+Security: two findings from the repository's code scan, both in the web UI.
+
+- The OAuth error page now escapes the values the identity provider echoes back
+  using a context-aware template instead of a hand-written escaper.
+- The ingress path header is validated more strictly: `/\host` is read by
+  browsers as another host, and was previously accepted, which allowed an
+  off-site redirect after login.
+
+Neither is exploitable without a crafted link or control of the proxy in front
+of the add-on, but both were real gaps.
+
 # 0.10.1 (2026-08-13)
 
 Fix: **the UI kept looking unchanged after an update.**
