@@ -344,21 +344,32 @@ func TestClone(t *testing.T) {
 	}
 }
 
-func TestDeviceIDs(t *testing.T) {
+func TestTargetKeys(t *testing.T) {
 	d := doc(block("b1", "05:30", "08:00", "mon"))
 	d.Schedules[0].Targets = []Target{{DeviceID: "b"}, {DeviceID: "a"}, {DeviceID: "b"}}
 	d.Schedules = append(d.Schedules, Schedule{
 		ID: "urlaub", Name: "Urlaub", Targets: []Target{{DeviceID: "c"}, {DeviceID: "a"}},
 	})
-	got := d.DeviceIDs()
+	got := d.TargetKeys()
 	want := []string{"a", "b", "c"}
 	if len(got) != len(want) {
-		t.Fatalf("DeviceIDs = %v, want %v", got, want)
+		t.Fatalf("TargetKeys = %v, want %v", got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Fatalf("DeviceIDs = %v, want %v", got, want)
+			t.Fatalf("TargetKeys = %v, want %v", got, want)
 		}
+	}
+
+	// Outdoor targets live in the same list, namespaced so a serial can never
+	// collide with a device id.
+	d.Schedules = append(d.Schedules, Schedule{
+		ID: "nachtruhe", Name: "Nachtruhe", Type: TypeOutdoor,
+		Targets: []Target{{OutdoorSerial: "0J723746"}},
+	})
+	got = d.TargetKeys()
+	if len(got) != 4 || got[3] != "outdoor:0J723746" {
+		t.Fatalf("TargetKeys with an outdoor target = %v", got)
 	}
 }
 
@@ -382,5 +393,205 @@ func TestApplies(t *testing.T) {
 	}
 	if s.Applies("c") {
 		t.Error("Applies: want false for an untargeted device")
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
+
+// outdoorDoc builds a valid outdoor schedule around one block.
+func outdoorDoc(blocks ...Block) *Document {
+	return &Document{
+		Version: SchemaVersion,
+		Schedules: []Schedule{{
+			ID:      "nachtruhe",
+			Name:    "Nachtruhe",
+			Type:    TypeOutdoor,
+			Enabled: true,
+			Targets: []Target{{OutdoorSerial: "0J723746"}},
+			Blocks:  blocks,
+		}},
+	}
+}
+
+func outdoorBlock(id, start, end string, a Action, days ...string) Block {
+	return Block{ID: id, Days: days, Start: start, End: end, Action: a}
+}
+
+func TestTypeNormalized(t *testing.T) {
+	cases := []struct {
+		in   Type
+		want Type
+	}{
+		{"", TypeIndoor}, // a file written before types existed
+		{TypeIndoor, TypeIndoor},
+		{TypeOutdoor, TypeOutdoor},
+	}
+	for _, c := range cases {
+		if got := c.in.Normalized(); got != c.want {
+			t.Errorf("Type(%q).Normalized() = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestTargetKey(t *testing.T) {
+	cases := []struct {
+		target  Target
+		want    string
+		outdoor bool
+	}{
+		{Target{DeviceID: "dev-1"}, "dev-1", false},
+		{Target{DeviceID: "dev-1", EmbeddedID: "zone2"}, "dev-1", false},
+		{Target{OutdoorSerial: "0J723746"}, "outdoor:0J723746", true},
+	}
+	for _, c := range cases {
+		if got := c.target.Key(); got != c.want {
+			t.Errorf("Key(%+v) = %q, want %q", c.target, got, c.want)
+		}
+		if got := c.target.IsOutdoor(); got != c.outdoor {
+			t.Errorf("IsOutdoor(%+v) = %v, want %v", c.target, got, c.outdoor)
+		}
+	}
+
+	// A device id that happens to look like a serial cannot be mistaken for an
+	// outdoor key, because only outdoor keys carry the prefix.
+	if _, ok := OutdoorSerialOf("0J723746"); ok {
+		t.Error("a bare serial must not parse as an outdoor key")
+	}
+	if s, ok := OutdoorSerialOf(OutdoorKey("0J723746")); !ok || s != "0J723746" {
+		t.Errorf("OutdoorSerialOf = (%q, %v)", s, ok)
+	}
+}
+
+func TestOutdoorActionSignature(t *testing.T) {
+	cases := []struct {
+		name string
+		a    Action
+		want string
+	}{
+		{"silent on", Action{OutdoorSilent: boolPtr(true)}, "silent=on"},
+		{"silent off", Action{OutdoorSilent: boolPtr(false)}, "silent=off"},
+		{"econo and demand", Action{Econo: boolPtr(true), Demand: ptr(70)}, "econo=on;demand=70"},
+		{
+			"all three",
+			Action{OutdoorSilent: boolPtr(true), Econo: boolPtr(false), Demand: ptr(100)},
+			"silent=on;econo=off;demand=100",
+		},
+		{"nothing set", Action{}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := c.a.Signature(); got != c.want {
+				t.Errorf("Signature = %q, want %q", got, c.want)
+			}
+		})
+	}
+
+	// An indoor and an outdoor action must never share a signature, or the
+	// idempotence cache would suppress a legitimate write.
+	indoor := Action{Power: PowerOn, HVACMode: ModeHeat}
+	outdoor := Action{OutdoorSilent: boolPtr(true)}
+	if indoor.Signature() == outdoor.Signature() {
+		t.Error("indoor and outdoor signatures must differ")
+	}
+	if !(Action{}).IsEmpty() || indoor.IsEmpty() {
+		t.Error("IsEmpty must distinguish an empty action from a real one")
+	}
+}
+
+func TestValidateOutdoorSchedule(t *testing.T) {
+	cases := []struct {
+		name  string
+		mut   func(*Document)
+		issue string
+	}{
+		{name: "valid"},
+		{
+			name:  "no action field set",
+			mut:   func(d *Document) { d.Schedules[0].Blocks[0].Action = Action{} },
+			issue: "at least one of outdoor_silent",
+		},
+		{
+			name: "indoor fields in an outdoor block",
+			mut: func(d *Document) {
+				d.Schedules[0].Blocks[0].Action.Power = PowerOn
+				d.Schedules[0].Blocks[0].Action.HVACMode = ModeHeat
+			},
+			issue: "belong to an indoor schedule",
+		},
+		{
+			name:  "demand out of range",
+			mut:   func(d *Document) { d.Schedules[0].Blocks[0].Action.Demand = ptr(140) },
+			issue: "demand must be",
+		},
+		{
+			name:  "device target in an outdoor schedule",
+			mut:   func(d *Document) { d.Schedules[0].Targets = []Target{{DeviceID: "dev-1"}} },
+			issue: "outdoor_serial is required",
+		},
+		{
+			name: "mixed target",
+			mut: func(d *Document) {
+				d.Schedules[0].Targets = []Target{{DeviceID: "dev-1", OutdoorSerial: "X"}}
+			},
+			issue: "device_id is not allowed",
+		},
+		{
+			name:  "unknown type",
+			mut:   func(d *Document) { d.Schedules[0].Type = "somewhere" },
+			issue: "type must be indoor or outdoor",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			d := outdoorDoc(outdoorBlock("b1", "22:00", "06:00",
+				Action{OutdoorSilent: boolPtr(true), Demand: ptr(70)}, "mon"))
+			if c.mut != nil {
+				c.mut(d)
+			}
+			err := d.Validate()
+			if c.issue == "" {
+				if err != nil {
+					t.Fatalf("Validate: unexpected error %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), c.issue) {
+				t.Fatalf("Validate: want error containing %q, got %v", c.issue, err)
+			}
+		})
+	}
+}
+
+func TestValidateIndoorRejectsOutdoorFields(t *testing.T) {
+	d := doc(block("b1", "05:30", "08:00", "mon"))
+	d.Schedules[0].Blocks[0].Action.OutdoorSilent = boolPtr(true)
+	err := d.Validate()
+	if err == nil || !strings.Contains(err.Error(), "belong to an outdoor schedule") {
+		t.Fatalf("Validate: want a type mismatch error, got %v", err)
+	}
+	// An outdoor_serial on an indoor target is rejected too.
+	d = doc(block("b1", "05:30", "08:00", "mon"))
+	d.Schedules[0].Targets = []Target{{DeviceID: "dev-1", OutdoorSerial: "X"}}
+	if err := d.Validate(); err == nil || !strings.Contains(err.Error(), "only allowed in an outdoor schedule") {
+		t.Fatalf("Validate: want a target mismatch error, got %v", err)
+	}
+}
+
+func TestCloneCopiesOutdoorPointers(t *testing.T) {
+	orig := outdoorDoc(outdoorBlock("b1", "22:00", "06:00",
+		Action{OutdoorSilent: boolPtr(true), Econo: boolPtr(false), Demand: ptr(70)}, "mon"))
+	c := orig.Clone()
+
+	*c.Schedules[0].Blocks[0].Action.OutdoorSilent = false
+	*c.Schedules[0].Blocks[0].Action.Econo = true
+	*c.Schedules[0].Blocks[0].Action.Demand = 100
+	c.Schedules[0].Targets[0].OutdoorSerial = "other"
+
+	a := orig.Schedules[0].Blocks[0].Action
+	if !*a.OutdoorSilent || *a.Econo || *a.Demand != 70 {
+		t.Errorf("Clone shares outdoor pointers with the original: %+v", a)
+	}
+	if orig.Schedules[0].Targets[0].OutdoorSerial != "0J723746" {
+		t.Error("Clone shares the targets slice with the original")
 	}
 }
