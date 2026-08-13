@@ -70,6 +70,9 @@ options:
   multisplit_mode_sync: true
   multisplit_outdoor_aggregate: true
   enforce_mutual_exclusive: true
+  schedule_enable: false
+  schedule_timezone: ""
+  schedule_catchup: 1800
 
 schema:
   client_id: "str?"
@@ -96,3 +99,6 @@ schema:
   multisplit_mode_sync: bool
   multisplit_outdoor_aggregate: bool
   enforce_mutual_exclusive: bool
+  schedule_enable: bool
+  schedule_timezone: "str?"
+  schedule_catchup: int(0,86400)

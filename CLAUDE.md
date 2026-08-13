@@ -198,10 +198,60 @@ The Faikin broker defaults to the main MQTT broker (connection reused); a distin
 `LOCAL_FAIKIN_SERVER` opens a second connection. The dependency engine runs **above** the backend
 seam, so fan-out works through either cloud or local.
 
+### Weekly schedules (`internal/schedule/`, `internal/coordinator/schedule.go`)
+Opt-in via `SCHEDULE_ENABLE`. A seven-day programme persisted to `schedules.json`
+(atomic, `0600`, same pattern as `auth.Store`), edited in the web UI's calendar and
+switchable from HA. Full rationale in `docs/schedule-design.md`.
+
+- **The week is a ring of 336 half-hour slots** (`ring.go`). A block whose `end` is not
+  after its `start` wraps modulo `SlotsPerWeek`, which covers both midnight and the
+  Sunday→Monday seam with no special case. Per slot the highest `priority` wins; at
+  equal priority the block that started more recently. `Segments` collapses equal
+  neighbours into the effective blocks the calendar draws.
+- **Writes happen at switch points only** (`engine.go`). A single `time.Timer` is armed
+  on the next switch point computed as *wall-clock* time (`time.Date` in the configured
+  zone), so DST shifts the schedule with the clock. Two mechanisms keep "manual wins
+  until the next block": an idempotence cache per device (an action equal to the last
+  applied one is not rewritten — this also absorbs the doubled hour in autumn) and the
+  **catch-up window** (`SCHEDULE_CATCHUP`, default 30 min): apply only when the block
+  start is at most that long ago. On a timer tick the age is ~0; a daemon restarted deep
+  inside a block records the state without writing. A **gap clears** the cache, because
+  after "no intervention" the same target state is a fresh instruction again.
+- **No second write path.** `Coordinator.ApplySchedule` produces the same `writeReq`
+  values an inbound `/set` produces and feeds the same channel, so multi-split mode sync,
+  the local/cloud backend seam and the cloud lock all apply. **Order is load-bearing:**
+  `hvac_mode` before `temperature_setpoint`, because the setpoint path contains `{mode}`
+  resolved from `modeCache`, which `noteWrite` fills. All three scheduled characteristics
+  are modelled by `faikinCommand`, so a mapped device is driven entirely locally (no
+  ONECTA quota, no `scan_ignore` window). A device the poll has not resolved yields
+  `ErrDeviceUnknown` ("not yet"); each completed poll calls `engine.Wake()`.
+- **HA:** one switch per schedule on the daemon's own device (`daikin_scheduler`), plus
+  the per-device sensors `schedule_state` / `schedule_next_change` (synthetic catalog
+  entries like the refresh button). The switch topic
+  `<root>/scheduler/<id>/enabled/set` fits the existing `<root>/+/+/+/set` filter, so
+  `handleWrite` just branches on the reserved device id `scheduler` — no second
+  subscription. Schedule configs join the published set, so orphan reconcile clears a
+  deleted schedule.
+- **Slugs are frozen.** A schedule's id is derived from its name once at creation (same
+  transliteration as `hass.slugify`: `ä→a`, not `ae`) and never changes again — renaming
+  edits only `name`, so `switch.daikin_schedule_<slug>` survives it. `main` imports
+  `_ "time/tzdata"`: the distroless image has no system zone database.
+
 ### i18n rules (`internal/catalog/localize.go`, `internal/web/assets/i18n/`)
 `LANGUAGE` is `en` (default/fallback) or `de`. **Localized:** catalog/entity display names,
 enum labels, web-UI text. **Not localized:** MQTT topics, entity_ids, characteristic keys, and
-command *values*. **The one documented exception:** the climate fan/swing/preset dropdowns emit
+command *values*. Schedules add a third category: a schedule's `name` and a block's `label` are **user
+data** — no `name_de`, published verbatim in every language. The only daemon-produced
+string in that path is the idle state of `schedule_state`, which is a catalog enum value
+and therefore localized like every other label. The scheduler UI takes mode names from
+the existing `operation_mode` catalog entry (served via `/api/schedules`) and weekday /
+time formatting from `Intl`, so no second translation table exists; API errors carry a
+stable `code` the SPA resolves as `sched.err.<code>`. The week starts on Monday in both
+languages (the stored day keys are Monday-based). `TestI18nBundlesCoverEveryKey` enforces
+that both bundles carry the same keys and that every key referenced from the HTML or JS
+exists.
+
+**The one documented exception:** the climate fan/swing/preset dropdowns emit
 the German *label as the command value* (HA's MQTT climate platform has no separate label/value
 field), reversed on write by `canonicalAux` (see `coordinator/climate.go`).
 
@@ -217,6 +267,7 @@ interfaces make the coordinator and discovery testable with stubs.
 <MQTT_TOPIC>/<deviceID>/<embeddedID>/<topic>/state    # retained, QoS0
 <MQTT_TOPIC>/<deviceID>/<embeddedID>/<topic>/set      # subscribed, settable entities
 <MQTT_TOPIC>/bridge/status                            # LWT: online/offline (availability)
+<MQTT_TOPIC>/scheduler/<scheduleID>/enabled/{state,set}  # per-schedule enable switch
 homeassistant/<platform>/<unique_id>/config           # HA discovery, retained
 ```
 
@@ -233,7 +284,9 @@ Flat YAML (`config-template.yaml` documents every key). Every key is overridable
 override → defaults → validate. Required: `DAIKIN_CLIENT_ID`/`SECRET`, `MQTT_SERVER`. With
 credentials missing the daemon starts **idle** (web UI reachable for setup) rather than crashing.
 Local-first / multi-split keys (`LOCAL_MODE`, `LOCAL_FAIKIN_*`, `LOCAL_DEVICE_MAP`,
-`MULTISPLIT_*`, `ENFORCE_MUTUAL_EXCLUSIVE`) are validated only when `LOCAL_MODE` is on; the
+`MULTISPLIT_*`, `ENFORCE_MUTUAL_EXCLUSIVE`) and the scheduler keys (`SCHEDULE_ENABLE`,
+`SCHEDULE_STORE_PATH`, `SCHEDULE_TIMEZONE`, `SCHEDULE_CATCHUP`) are validated only when
+their feature switch is on; the
 add-on surfaces them as options and `script/run.sh` maps them to env (`local_device_map` as a
 list joined into the `id=host,…` scalar form).
 

@@ -47,12 +47,39 @@ Everything else has sensible defaults; use the reference below to fine-tune.
 | `local_device_map` | list(str) | `[]` | Maps each ONECTA device to its Faikin host as `deviceID=Faikin host` entries (e.g. `cfcbab3e-…=Klima GA`). Only mapped devices are driven locally. See below. |
 | `multisplit_mode_sync` | bool | `true` | Propagate a heat/cool change to the other indoor units of the same outdoor unit (a standard multi-split cannot cool and heat at once). |
 | `multisplit_outdoor_aggregate` | bool | `true` | Surface outdoor-shared settings (outdoor silent, eco, demand) as one entity per outdoor unit, fanning writes out to every member unit. |
+| `schedule_enable` | bool | `false` | Run weekly schedules: a seven-day programme edited in the add-on's calendar view. Each schedule also becomes a Home Assistant switch. See "Weekly schedules" below. |
+| `schedule_timezone` | str | `""` | IANA zone the schedules' wall-clock times are read in (e.g. `Europe/Berlin`). **Leave empty** to use the system zone, which under Home Assistant is the Supervisor's — normally what you want. |
+| `schedule_catchup` | int | `1800` | Seconds after a missed block start during which the target state is still applied. Covers a restart that interrupted a switch without overwriting a manual change made hours ago. |
 | `enforce_mutual_exclusive` | bool | `true` | Powerful and eco cannot run together (both act on the shared outdoor compressor). Turning eco on clears powerful. Turning powerful on suspends eco group-wide and remembers it; when powerful ends (manually or after the 20-minute hardware timeout) eco is restored, since the hardware does not restore it itself. |
 
 Fixed by the add-on (not user-configurable): the token store lives at
-`/data/token-store.json` and the web UI binds to `0.0.0.0:8080` for Ingress.
+`/data/token-store.json`, the schedules at `/data/schedules.json` (both survive
+add-on updates), and the web UI binds to `0.0.0.0:8080` for Ingress.
 The OAuth callback is served on that same port; the externally registered
 address is the `redirect_uri` option above.
+
+## Weekly schedules (optional)
+
+Turn on `schedule_enable` and a **Schedules** section appears in the add-on UI: a
+seven-day calendar per device, and the list of schedules with their switches.
+
+- A **block** occupies a time range and sets power, mode and setpoint **at its
+  start**. The state holds until the next block, so a change you make by hand (in
+  Home Assistant, the Daikin app or on the remote) stays until then. Leave the
+  setpoint on "leave alone" for a block that should only switch on/off or change
+  the mode.
+- **Several schedules can target the same device.** The highest `priority` wins,
+  so a base programme (priority 0) can be overridden by "home office" or
+  "holiday" (higher priority) that you switch on when needed — the covered blocks
+  stay visible as hatching in the calendar.
+- Every schedule becomes a **switch** entity under the device
+  *daikin2mqtt Scheduler*, so `holiday on when everyone leaves` is an ordinary HA
+  automation. Each climate device also gets an *Active schedule* and a *Next
+  schedule change* sensor.
+- On devices mapped for **local-first mode** the switching goes to Faikin, so it
+  costs no ONECTA requests at all. For cloud devices a block change costs up to
+  three requests per device.
+- The schedules are stored in `/data/schedules.json` and survive add-on updates.
 
 ## Local-first mode (optional)
 
