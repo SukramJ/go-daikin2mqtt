@@ -6,17 +6,21 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"hash/fnv"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
+	"github.com/SukramJ/go-daikin2mqtt/internal/version"
 )
 
 // --- fakes -------------------------------------------------------------
@@ -766,5 +770,83 @@ func TestErrorPageEscapesUserInput(t *testing.T) {
 	}
 	if strings.Contains(got, `onload="alert(2)`) {
 		t.Errorf("an attribute-breaking payload survived:\n%s", got)
+	}
+}
+
+// TestDeviceViewMarksSchedulable pins which devices a schedule may drive. The
+// rule lives on the server so the browser cannot apply it differently: a
+// block writes hvac_mode and temperature_setpoint, which live on a
+// climateControl point, so a gateway (the Home Hub) is not schedulable.
+func TestDeviceViewMarksSchedulable(t *testing.T) {
+	d := baseDeps()
+	d.Client = &fakeClient{devices: json.RawMessage(`[
+      {"id":"dev-climate","managementPoints":[
+        {"embeddedId":"climateControl","managementPointType":"climateControl",
+         "name":{"value":"Wohnzimmer"}},
+        {"embeddedId":"outdoorUnit","managementPointType":"outdoorUnit",
+         "serialNumber":{"value":"0J723746"}}]},
+      {"id":"dev-hub","managementPoints":[
+        {"embeddedId":"gateway","managementPointType":"gateway",
+         "softwareVersion":{"value":"1.2.3"}}]}
+    ]`)}
+	ts := newTestServer(d)
+	defer ts.Close()
+
+	res, err := http.Get(ts.URL + "/api/devices")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	var got []deviceView
+	err = json.NewDecoder(res.Body).Decode(&got)
+	_ = res.Body.Close()
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("devices = %d, want 2", len(got))
+	}
+	for _, dv := range got {
+		want := dv.ID == "dev-climate"
+		if dv.Schedulable != want {
+			t.Errorf("%s: schedulable = %v, want %v", dv.ID, dv.Schedulable, want)
+		}
+	}
+	if got[0].Name != "Wohnzimmer" {
+		t.Errorf("name = %q, want Wohnzimmer", got[0].Name)
+	}
+}
+
+// TestAssetETagTracksContent guards the validator itself: it must fingerprint
+// the asset content, not the build version. A version-based ETag is stale for
+// anyone running a build between releases — a main build or the :latest image
+// carries the same version string with different files, and the browser would
+// keep the old copy on the strength of a matching ETag.
+func TestAssetETagTracksContent(t *testing.T) {
+	if assetsETag == "" {
+		t.Fatal("no asset ETag")
+	}
+	if strings.Contains(assetsETag, version.Version) {
+		t.Errorf("ETag %s is derived from the build version, not from the assets", assetsETag)
+	}
+
+	// Same tree, same fingerprint — the walk must be order-stable.
+	h := fnv.New64a()
+	err := fs.WalkDir(staticFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := staticFS.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		_, _ = h.Write([]byte(path))
+		_, _ = h.Write(b)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	if want := `"` + strconv.FormatUint(h.Sum64(), 36) + `"`; assetsETag != want {
+		t.Errorf("ETag = %s, want %s", assetsETag, want)
 	}
 }

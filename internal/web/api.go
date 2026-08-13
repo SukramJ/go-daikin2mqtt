@@ -252,7 +252,13 @@ type deviceView struct {
 	// Name is the device's friendly name (the climate/DHW "name"
 	// characteristic). The scheduler's device picker needs it without walking
 	// the characteristic tree.
-	Name             string                `json:"name,omitempty"`
+	Name string `json:"name,omitempty"`
+	// Schedulable reports whether a weekly schedule can drive this device.
+	// It is decided here rather than in the browser so there is one definition
+	// of the rule: a schedule writes hvac_mode and temperature_setpoint, which
+	// live on a climateControl point, so a gateway (the Home Hub) has nothing
+	// for a block to set.
+	Schedulable      bool                  `json:"schedulable"`
 	ManagementPoints []managementPointView `json:"management_points"`
 }
 
@@ -307,6 +313,9 @@ func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
 	for _, d := range devices {
 		dv := deviceView{ID: d.ID, Model: d.Model}
 		for _, mp := range d.ManagementPoints {
+			if mp.Type == "climateControl" {
+				dv.Schedulable = true
+			}
 			if dv.Name == "" && (mp.Type == "climateControl" || mp.Type == "domesticHotWaterTank") {
 				if ch, ok := mp.Characteristics["name"]; ok {
 					if n, ok := ch.String(); ok {

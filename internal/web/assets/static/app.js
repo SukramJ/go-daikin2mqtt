@@ -463,9 +463,9 @@ async function loadSchedules() {
 // loadScheduleDevices reuses api/devices — the same call the device browser
 // makes — so the picker needs no extra endpoint.
 //
-// Only devices with a climateControl management point can be scheduled: the
-// blocks write hvac_mode and temperature_setpoint, which live there. A gateway
-// (the Home Hub) has no such point and would only be an unselectable entry.
+// The server decides which devices a schedule can drive (`schedulable`): a
+// block writes hvac_mode and temperature_setpoint, which live on a
+// climateControl point, so a gateway like the Home Hub has nothing to set.
 // Devices already referenced by a schedule are kept regardless, so a plan never
 // becomes invisible because its device is momentarily unresolvable.
 async function loadScheduleDevices() {
@@ -474,9 +474,7 @@ async function loadScheduleDevices() {
     const referenced = new Set();
     for (const s of SCHED.schedules) for (const tgt of s.targets || []) referenced.add(tgt.device_id);
     SCHED.devices = devices
-      .filter((d) =>
-        referenced.has(d.id) ||
-        (d.management_points || []).some((mp) => mp.type === "climateControl"))
+      .filter((d) => d.schedulable || referenced.has(d.id))
       .map((d) => ({ id: d.id, name: d.name, model: d.model }));
   } catch (e) {
     // The cloud may be unreachable; schedules still edit fine, the picker
@@ -511,12 +509,24 @@ function isOutdoorKey(key) {
 }
 
 // targetName resolves a target key to what the operator should read.
+//
+// An outdoor unit is simply "outdoor unit": there is normally exactly one, and
+// its serial is an identifier, not a name. With several of them the rooms they
+// serve are what tells them apart — far more useful than the serial, which
+// stays available as the tooltip.
+// outdoorLabelWithMembers names an outdoor unit together with the rooms on it.
+function outdoorLabelWithMembers(u) {
+  const members = (u.members || []).map(deviceName).join(", ");
+  return members ? t("sched.outdoorUnit") + " · " + members : t("sched.outdoorUnit");
+}
+
 function targetName(key) {
-  if (isOutdoorKey(key)) {
-    const u = SCHED.outdoor.find((x) => x.key === key);
-    return u ? tf("sched.outdoorUnit", { serial: u.serial }) : key;
-  }
-  return deviceName(key);
+  if (!isOutdoorKey(key)) return deviceName(key);
+  const u = SCHED.outdoor.find((x) => x.key === key);
+  if (!u) return key;
+  const label = t("sched.outdoorUnit");
+  if (SCHED.outdoor.length < 2) return label;
+  return label + " (" + u.members.map(deviceName).join(", ") + ")";
 }
 
 async function refreshPreview() {
@@ -587,8 +597,7 @@ function renderScheduleDevices() {
     host.appendChild(el("span", "chip-sep", "·"));
   }
   for (const u of SCHED.outdoor) {
-    add(u.key, tf("sched.outdoorUnit", { serial: u.serial }),
-      u.members.map(deviceName).join(", "));
+    add(u.key, targetName(u.key), u.serial + " · " + u.members.map(deviceName).join(", "));
   }
 }
 
@@ -1286,7 +1295,8 @@ function openPlanDialog(s) {
   body.appendChild(typeRow);
 
   const devRow = el("div", "field-row");
-  devRow.appendChild(el("label", null, t("sched.targets")));
+  const devLabel = el("label");
+  devRow.appendChild(devLabel);
   const devs = el("div", "inline");
   devRow.appendChild(devs);
   body.appendChild(devRow);
@@ -1296,8 +1306,15 @@ function openPlanDialog(s) {
   function openPlanDialogRefreshTargets() {
     devs.innerHTML = "";
     const outdoor = scheduleKind(copy) === "outdoor";
+    devLabel.textContent = t(outdoor ? "sched.targetUnit" : "sched.targets");
     const items = outdoor
-      ? SCHED.outdoor.map((u) => ({ label: tf("sched.outdoorUnit", { serial: u.serial }), target: { outdoor_serial: u.serial } }))
+      ? SCHED.outdoor.map((u) => ({
+          // With the type chip above reading "outdoor unit" too, naming the
+          // rooms it serves is what makes the target unambiguous — and it is
+          // the information that matters when assigning it.
+          label: outdoorLabelWithMembers(u),
+          target: { outdoor_serial: u.serial },
+        }))
       : SCHED.devices.map((d) => ({ label: d.name || d.id, target: { device_id: d.id } }));
     if (!items.length) {
       devs.appendChild(el("span", "muted", t(outdoor ? "sched.noOutdoor" : "sched.noDevices")));
