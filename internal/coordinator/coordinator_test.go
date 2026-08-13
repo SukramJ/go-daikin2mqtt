@@ -221,6 +221,19 @@ const testCatalogYAML = `
   values:
     - {value: idle, label: No block, label_de: Kein Block}
 - {match: {managementPointType: climateControl, characteristic: daemonScheduleNext}, topic: schedule_next_change, name: Next schedule change, name_de: Nächste Zeitplan-Schaltung, platform: sensor, device_class: timestamp, category: diagnostic}
+- match: {managementPointType: climateControl, characteristic: daemonOutdoorSchedule}
+  topic: outdoor_schedule_state
+  name: Active outdoor schedule
+  name_de: Aktiver Außengerät-Zeitplan
+  platform: sensor
+  category: diagnostic
+  scope: outdoor
+  values:
+    - {value: idle, label: No block, label_de: Kein Block}
+- {match: {managementPointType: climateControl, characteristic: daemonOutdoorScheduleNext}, topic: outdoor_schedule_next_change, name: Next outdoor schedule change, platform: sensor, device_class: timestamp, category: diagnostic, scope: outdoor}
+- {match: {managementPointType: climateControl, characteristic: outdoorSilentMode}, topic: outdoor_silent, name: Outdoor silent, platform: switch, settable: true, scope: outdoor}
+- {match: {managementPointType: climateControl, characteristic: econoMode}, topic: econo_mode, name: Econo mode, platform: switch, settable: true, scope: outdoor}
+- {match: {managementPointType: climateControl, characteristic: demandControl}, topic: demand_control, name: Demand limit, platform: number, settable: true, scope: outdoor}
 `
 
 func loadTestCatalog(t *testing.T) *catalog.Catalog {

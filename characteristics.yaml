@@ -662,3 +662,27 @@
   device_class: timestamp
   category: diagnostic
   icon: mdi:calendar-arrow-right
+
+# The same two sensors for a schedule that drives an outdoor unit. scope:
+# outdoor collapses the per-indoor-unit points into a single pair on the
+# outdoor unit, matching where the settings they describe actually apply.
+- match: {managementPointType: climateControl, characteristic: daemonOutdoorSchedule}
+  topic: outdoor_schedule_state
+  name: Active outdoor schedule
+  name_de: Aktiver Außengerät-Zeitplan
+  platform: sensor
+  category: diagnostic
+  icon: mdi:calendar-clock
+  scope: outdoor
+  values:
+    - {value: idle, label: No block, label_de: Kein Block}
+
+- match: {managementPointType: climateControl, characteristic: daemonOutdoorScheduleNext}
+  topic: outdoor_schedule_next_change
+  name: Next outdoor schedule change
+  name_de: Nächste Außengerät-Schaltung
+  platform: sensor
+  device_class: timestamp
+  category: diagnostic
+  icon: mdi:calendar-arrow-right
+  scope: outdoor
