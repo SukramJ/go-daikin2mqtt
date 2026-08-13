@@ -113,7 +113,7 @@
   "btn.save": "Save",
   "btn.cancel": "Cancel",
   "btn.delete": "Delete",
-  "sched.outdoorUnit": "Outdoor unit {serial}",
+  "sched.outdoorUnit": "Outdoor unit",
   "sched.type": "Type",
   "sched.typeIndoor": "Indoor units",
   "sched.typeOutdoor": "Outdoor unit",
@@ -127,5 +127,6 @@
   "sched.noOutdoor": "No outdoor unit known yet — it appears after the first cloud poll.",
   "sched.noDevices": "No devices known yet.",
   "sched.noSelection": "No unit selected",
-  "sched.activePlans": "{n} active schedule(s)"
+  "sched.activePlans": "{n} active schedule(s)",
+  "sched.targetUnit": "Unit"
 }

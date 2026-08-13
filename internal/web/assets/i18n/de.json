@@ -113,7 +113,7 @@
   "btn.save": "Speichern",
   "btn.cancel": "Abbrechen",
   "btn.delete": "Löschen",
-  "sched.outdoorUnit": "Außengerät {serial}",
+  "sched.outdoorUnit": "Außengerät",
   "sched.type": "Typ",
   "sched.typeIndoor": "Innengeräte",
   "sched.typeOutdoor": "Außengerät",
@@ -127,5 +127,6 @@
   "sched.noOutdoor": "Noch kein Außengerät bekannt — es erscheint nach dem ersten Cloud-Poll.",
   "sched.noDevices": "Noch keine Geräte bekannt.",
   "sched.noSelection": "Keine Einheit gewählt",
-  "sched.activePlans": "{n} aktive(r) Plan/Pläne"
+  "sched.activePlans": "{n} aktive(r) Plan/Pläne",
+  "sched.targetUnit": "Einheit"
 }

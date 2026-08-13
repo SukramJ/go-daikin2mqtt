@@ -26,9 +26,11 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"hash/fnv"
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
@@ -186,6 +188,37 @@ func (s *Server) routes() *http.ServeMux {
 	return mux
 }
 
+// assetsETag fingerprints the embedded asset tree, computed once at start-up.
+//
+// The build version would be the obvious validator — the assets are baked into
+// the binary — but it is wrong for anyone running a build between releases (a
+// main build, the :latest image, a local `make build`): the version string
+// stays the same while the files change, so the browser would keep a stale
+// copy on the strength of a matching ETag. Hashing the content cannot get that
+// wrong. fs.WalkDir visits entries in lexical order, so the result is stable
+// across processes.
+var assetsETag = func() string {
+	h := fnv.New64a()
+	err := fs.WalkDir(staticFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := staticFS.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		_, _ = h.Write([]byte(path))
+		_, _ = h.Write(b)
+		return nil
+	})
+	if err != nil {
+		// The tree is embedded at compile time; a read failure here would mean
+		// a corrupt binary. Fall back to the version rather than panicking.
+		return `"` + version.Version + `"`
+	}
+	return `"` + strconv.FormatUint(h.Sum64(), 36) + `"`
+}()
+
 // revalidating makes the browser check back before reusing an embedded asset.
 //
 // Files in an embed.FS carry no modification time, so net/http sends neither
@@ -195,15 +228,12 @@ func (s *Server) routes() *http.ServeMux {
 // upgraded. The symptom is a UI that looks unchanged no matter what the new
 // version fixed.
 //
-// The build version is the right validator: the assets are baked into the
-// binary, so they can only change when it does. With an ETag set before the
-// file server runs, it answers a conditional request with 304 itself, so the
-// revalidation costs a round trip and no body.
+// With an ETag set before the file server runs, it answers a conditional
+// request with 304 itself, so revalidation costs a round trip and no body.
 func revalidating(next http.Handler) http.Handler {
-	etag := `"` + version.Version + `"`
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("ETag", etag)
+		w.Header().Set("ETag", assetsETag)
 		next.ServeHTTP(w, r)
 	})
 }
