@@ -4,6 +4,16 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.9.1 (2026-08-13)
+
+Fix: **the Schedules view showed no selection.**
+
+- The toggle buttons in the schedule editor (device picker, weekdays, mode,
+  state) were rendered unstyled, so it was invisible which device was selected
+  or which weekdays a block covered. They are styled again.
+- The device picker no longer offers the Home Hub, which has no climate control
+  and therefore cannot be scheduled.
+
 # 0.9.0 (2026-08-13)
 
 New: **weekly schedules.** A seven-day programme run by the add-on itself,

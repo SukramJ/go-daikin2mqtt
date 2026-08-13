@@ -1,3 +1,36 @@
+# Version 0.9.1 (2026-08-13)
+
+## What's Changed
+
+### Fixed
+
+- **The schedule UI showed no selection.** The `.chip` rules were left behind
+  when the calendar was ported into the app's stylesheet, so every toggle
+  button in the Schedules section — the device picker, the weekday, mode and
+  state selectors and the target list in the schedule dialog — rendered as an
+  unstyled browser button. Nothing indicated which device was selected or which
+  weekdays a block ran on. The rules are now in place: a selected chip is
+  filled in the accent colour.
+
+- **The device picker offered devices that cannot be scheduled.** A gateway
+  (the Home Hub) has no `climateControl` management point, so it can carry no
+  blocks, but it appeared in the picker anyway. Only devices with a
+  `climateControl` point are offered now — plus any device already referenced
+  by a schedule, so a plan never becomes invisible because its device is
+  momentarily unresolvable.
+
+### Added
+
+- The device picker now carries a visible "Device" label instead of only a
+  tooltip, so the chip row reads as a labelled control.
+
+### Internal
+
+- A new test asserts that every CSS class used in the markup or in `app.js`
+  has a rule in the stylesheet — the check that would have caught the missing
+  `.chip` rules. It found two further classes that had been carrying no rules
+  since earlier versions (`topbar-status`, `dp-name`); both now have one.
+
 # Version 0.9.0 (2026-08-13)
 
 ## What's Changed
