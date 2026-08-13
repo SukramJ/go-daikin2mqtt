@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -698,5 +699,72 @@ func TestRateLimitViewUsesSnakeCase(t *testing.T) {
 		if _, ok := got[key]; !ok {
 			t.Errorf("response has no %q field: %v", key, got)
 		}
+	}
+}
+
+// TestIngressPrefixRejectsOffSiteRedirects covers the header validation that
+// guards both the post-callback redirect and the derived OAuth redirect_uri.
+// A leading-slash check alone is not enough: browsers read "/\host" as
+// protocol-relative just like "//host", so it would redirect off-site.
+func TestIngressPrefixRejectsOffSiteRedirects(t *testing.T) {
+	cases := []struct {
+		header string
+		want   string
+	}{
+		// Accepted: genuine ingress paths.
+		{"/api/hassio_ingress/abc123", "/api/hassio_ingress/abc123"},
+		{"/api/hassio_ingress/abc123/", "/api/hassio_ingress/abc123"},
+		{"/", ""},
+
+		// Rejected: every way of naming another host.
+		{"//evil.example", ""},
+		{`/\evil.example`, ""},       // read as protocol-relative by browsers
+		{`/\/evil.example`, ""},      //
+		{"https://evil.example", ""}, // absolute URL
+		{"/x:8080", ""},              // colon could introduce a scheme
+		{`/api/ingress\..\evil`, ""}, // backslash used for normalisation
+		{"evil.example", ""},         // not absolute at all
+		{"", ""},                     // header absent
+	}
+	for _, c := range cases {
+		r := httptest.NewRequest(http.MethodGet, "/callback", http.NoBody)
+		if c.header != "" {
+			r.Header.Set("X-Ingress-Path", c.header)
+		}
+		if got := ingressPrefix(r); got != c.want {
+			t.Errorf("ingressPrefix(%q) = %q, want %q", c.header, got, c.want)
+		}
+	}
+}
+
+// TestErrorPageEscapesUserInput pins the escaping of the OAuth error page. The
+// message embeds query parameters echoed back by the identity provider, so a
+// crafted ?error= must not become markup.
+func TestErrorPageEscapesUserInput(t *testing.T) {
+	ts := newTestServer(baseDeps())
+	defer ts.Close()
+
+	payload := `<script>alert(1)</script>`
+	res, err := http.Get(ts.URL + "/callback?error=" + url.QueryEscape(payload) +
+		"&error_description=" + url.QueryEscape(`"onload="alert(2)`))
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	body, _ := io.ReadAll(res.Body)
+	_ = res.Body.Close()
+
+	if res.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", res.StatusCode)
+	}
+	got := string(body)
+	if strings.Contains(got, "<script>") {
+		t.Errorf("the response contains unescaped markup:\n%s", got)
+	}
+	// The message must still be readable, just inert.
+	if !strings.Contains(got, "&lt;script&gt;") {
+		t.Errorf("the escaped message is missing from the page:\n%s", got)
+	}
+	if strings.Contains(got, `onload="alert(2)`) {
+		t.Errorf("an attribute-breaking payload survived:\n%s", got)
 	}
 }
