@@ -4,6 +4,16 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# 0.11.0 (2026-08-16)
+
+- The MQTT client library go-mqtt moves to 1.3.0, an audit release that
+  fixed 42 findings. Nothing changed in the bridge itself.
+- Reconnects back off when the broker drops a connection right after
+  accepting it, instead of redialling at full speed; a stable
+  connection that drops still reconnects immediately.
+- The publish circuit breaker only opens on real broker trouble now,
+  not on locally rejected topics or options.
+
 # 0.10.3 (2026-08-13)
 
 - The Home Hub is no longer offered when picking a device for a schedule — a

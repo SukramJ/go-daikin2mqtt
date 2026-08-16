@@ -1,3 +1,38 @@
+# Version 0.11.0 (2026-08-16)
+
+## What's Changed
+
+### Changed
+
+- **Adopt go-mqtt v1.3.0.** Upstream's adversarial audit of the whole
+  client (wire codec, connection core, supporting components, CI)
+  found and fixed 42 issues, 3 of them high severity; the exported API
+  only grew two additive fields, so this is a drop-in bump with no
+  call-site changes.
+- **Reconnects now damp against a flapping broker.** A connection that
+  drops within 10 seconds of coming up
+  (`mqtt.LifecycleConfig.FlapWindow`, left at its default here) now
+  backs off exponentially instead of redialling immediately —
+  previously a broker that accepted a CONNECT and immediately dropped
+  the socket could be redialled thousands of times a second. Applies
+  to both the main broker connection and, in local mode, the separate
+  Faikin connection when it isn't shared with the main one.
+- **The publish circuit breaker no longer trips on this bridge's own
+  mistakes.** A client-side validation failure (an invalid topic, a
+  QoS above what the broker granted, ...) used to count as a broker
+  failure and could open the circuit for every healthy publish
+  alongside it; only genuine broker-side failures count now, matching
+  the "5 consecutive broker-side failures" contract this bridge's
+  breaker was already configured for (see 0.5.0 below).
+- **A clean shutdown no longer races a reconnect.** The client
+  couldn't previously tell a broker closing the socket in response to
+  our own DISCONNECT from an actual connection loss, so stopping the
+  daemon could trigger one last, immediately-undone reconnect before
+  the lifecycle loop exited.
+- Malformed frames from the broker now tear the connection down
+  immediately, per the MQTT spec, instead of being read past —
+  hardening with no visible effect against a compliant broker.
+
 # Version 0.10.3 (2026-08-13)
 
 ## What's Changed
