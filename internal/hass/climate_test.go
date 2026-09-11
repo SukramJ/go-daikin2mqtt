@@ -66,15 +66,14 @@ func TestClimateEntitySuppressesIndividualControls(t *testing.T) {
 	}
 	var cfg map[string]any
 	_ = json.Unmarshal(raw, &cfg)
-	// We publish both object_id and default_entity_id (home-assistant/core#157241:
-	// current HA does not yet honour default_entity_id reliably). object_id is the
-	// same English seed without the "climate." platform prefix.
+	// default_entity_id is the only entity-id seed; the deprecated object_id is
+	// not published because HA no longer accepts it.
 	deid, _ := cfg["default_entity_id"].(string)
 	if deid == "" || !strings.HasPrefix(deid, "climate.") {
 		t.Errorf("default_entity_id = %v, want climate.<seed>", cfg["default_entity_id"])
 	}
-	if got, want := cfg["object_id"], strings.TrimPrefix(deid, "climate."); got != want {
-		t.Errorf("object_id = %v, want %q (default_entity_id without platform prefix)", got, want)
+	if _, ok := cfg["object_id"]; ok {
+		t.Errorf("object_id present in climate config, want it omitted")
 	}
 	if cfg["mode_command_topic"] != "daikin/dev-1/climateControl/hvac_mode/set" {
 		t.Errorf("mode_command_topic = %v", cfg["mode_command_topic"])

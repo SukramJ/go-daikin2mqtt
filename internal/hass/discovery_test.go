@@ -71,11 +71,10 @@ func TestDiscoveryEnglishEntityIDLocalizedName(t *testing.T) {
 	if got := cfg["default_entity_id"]; got != "sensor.wohnzimmer_room_temperature" {
 		t.Errorf("default_entity_id = %v, want sensor.wohnzimmer_room_temperature (English)", got)
 	}
-	// object_id carries the same English seed without the platform prefix; we
-	// publish both because current HA does not yet honour default_entity_id
-	// reliably (home-assistant/core#157241) while object_id still works.
-	if got := cfg["object_id"]; got != "wohnzimmer_room_temperature" {
-		t.Errorf("object_id = %v, want wohnzimmer_room_temperature (English)", got)
+	// The deprecated object_id must not be published at all: no MQTT platform
+	// schema accepts it, so HA drops it silently.
+	if _, ok := cfg["object_id"]; ok {
+		t.Errorf("object_id present in config, want it omitted")
 	}
 	if got := cfg["name"]; got != "Raumtemperatur" {
 		t.Errorf("name = %v, want Raumtemperatur (localized)", got)
