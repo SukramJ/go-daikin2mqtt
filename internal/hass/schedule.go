@@ -87,7 +87,6 @@ func (d *Discovery) buildScheduleConfig(s ScheduleInfo, dev device) (topic strin
 	uid := sanitize("daikin_schedule_" + s.ID)
 	cfg := configPayload{
 		Name:                s.Name,
-		ObjectID:            uid,
 		DefaultEntityID:     "switch." + uid,
 		UniqueID:            uid,
 		Icon:                "mdi:calendar-check",

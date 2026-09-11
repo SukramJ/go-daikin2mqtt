@@ -45,7 +45,6 @@ func TestPublishSchedules(t *testing.T) {
 		// The entity id is seeded from the frozen slug, not from the name, so a
 		// rename cannot move it.
 		{"unique_id", "daikin_schedule_werktag"},
-		{"object_id", "daikin_schedule_werktag"},
 		{"default_entity_id", "switch.daikin_schedule_werktag"},
 		{"state_topic", "daikin/scheduler/werktag/enabled/state"},
 		{"command_topic", "daikin/scheduler/werktag/enabled/set"},
