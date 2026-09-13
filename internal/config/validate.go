@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // ValidationError is returned by [Validate] when the loaded config fails
@@ -83,6 +84,15 @@ func Validate(c *Config) error {
 	}
 	if c.MQTTTopic == "" {
 		add("MQTT_TOPIC is required")
+	}
+	// A client id is what the broker keys the session on. Whitespace inside
+	// it is legal on the wire but is almost always a paste accident, and the
+	// resulting takeover loop names nothing in any log, so it is refused here
+	// rather than at 3am.
+	if strings.TrimSpace(c.MQTTClientID) == "" {
+		add("MQTT_CLIENT_ID must not be blank")
+	} else if strings.ContainsFunc(c.MQTTClientID, unicode.IsSpace) {
+		add("MQTT_CLIENT_ID must not contain whitespace, got %q", c.MQTTClientID)
 	}
 
 	// --- Diagnostic web UI ---

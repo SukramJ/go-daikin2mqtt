@@ -67,8 +67,15 @@ func parseDeviceMapString(s string) DeviceMap {
 
 // Daemon-wide constants.
 const (
-	// MQTTClientID is the MQTT client identifier the bridge connects with.
-	MQTTClientID = "daikin2mqtt"
+	// DefaultMQTTClientID is the MQTT client identifier the bridge connects
+	// with when MQTT_CLIENT_ID is unset. It is the value this daemon used
+	// unconditionally before the key existed, so an installation that says
+	// nothing keeps its session.
+	DefaultMQTTClientID = "daikin2mqtt"
+	// FaikinClientIDSuffix is appended to the resolved client id for the
+	// second connection opened when the Faikin modules use a different
+	// broker, so the two sessions never collide with each other.
+	FaikinClientIDSuffix = "-faikin"
 	// TopicRoot is the default MQTT topic root (overridable via MQTT_TOPIC).
 	TopicRoot = "daikin"
 	// EnvPrefix is the environment-variable override prefix.
@@ -132,6 +139,14 @@ type Config struct {
 	MQTTLogin    string `yaml:"MQTT_LOGIN"`
 	MQTTPassword string `yaml:"MQTT_PASSWORD"`
 	MQTTTopic    string `yaml:"MQTT_TOPIC"`
+	// MQTTClientID is the client identifier presented in CONNECT. A broker
+	// MUST disconnect an existing session when a second client presents the
+	// same identifier (MQTT 3.1.1 §3.1.3.2 / 5.0 §3.1.4), so two daemons on
+	// one broker — two ONECTA accounts, a staging instance, a migration
+	// overlap — kick each other in a loop unless they differ here. Empty
+	// defaults to [DefaultMQTTClientID], which is what this daemon used
+	// before the key existed.
+	MQTTClientID string `yaml:"MQTT_CLIENT_ID"`
 
 	// --- Home Assistant ---
 	HASSEnable    bool   `yaml:"HASS_ENABLE"`

@@ -108,7 +108,7 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	statusTopic := cfg.MQTTTopic + "/bridge/status"
 	mqttClient := mqtt.NewTCPClient(mqtt.TCPConfig{
 		BrokerURL:  fmt.Sprintf("tcp://%s:%d", cfg.MQTTServer, cfg.MQTTPort),
-		ClientID:   config.MQTTClientID,
+		ClientID:   mainClientID(cfg),
 		Username:   cfg.MQTTLogin,
 		Password:   cfg.MQTTPassword,
 		CleanStart: true,
@@ -164,7 +164,7 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 		} else {
 			fc := mqtt.NewTCPClient(mqtt.TCPConfig{
 				BrokerURL:  "tcp://" + cfg.FaikinBrokerAddress(),
-				ClientID:   config.MQTTClientID + "-faikin",
+				ClientID:   faikinClientID(cfg),
 				Username:   cfg.FaikinLogin(),
 				Password:   cfg.FaikinPassword(),
 				CleanStart: true,
@@ -261,6 +261,23 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	}
 
 	return g.Wait()
+}
+
+// mainClientID is the MQTT client identifier the bridge presents on the main
+// broker connection. It is read from the config, not from a constant: before
+// MQTT_CLIENT_ID existed every installation presented the same string, and a
+// broker MUST disconnect an existing session when a second client presents the
+// identifier it holds (MQTT 3.1.1 §3.1.3.2 / 5.0 §3.1.4), so two daemons on
+// one broker took each other down in a loop with nothing in either log saying
+// why. That is F1 of the ADR 0070 phase 8 measurement.
+func mainClientID(cfg *config.Config) string { return cfg.MQTTClientID }
+
+// faikinClientID is the identifier for the second connection opened when the
+// Faikin modules publish to a different broker. It derives from the same
+// configured id, so setting MQTT_CLIENT_ID separates BOTH of an instance's
+// sessions from another instance's, not just the main one.
+func faikinClientID(cfg *config.Config) string {
+	return cfg.MQTTClientID + config.FaikinClientIDSuffix
 }
 
 // loadConfig resolves the config path (explicit flag or standard search) and

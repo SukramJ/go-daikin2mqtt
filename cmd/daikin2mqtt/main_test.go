@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/SukramJ/go-mqtt"
+
+	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 )
 
 // failingPublisher always reports a broker-side failure so the breaker
@@ -86,5 +88,36 @@ func TestMQTTSessionSubscribeBypassesBreaker(t *testing.T) {
 	}
 	if len(sub.unsubscribed) != 1 || sub.unsubscribed[0] != "cmd/#" {
 		t.Fatalf("unsubscriber saw %v, want [cmd/#]", sub.unsubscribed)
+	}
+}
+
+// TestClientIDsComeFromTheConfig pins the wiring half of F1: the two MQTT
+// connections this daemon opens must take their client identifier from the
+// resolved config, so an operator running a second instance can separate them.
+// Reading a constant here is exactly the defect, and it is invisible on the
+// wire until the second instance connects.
+func TestClientIDsComeFromTheConfig(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{MQTTClientID: "daikin2mqtt-staging"}
+	if got := mainClientID(cfg); got != "daikin2mqtt-staging" {
+		t.Errorf("mainClientID = %q, want the configured id", got)
+	}
+	if got := faikinClientID(cfg); got != "daikin2mqtt-staging-faikin" {
+		t.Errorf("faikinClientID = %q, want the configured id plus the suffix", got)
+	}
+
+	// Two differently-configured instances must collide on neither session.
+	other := &config.Config{MQTTClientID: config.DefaultMQTTClientID}
+	if mainClientID(cfg) == mainClientID(other) || faikinClientID(cfg) == faikinClientID(other) {
+		t.Error("two instances still share a client id — F1 is not fixed")
+	}
+
+	// And the unconfigured instance must still present the pre-fix strings.
+	if got := mainClientID(other); got != "daikin2mqtt" {
+		t.Errorf("default mainClientID = %q, want %q", got, "daikin2mqtt")
+	}
+	if got := faikinClientID(other); got != "daikin2mqtt-faikin" {
+		t.Errorf("default faikinClientID = %q, want %q", got, "daikin2mqtt-faikin")
 	}
 }

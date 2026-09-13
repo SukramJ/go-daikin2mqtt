@@ -37,6 +37,13 @@ else
   export DAIKIN_MQTT_PORT="1883"
 fi
 export DAIKIN_MQTT_TOPIC="$(bashio::config 'mqtt_topic')"
+# Client identifier. A broker disconnects the session it already holds when a
+# second client presents the same id, so two instances against one broker must
+# differ here. Empty is left unset so the daemon applies its own default, which
+# is the string every installation presented before this option existed.
+if bashio::config.has_value 'mqtt_client_id'; then
+  export DAIKIN_MQTT_CLIENT_ID="$(bashio::config 'mqtt_client_id')"
+fi
 
 # --- Home Assistant discovery ---
 export DAIKIN_HASS_ENABLE="$(bashio::config 'hass_enable')"

@@ -55,6 +55,7 @@ options:
   mqtt_login: ""
   mqtt_password: ""
   mqtt_topic: daikin
+  mqtt_client_id: ""
   hass_enable: true
   language: en
   web_enable: true
@@ -83,6 +84,7 @@ schema:
   mqtt_login: "str?"
   mqtt_password: "password?"
   mqtt_topic: str
+  mqtt_client_id: "str?"
   hass_enable: bool
   language: "list(en|de)"
   web_enable: bool
