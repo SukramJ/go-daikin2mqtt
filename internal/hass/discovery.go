@@ -8,18 +8,18 @@ package hass
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/SukramJ/go-mqtt"
 
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 )
 
 // Discovery publishes retained HA MQTT discovery configs.
 type Discovery struct {
-	baseTopic string // e.g. "homeassistant"
-	stateRoot string // e.g. "daikin"
+	baseTopic string      // e.g. "homeassistant"
+	state     layout.Root // the state-plane topic layout, rooted at e.g. "daikin"
 	lang      string
 	pub       mqtt.Publisher
 }
@@ -27,7 +27,7 @@ type Discovery struct {
 // New returns a Discovery publisher. baseTopic is the HA discovery prefix,
 // stateRoot the MQTT topic root the daemon publishes state under.
 func New(baseTopic, stateRoot, lang string, pub mqtt.Publisher) *Discovery {
-	return &Discovery{baseTopic: baseTopic, stateRoot: stateRoot, lang: lang, pub: pub}
+	return &Discovery{baseTopic: baseTopic, state: layout.New(stateRoot), lang: lang, pub: pub}
 }
 
 // SubDevice is the metadata for an auxiliary Daikin component (gateway or
@@ -113,14 +113,17 @@ func (d *Discovery) deviceBlock(deviceID string, info DeviceInfo) device {
 // subDeviceBlock builds a nested HA device (gateway / outdoor unit) linked to
 // the main device via via_device. suffix disambiguates the identifier;
 // labelEN/labelDE are appended to the base name.
-func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName string, sub *SubDevice) device {
+func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName string, sub *SubDevice) (dev device, seed string) {
 	label := labelEN
 	if d.lang == "de" && labelDE != "" {
 		label = labelDE
 	}
-	dev := device{
+	base := orDefault(baseName, "Daikin "+deviceID)
+	// seed is the same name with the ENGLISH label, always. See [entityObjectID].
+	seed = base + " " + labelEN
+	dev = device{
 		Identifiers:      []string{mainIdentifier(deviceID) + "_" + suffix},
-		Name:             orDefault(baseName, "Daikin "+deviceID) + " " + label,
+		Name:             base + " " + label,
 		Manufacturer:     "Daikin",
 		ViaDevice:        mainIdentifier(deviceID),
 		ConfigurationURL: configurationURL,
@@ -134,7 +137,7 @@ func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName 
 			dev.Connections = [][2]string{{"mac", sub.MAC}}
 		}
 	}
-	return dev
+	return dev, seed
 }
 
 // sharedSubDevice builds an HA device for an auxiliary component (gateway /
@@ -143,7 +146,7 @@ func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName 
 // links it under a parent device when it belongs to one (per-unit gateways
 // nest under their indoor unit); pass "" for genuinely shared components with
 // no single parent (e.g. one outdoor unit serving several indoor units).
-func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, baseName string, sub *SubDevice) device {
+func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, baseName string, sub *SubDevice) (dev device, seed string) {
 	label := labelEN
 	if d.lang == "de" && labelDE != "" {
 		label = labelDE
@@ -151,11 +154,16 @@ func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, bas
 	// Name the device after its associated unit when known (e.g. "Gateway
 	// Wohnzimmer") so multiple gateways are distinguishable; fall back to a
 	// generic name for truly shared components (e.g. one outdoor unit).
-	name := "Daikin " + label
-	if baseName != "" {
-		name = label + " " + baseName
+	compose := func(l string) string {
+		if baseName != "" {
+			return l + " " + baseName
+		}
+		return "Daikin " + l
 	}
-	dev := device{
+	name := compose(label)
+	// seed is the same name with the ENGLISH label, always. See [entityObjectID].
+	seed = compose(labelEN)
+	dev = device{
 		Identifiers:      []string{identifier},
 		Name:             name,
 		Manufacturer:     "Daikin",
@@ -171,10 +179,11 @@ func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, bas
 			dev.Connections = [][2]string{{"mac", sub.MAC}}
 		}
 	}
-	return dev
+	return dev, seed
 }
 
-// entityIdentity returns the HA unique_id and device block for a point.
+// entityIdentity returns the HA unique_id, the device block, and the
+// LANGUAGE-INDEPENDENT name the entity id is seeded from, for a point.
 //
 // Gateways have per-unit serials (one per indoor unit), so they are keyed by
 // serial and nested under their indoor unit (via_device → main). Outdoor units
@@ -182,15 +191,20 @@ func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, bas
 // (identical serials), so when a serial is known they deduplicate to a single
 // standalone HA device with no parent; without a serial they fall back to a
 // per-device nested sub-device (via_device → main).
-func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string, dev device) {
+//
+// seed is returned separately from dev.Name because the two auxiliary device
+// kinds compose their display name from a TRANSLATED label, and seeding an
+// entity id from that makes the entity id move with LANGUAGE (F2). For a main
+// device the two are the same string: its name is the operator's own text.
+func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string, dev device, seed string) {
 	// Outdoor-shared settings (scope: outdoor, e.g. outdoor silent) are a single
 	// knob on the outdoor unit exposed per indoor unit. Key them by the outdoor
 	// serial and attach them to the outdoor device so all the indoor units'
 	// points collapse to one entity (deduplicated by the shared uid).
 	if p.Entry.Scope == "outdoor" && info.Outdoor != nil && info.Outdoor.SerialNumber != "" {
 		base := "daikin_outdoor_" + info.Outdoor.SerialNumber
-		return sanitize(base + "_" + p.Topic),
-			d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
+		dev, seed := d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
+		return sanitize(base + "_" + p.Topic), dev, seed
 	}
 	switch p.MPType {
 	case "gateway":
@@ -198,24 +212,27 @@ func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string
 			// Per-unit gateway: name it after its unit and nest it under the
 			// indoor unit so it appears as a sub-device rather than standalone.
 			base := "daikin_gateway_" + info.Gateway.SerialNumber
-			return sanitize(base + "_" + p.Topic),
-				d.sharedSubDevice(base, mainIdentifier(p.DeviceID), "Gateway", "Gateway", info.Name, info.Gateway)
+			dev, seed := d.sharedSubDevice(base, mainIdentifier(p.DeviceID), "Gateway", "Gateway", info.Name, info.Gateway)
+			return sanitize(base + "_" + p.Topic), dev, seed
 		}
 		// No gateway serial (e.g. a Home Hub that is itself the gateway):
 		// attach the entity to the main device so it appears as one device
 		// rather than an empty main plus a gateway sub-device.
-		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), d.deviceBlock(p.DeviceID, info)
+		dev := d.deviceBlock(p.DeviceID, info)
+		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), dev, dev.Name
 	case "outdoorUnit":
 		if info.Outdoor != nil && info.Outdoor.SerialNumber != "" {
 			// Outdoor units are commonly shared across indoor units; keep a
 			// generic name so it is not tied to one room.
 			base := "daikin_outdoor_" + info.Outdoor.SerialNumber
-			return sanitize(base + "_" + p.Topic), d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
+			dev, seed := d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
+			return sanitize(base + "_" + p.Topic), dev, seed
 		}
-		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic),
-			d.subDeviceBlock(p.DeviceID, "outdoor", "Outdoor unit", "Außengerät", info.Name, info.Outdoor)
+		dev, seed := d.subDeviceBlock(p.DeviceID, "outdoor", "Outdoor unit", "Außengerät", info.Name, info.Outdoor)
+		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), dev, seed
 	default:
-		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), d.deviceBlock(p.DeviceID, info)
+		dev := d.deviceBlock(p.DeviceID, info)
+		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), dev, dev.Name
 	}
 }
 
@@ -265,22 +282,29 @@ type configPayload struct {
 }
 
 // BridgeStatusTopic returns the LWT/availability topic.
-func (d *Discovery) BridgeStatusTopic() string { return d.stateRoot + "/bridge/status" }
+func (d *Discovery) BridgeStatusTopic() string { return d.state.BridgeStatus() }
+
+// slot is the point's topic family. Every state / command / attributes topic
+// this package advertises goes through it, so the retained config can only
+// name topics composed exactly the way the coordinator composes them (F3).
+func (d *Discovery) slot(p process.Point) layout.Slot {
+	return d.state.Slot(p.DeviceID, p.EmbeddedID, p.Topic)
+}
 
 // AttributesTopic returns the per-entity JSON-attributes topic (a sibling of the
 // state topic), used to expose the entity's data source (cloud vs local Faikin).
 func (d *Discovery) AttributesTopic(p process.Point) string {
-	return fmt.Sprintf("%s/%s/%s/%s/attributes", d.stateRoot, p.DeviceID, p.EmbeddedID, p.Topic)
+	return d.slot(p).Attributes()
 }
 
 // StateTopic returns the state topic for a point.
 func (d *Discovery) StateTopic(p process.Point) string {
-	return fmt.Sprintf("%s/%s/%s/%s/state", d.stateRoot, p.DeviceID, p.EmbeddedID, p.Topic)
+	return d.slot(p).State()
 }
 
 // CommandTopic returns the /set topic for a point.
 func (d *Discovery) CommandTopic(p process.Point) string {
-	return fmt.Sprintf("%s/%s/%s/%s/set", d.stateRoot, p.DeviceID, p.EmbeddedID, p.Topic)
+	return d.slot(p).Command()
 }
 
 // Publish emits a retained discovery config for every point. Points that
@@ -304,26 +328,85 @@ func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos m
 		pub(m.topic, m.payload)
 	}
 
-	// seen deduplicates shared sub-device entities (gateway / outdoor unit)
-	// that repeat across the API devices of a multi-split system.
-	seen := map[string]bool{}
+	// Shared sub-device entities (gateway / outdoor unit) repeat across the API
+	// devices of a multi-split system and collapse to one entity. Which member
+	// survives decides which device's state topic the retained config names, so
+	// it is chosen deterministically rather than by arrival order — see
+	// [survivingPoints].
+	survives := survivingPoints(d, points, infos, consumed)
 	for i := range points {
 		p := points[i]
-		if consumed[p.DeviceID+"|"+p.EmbeddedID+"|"+p.Topic] {
+		if !survives[i] {
 			continue
 		}
-		uid, dev := d.entityIdentity(p, infos[p.DeviceID])
-		if seen[uid] {
-			continue
-		}
-		seen[uid] = true
-		topic, payload, ok := d.buildConfig(p, uid, dev)
+		uid, dev, seed := d.entityIdentity(p, infos[p.DeviceID])
+		topic, payload, ok := d.buildConfig(p, uid, dev, seed)
 		if !ok {
 			continue
 		}
 		pub(topic, payload)
 	}
 	return published, firstErr
+}
+
+// survivingPoints decides, for each deduplicated unique_id, WHICH of the points
+// sharing it the published config is built from. It returns a set of indices
+// into points.
+//
+// This matters because the surviving point's device and embedded id are what
+// the retained config's state_topic and json_attributes_topic name. A
+// `scope: outdoor` catalogue entry resolves to one point per INDOOR unit, all
+// sharing a unique_id derived from the outdoor serial; the same is true of a
+// gateway shared across a multi-split.
+//
+// It used to be "whichever came first", which is the order process.ResolveAt
+// walked the devices, which is the order the ONECTA `GET /devices` array
+// arrived in. Nothing in the API documentation promises that order is stable.
+// If it flips, discoverySignature changes, discovery is republished, and the
+// retained config now names a DIFFERENT device's topic — silently. The entity
+// keeps its unique_id (the serial), so it is not re-registered; it just starts
+// reading somewhere else, with a retained value that may be a poll old. On a
+// two-indoor multi-split that is up to thirteen entities per outdoor unit.
+//
+// The tie is now broken on (DeviceID, EmbeddedID), lexicographically lowest,
+// which is a property of the installation rather than of a response. This is
+// F7 of the ADR 0070 phase 8 measurement, and it does not depend on whether
+// the array order actually varies — it removes the dependency instead of
+// hoping.
+//
+// The non-surviving members' state is still published (every member carries
+// the value), deliberately: see publishOutdoorShared and
+// publishOutdoorScheduleState in internal/coordinator. That redundancy is what
+// made the arrival-order version work at all, and it stays, because a
+// deterministic choice is not the same as a choice this daemon can make before
+// it has seen every device.
+func survivingPoints(d *Discovery, points []process.Point, infos map[string]DeviceInfo, consumed map[string]bool) map[int]bool {
+	best := map[string]int{}
+	for i := range points {
+		p := points[i]
+		if consumed[p.DeviceID+"|"+p.EmbeddedID+"|"+p.Topic] {
+			continue
+		}
+		uid, _, _ := d.entityIdentity(p, infos[p.DeviceID])
+		j, seen := best[uid]
+		if !seen || lessPoint(p, points[j]) {
+			best[uid] = i
+		}
+	}
+	out := make(map[int]bool, len(best))
+	for _, i := range best {
+		out[i] = true
+	}
+	return out
+}
+
+// lessPoint orders two points sharing a unique_id. Only the device and its
+// management point can differ — the topic is what made them share the id.
+func lessPoint(a, b process.Point) bool {
+	if a.DeviceID != b.DeviceID {
+		return a.DeviceID < b.DeviceID
+	}
+	return a.EmbeddedID < b.EmbeddedID
 }
 
 // IsOwnConfig reports whether a retained HA discovery config payload was
@@ -338,19 +421,61 @@ func (d *Discovery) IsOwnConfig(payload []byte) bool {
 		return false
 	}
 	return strings.HasPrefix(cfg.UniqueID, "daikin_") &&
-		(cfg.StateTopic == "" || strings.HasPrefix(cfg.StateTopic, d.stateRoot+"/"))
+		(cfg.StateTopic == "" || strings.HasPrefix(cfg.StateTopic, d.state.String()+"/"))
 }
 
 // ConfigFilter is the MQTT filter matching this daemon's discovery config topics
 // (e.g. "homeassistant/+/+/config"), for collecting retained configs to reconcile.
 func (d *Discovery) ConfigFilter() string { return d.baseTopic + "/+/+/config" }
 
+// ConfigTopic is the retained discovery topic of one entity:
+// "<prefix>/<platform>/<unique_id>/config". Four segments, no node id.
+//
+// One function, three callers — the catalogue entity builder, the composite
+// climate builder and the schedule switch builder — because the form is a
+// contract with the installed base rather than a local formatting choice, and
+// because [LegacyConfigTopicForm] has to name something that is true of all
+// three. Verified over all 264 config topics of the twelve pinned scenarios by
+// TestConfigTopicForm.
+func (d *Discovery) ConfigTopic(platform, uid string) string {
+	return d.baseTopic + "/" + platform + "/" + uid + "/config"
+}
+
+// LegacyConfigTopicForm names the go-hamqtt publisher.LegacyTopicFunc that
+// reproduces this bridge's retained per-entity config topics, and is therefore
+// the one ADR 0070 phase 8 step 6 must set in
+// publisher.Config.LegacyEntityTopics.
+//
+// It is publisher.LegacyTopicByUniqueID — the FOUR-segment form
+// "<prefix>/<platform>/<unique_id>/config" — and not the five-segment
+// publisher.LegacyTopicWithNodeID that a consumer gets by saying nothing.
+// Measured, not assumed: all 264 config topics across the twelve pinned
+// scenarios have exactly four levels, with the third byte-equal to the
+// payload's own unique_id and no node-id level anywhere
+// (TestConfigTopicForm).
+//
+// Stating it is the whole fix, because Config.LegacyEntityTopics REPLACES the
+// default rather than extending it.
+//
+// Getting it wrong is silent and total: the five-segment default would retract
+// none of the retained per-entity configs, the device bundle would be published
+// while all of them were still retained, and Home Assistant refuses that with a
+// single "WARNING [mqtt.entity] Received a conflicting MQTT discovery message".
+// No entities appear, and nothing on the wire says why.
+//
+// It is a documented constant rather than a wired-up setting because nothing
+// publishes a bundle yet; step 6 is what consumes it. The value is the
+// function's name as a string precisely so that recording it costs this module
+// no dependency on go-hamqtt one step early.
+const LegacyConfigTopicForm = "publisher.LegacyTopicByUniqueID"
+
 // buildConfig renders the discovery topic and JSON payload for a point, using
-// the precomputed unique id and device block (see [Discovery.entityIdentity]).
-func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic string, payload []byte, ok bool) {
+// the precomputed unique id, device block and entity-id seed (see
+// [Discovery.entityIdentity]).
+func (d *Discovery) buildConfig(p process.Point, uid string, dev device, seed string) (topic string, payload []byte, ok bool) {
 	cfg := configPayload{
 		Name:                p.Entry.LocalizedName(d.lang),
-		DefaultEntityID:     p.Entry.Platform + "." + entityObjectID(dev.Name, p.Topic),
+		DefaultEntityID:     p.Entry.Platform + "." + entityObjectID(seed, p.Topic),
 		UniqueID:            uid,
 		EntityCategory:      p.Entry.Category,
 		Icon:                p.Entry.Icon,
@@ -398,7 +523,7 @@ func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic 
 		return "", nil, false
 	}
 
-	topic = fmt.Sprintf("%s/%s/%s/config", d.baseTopic, p.Entry.Platform, uid)
+	topic = d.ConfigTopic(p.Entry.Platform, uid)
 	payload, err := json.Marshal(cfg)
 	if err != nil {
 		return "", nil, false
@@ -451,11 +576,28 @@ func collapseTokens(s string) string {
 }
 
 // entityObjectID builds a clean, English, language-independent object id from
-// the device name (a stable room/label prefix) and the English topic (the
+// a device-name SEED (a stable room/label prefix) and the English topic (the
 // measurement), e.g. "galerie_room_temperature". It seeds default_entity_id so
 // HA entity_ids stay English while the display name is localized.
-func entityObjectID(deviceName, topic string) string {
-	return collapseTokens(slugify(deviceName + "_" + topic))
+//
+// The seed is not always the device block's Name. For a main device it is —
+// that name is the operator's own text and does not move with LANGUAGE. But a
+// shared gateway or outdoor sub-device has no operator text to use, so this
+// bridge composes its display name from a TRANSLATED label ("Outdoor unit" /
+// "Außengerät"), and seeding an entity id from that made the entity id move
+// with LANGUAGE: an operator switching to German got a SECOND set of entities
+// for everything on the outdoor unit, with the first set left behind as
+// orphans, because Home Assistant never renames a registered entity. On a real
+// multi-split that is up to thirteen entities per outdoor unit (twelve
+// scope: outdoor catalogue entries plus the refresh button).
+//
+// [Discovery.entityIdentity] therefore returns the English-label form of the
+// name as a separate seed. This is F2 of the ADR 0070 phase 8 measurement, and
+// it is a direct violation of the invariant this repository's own CLAUDE.md
+// states in bold: "unique_id and default_entity_id are English and
+// language-independent."
+func entityObjectID(seed, topic string) string {
+	return collapseTokens(slugify(seed + "_" + topic))
 }
 
 // sanitize keeps only characters valid in HA object/unique ids.

@@ -75,11 +75,10 @@ var goldenDigests = map[string]string{
 	"altherma-air-to-water-wlan.de": "dc81ae70db58df36f4690333eae968b8a295fb00eeb2c5d3f4163264b714105b",
 	"d2cnd-gas-boiler.en":           "6b483b00cc3f220b3bcbc3251377f67161338a7a9646210cd8206292b2ad9d86",
 	"d2cnd-gas-boiler.de":           "5139888de2ac08f7c03175c209010608780e51a375f59a86a4c35922d905f55e",
-	"multisplit.en":                 "94ff2a7b98d04de02a1992bb72604ab076fdc5906d4709e41a150d7e49a9c7a1",
-	"multisplit.de":                 "1a8f2e63d3ae2fe1a73b79f5c8faa904b2dd33452a534baba8f1a2d2b1ec4c1a",
-	"multisplit.local.en":           "3808b86a5f27262d46c2210f69c71acd159510ccf9ea2b275609c37bb6b81f17",
-	"multisplit.scheduler.en":       "8b26fd8fef9a3ec0dc0caaaeb7e96d9edb70bf4d6bcfb746a8c4f8d7ea31cf1b",
-	"air-to-air-dx4.scheduler.en":   "4d1ad09e820aa501b871a053e9df2e1be36de993e1006b7637c2d389d929a933",
+	"multisplit.en":                 "b46353dc72c65b4cead5c39b89c0883f7446b2c918c406bd09ebb13c9f4fd0a4",
+	"multisplit.de":                 "b1c90994c510dc4f0e56fa5824a54ba067f71c52b394c0b445cafcc21c9d9280",
+	"multisplit.local.en":           "ebfcd2fe59abd22a9d4551f687a91a365e0a7e1b6520b0b9f8457ea930b4728c",
+	"multisplit.scheduler.en":       "07ce4f79e89988edfb8d1bb0916ab3b046659fadb2505542f464e137bdd04ee2",
 }
 
 // --- recording broker ------------------------------------------------------
@@ -321,6 +320,14 @@ func buildSurface(t *testing.T, sc surfaceScenario) []recordedMsg {
 //nolint:tparallel // the subtests append to `printed` and the parent reports it
 func TestPublishedSurfaceGolden(t *testing.T) {
 	var printed []string
+	// A digest with no scenario pins nothing: it is never looked up, so it can
+	// survive a scenario being renamed or dropped and read as coverage that is
+	// not there. (One did — "air-to-air-dx4.scheduler.en", removed in step 1.)
+	for name := range goldenDigests {
+		if !slices.ContainsFunc(surfaceScenarios(), func(sc surfaceScenario) bool { return sc.name == name }) {
+			t.Errorf("goldenDigests has %q, which is no scenario — a digest that pins nothing", name)
+		}
+	}
 	for _, sc := range surfaceScenarios() {
 		t.Run(sc.name, func(t *testing.T) {
 			got := surfaceDoc{Scenario: sc.name, Messages: buildSurface(t, sc)}

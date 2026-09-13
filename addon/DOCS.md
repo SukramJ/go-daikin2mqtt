@@ -33,6 +33,7 @@ Everything else has sensible defaults; use the reference below to fine-tune.
 | `mqtt_login` | str | `""` | MQTT username. Only used when `mqtt_server` is set (auto-detect supplies credentials). |
 | `mqtt_password` | password | `""` | MQTT password. Only used when `mqtt_server` is set. |
 | `mqtt_topic` | str | `daikin` | Base MQTT topic for published device state. |
+| `mqtt_client_id` | str? | `daikin2mqtt` | MQTT client identifier. A broker disconnects the session it already holds when a second client presents the same id, so two instances on one broker must differ here. Leave empty unless you run more than one. |
 | `hass_enable` | bool | `true` | Publish Home Assistant MQTT discovery so devices and entities appear automatically. On by default — leave enabled for the normal HA experience; disable only to manage entities manually. |
 | `language` | list(en\|de) | `en` | UI / entity naming language. |
 | `web_enable` | bool | `true` | Enable the diagnostic web UI / OAuth flow (required for Ingress login). |

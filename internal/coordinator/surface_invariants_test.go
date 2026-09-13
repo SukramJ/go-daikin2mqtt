@@ -10,6 +10,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/SukramJ/go-daikin2mqtt/internal/config"
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 )
 
 // Invariants of the published surface, asserted against the BUILDERS rather
@@ -83,29 +86,35 @@ var commandTopicKeys = []string{
 // knownAdvertisedButUnpublished is the exhaustive list of topics a discovery
 // config advertises that the publish path never writes to, keyed by scenario.
 //
-// F6: in local mode the Faikin read path owns fan_mode, and it only publishes
-// it when the module's `fan` word is a key of faikinFanToCloud — whose keys are
-// the cloud vocabulary (`low`, `medium`, …) while faikin.State documents the
-// firmware as sending `auto|1..5|quiet`. The pinned state uses `"3"`, which
-// maps to nothing, so the climate entity's fan dropdown stays unknown.
+// It is EMPTY, and it stays as an empty declaration rather than being deleted,
+// because "there are no dead advertised topics" is the claim worth stating.
 //
-// Anything not in this map is a builder divergence and fails the test.
-var knownAdvertisedButUnpublished = map[string][]string{
-	"multisplit.local.en": {
-		"daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_mode/state",
-		"daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_mode/state",
-	},
-}
+// It used to hold two, both F6: in local mode the Faikin read path owns
+// fan_mode, and it only published when the module's `fan` word was a key of
+// faikinFanToCloud — whose keys were the HUMIDIFICATION vocabulary (`low`,
+// `medium`, …) rather than the fanSpeed one. The pinned local state uses
+// `"3"`, which mapped to nothing, so the climate entity's fan dropdown sat at
+// `unknown`. Fixed; both topics are now published, which is what emptied this.
+//
+// Anything appearing here again is a builder divergence and fails the test.
+var knownAdvertisedButUnpublished = map[string][]string{}
 
 // TestStateTopicBuildersAgree is the builder-against-builder pin.
 //
-// This bridge composes a `<root>/<device>/<embedded>/<topic>/state` topic in
-// eight places: hass.Discovery.StateTopic (what goes into the retained config),
-// and seven inline fmt.Sprintf sites in the coordinator (coordinator.go:261 and
-// :324, climate.go:305, local.go:272/:324/:342, schedule.go:241/:257/:288).
-// Nothing compared them. A drift in any one of them leaves entities pointing at
-// a topic nobody writes: permanently unknown, nothing in the log, nothing in
-// Home Assistant's registry to notice.
+// The measurement counted nine `<root>/<device>/<embedded>/<topic>/state`
+// builders; recounting before converging them found TWELVE, in four packages —
+// the three it missed are hass/climate.go's auxBase (the composite climate's
+// five synthetic slots), hass/schedule.go's ScheduleStateTopic, and
+// coordinator/schedule.go:288 (the per-schedule enable switch). The last two
+// are a pair that compose the same topic in two packages from two different
+// "scheduler" constants, one of them beside a bare "enabled" literal.
+//
+// They are now all internal/layout, so this test compares what the retained
+// configs advertise against what the publish path writes rather than comparing
+// twelve expressions. A drift still leaves entities pointing at a topic nobody
+// writes: permanently unknown, nothing in the log, nothing in Home Assistant's
+// registry to notice — so the pin stays, and it is what catches a change to the
+// layout that only one side of the tree is updated for.
 func TestStateTopicBuildersAgree(t *testing.T) {
 	t.Parallel()
 	for _, sc := range surfaceScenarios() {
@@ -153,9 +162,18 @@ func TestStateTopicBuildersAgree(t *testing.T) {
 // TestCommandTopicsAreSubscribed pins the inbound half: every command topic a
 // config advertises must be matched by the one filter the coordinator
 // subscribes to, `<root>/+/+/+/set`.
+//
+// The filter is read from the layout the coordinator actually subscribes with,
+// not written out as a literal here, so narrowing the filter fails this test
+// instead of quietly leaving every advertised command unroutable. A command
+// Home Assistant publishes to a topic nothing is subscribed to is reported as
+// sent, and the entity snaps back to its old value a poll later.
 func TestCommandTopicsAreSubscribed(t *testing.T) {
 	t.Parallel()
-	const filter = "daikin/+/+/+/set"
+	filter := layout.New(config.TopicRoot).CommandFilter()
+	if filter != "daikin/+/+/+/set" {
+		t.Fatalf("command filter = %q, want %q — the installed base's subscription", filter, "daikin/+/+/+/set")
+	}
 	total := 0
 	for _, sc := range surfaceScenarios() {
 		for cfgTopic, cfg := range configsOf(buildSurface(t, sc)) {
@@ -407,17 +425,16 @@ func TestIdentityIsLanguageIndependent(t *testing.T) {
 					t.Errorf("%s: %s moves with LANGUAGE: %q vs %q", topic, key, str(e, key), str(d, key))
 				}
 			}
-			// F2: default_entity_id is seeded from the DEVICE BLOCK's name,
-			// and the shared gateway / outdoor sub-devices are named with a
-			// localized label ("Outdoor unit" / "Außengerät"), so their
-			// entity-id seed does move with LANGUAGE — in direct contradiction
-			// of the invariant CLAUDE.md states. Every entity on a main device
-			// is unaffected, because the main device's name is the operator's.
+			// F2, now FIXED. default_entity_id used to be seeded from the
+			// DEVICE BLOCK's name, and the shared gateway / outdoor
+			// sub-devices are named with a localized label ("Outdoor unit" /
+			// "Außengerät"), so their entity-id seed moved with LANGUAGE — in
+			// direct contradiction of the invariant CLAUDE.md states in bold.
+			// entityIdentity now returns an English-label seed separately from
+			// the display name, so NO config's entity id may move any more.
 			if str(e, "default_entity_id") != str(d, "default_entity_id") {
-				if !knownLocalizedEntityIDSeed[topic] {
-					t.Errorf("%s: default_entity_id moves with LANGUAGE: %q vs %q (F2)",
-						topic, str(e, "default_entity_id"), str(d, "default_entity_id"))
-				}
+				t.Errorf("%s: default_entity_id moves with LANGUAGE: %q vs %q (F2 has regressed)",
+					topic, str(e, "default_entity_id"), str(d, "default_entity_id"))
 				localizedSeeds++
 			}
 			eb, _ := json.Marshal(e["device"].(map[string]any)["identifiers"])
@@ -427,18 +444,29 @@ func TestIdentityIsLanguageIndependent(t *testing.T) {
 			}
 		}
 	}
-	if localizedSeeds != 2 {
-		t.Errorf("configs whose default_entity_id moves with LANGUAGE = %d, want 2 (F2)", localizedSeeds)
+	if localizedSeeds != 0 {
+		t.Errorf("configs whose default_entity_id moves with LANGUAGE = %d, want 0 (F2)", localizedSeeds)
 	}
-}
 
-// knownLocalizedEntityIDSeed lists every config whose default_entity_id is
-// built from a localized device name (F2). All of them hang off a shared
-// gateway / outdoor sub-device, whose HA name this bridge composes from a
-// translated label rather than from operator text.
-var knownLocalizedEntityIDSeed = map[string]bool{
-	"homeassistant/sensor/daikin_outdoor_ODU0000000001_outdoor_temperature/config": true,
-	"homeassistant/button/daikin_outdoor_ODU0000000001_refresh/config":             true,
+	// The two configs F2 was measured on, asserted as literals in BOTH
+	// languages. The count above would still pass if the fix made both
+	// languages wrong in the same way; these say what the right answer is.
+	for _, lang := range []string{"multisplit.en", "multisplit.de"} {
+		cfgs := configsOf(surfaceOf(t, lang))
+		for topic, want := range map[string]string{
+			"homeassistant/sensor/daikin_outdoor_ODU0000000001_outdoor_temperature/config": "sensor.daikin_outdoor_unit_outdoor_temperature",
+			"homeassistant/button/daikin_outdoor_ODU0000000001_refresh/config":             "button.daikin_outdoor_unit_refresh",
+		} {
+			cfg, ok := cfgs[topic]
+			if !ok {
+				t.Errorf("%s: %s not published", lang, topic)
+				continue
+			}
+			if got := str(cfg, "default_entity_id"); got != want {
+				t.Errorf("%s: %s default_entity_id = %q, want %q (F2)", lang, topic, got, want)
+			}
+		}
+	}
 }
 
 // --- slug agreement --------------------------------------------------------
@@ -619,7 +647,7 @@ func TestSurfaceCensus(t *testing.T) {
 		"d2cnd-gas-boiler.de":           {13, 46, "binary_sensor=5 button=1 climate=1 sensor=5 switch=1"},
 		"multisplit.en":                 {30, 113, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
 		"multisplit.de":                 {30, 113, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
-		"multisplit.local.en":           {52, 219, "binary_sensor=4 button=1 climate=2 number=1 sensor=38 switch=6"},
+		"multisplit.local.en":           {52, 221, "binary_sensor=4 button=1 climate=2 number=1 sensor=38 switch=6"},
 		"multisplit.scheduler.en":       {38, 142, "binary_sensor=4 button=1 climate=2 sensor=27 switch=4"},
 	}
 	for _, sc := range surfaceScenarios() {

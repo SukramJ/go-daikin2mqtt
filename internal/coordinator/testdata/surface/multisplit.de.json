@@ -703,8 +703,8 @@
       "retain": true,
       "json": {
         "availability_topic": "daikin/bridge/status",
-        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/set",
-        "default_entity_id": "button.daikin_aussengerat_refresh",
+        "command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refresh/set",
+        "default_entity_id": "button.daikin_outdoor_unit_refresh",
         "device": {
           "configuration_url": "https://onecta.daikineurope.com",
           "identifiers": [
@@ -717,7 +717,7 @@
           "sw_version": "22018703"
         },
         "icon": "mdi:cloud-refresh",
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refresh/attributes",
         "name": "Aus Cloud aktualisieren",
         "payload_available": "online",
         "payload_not_available": "offline",
@@ -1475,7 +1475,7 @@
       "retain": true,
       "json": {
         "availability_topic": "daikin/bridge/status",
-        "default_entity_id": "sensor.daikin_aussengerat_outdoor_temperature",
+        "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_temperature",
         "device": {
           "configuration_url": "https://onecta.daikineurope.com",
           "identifiers": [
@@ -1488,12 +1488,12 @@
           "sw_version": "22018703"
         },
         "device_class": "temperature",
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature/attributes",
         "name": "Außentemperatur",
         "payload_available": "online",
         "payload_not_available": "offline",
         "state_class": "measurement",
-        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/state",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature/state",
         "unique_id": "daikin_outdoor_ODU0000000001_outdoor_temperature",
         "unit_of_measurement": "°C"
       }

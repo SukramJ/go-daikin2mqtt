@@ -6,15 +6,19 @@ package hass
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/SukramJ/go-mqtt"
+
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 )
 
 // SchedulerDeviceID is the reserved device id the schedule switches live
-// under, mirroring schedule.SchedulerDeviceID. It is duplicated rather than
-// imported so this package keeps depending only on process/mqtt.
-const SchedulerDeviceID = "scheduler"
+// under. It used to be declared here as a third copy beside
+// schedule.SchedulerDeviceID and layout.SchedulerDeviceID; it is now an alias
+// of the layout's, because the leaf segment beside it ("enabled") was a bare
+// literal here and a named constant in the coordinator, and nothing compared
+// the two topics they built (F3).
+const SchedulerDeviceID = layout.SchedulerDeviceID
 
 // schedulerIdentifier is the HA device the schedule switches are grouped
 // under. It is the daemon's own device, not a Daikin one.
@@ -42,14 +46,14 @@ func schedulerDevice(configURL string) device {
 
 // ScheduleStateTopic returns the retained enable-state topic of a schedule.
 func (d *Discovery) ScheduleStateTopic(scheduleID string) string {
-	return fmt.Sprintf("%s/%s/%s/enabled/state", d.stateRoot, SchedulerDeviceID, scheduleID)
+	return d.state.Schedule(scheduleID).State()
 }
 
 // ScheduleCommandTopic returns the enable command topic of a schedule. It fits
 // the coordinator's existing <root>/+/+/+/set subscription, so toggling a
 // schedule from Home Assistant needs no extra subscription.
 func (d *Discovery) ScheduleCommandTopic(scheduleID string) string {
-	return fmt.Sprintf("%s/%s/%s/enabled/set", d.stateRoot, SchedulerDeviceID, scheduleID)
+	return d.state.Schedule(scheduleID).Command()
 }
 
 // PublishSchedules emits a retained switch config per schedule and returns the
@@ -106,5 +110,5 @@ func (d *Discovery) buildScheduleConfig(s ScheduleInfo, dev device) (topic strin
 	if err != nil {
 		return "", nil, false
 	}
-	return fmt.Sprintf("%s/switch/%s/config", d.baseTopic, uid), b, true
+	return d.ConfigTopic("switch", uid), b, true
 }

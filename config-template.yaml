@@ -30,6 +30,11 @@ MQTT_PORT: 1883
 MQTT_LOGIN: ""
 MQTT_PASSWORD: ""
 MQTT_TOPIC: daikin2mqtt
+# Client identifier presented to the broker. A broker disconnects an existing
+# session when a second client presents the same id, so two daikin2mqtt
+# instances on one broker MUST differ here or they kick each other in a loop.
+# Empty -> daikin2mqtt (what the daemon used before this key existed).
+MQTT_CLIENT_ID: ""
 
 # --- Home Assistant ---
 HASS_ENABLE: true

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 )
 
@@ -109,7 +110,7 @@ type climatePayload struct {
 
 // ClimateAttributesTopic returns the climate entity's JSON-attributes topic.
 func (d *Discovery) ClimateAttributesTopic(deviceID, embeddedID string) string {
-	return fmt.Sprintf("%s/%s/%s/climate/attributes", d.stateRoot, deviceID, embeddedID)
+	return d.state.Climate(deviceID, embeddedID).Attributes()
 }
 
 // climateGroup collects the climateControl points relevant to one climate
@@ -186,10 +187,15 @@ func (d *Discovery) climateEntities(points []process.Point, infos map[string]Dev
 // buildClimate renders one climate entity config.
 func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInfo) (topic string, payload []byte, ok bool) {
 	uid := sanitize(fmt.Sprintf("daikin_%s_climate", g.deviceID))
-	auxBase := func(suffix string) string {
-		return fmt.Sprintf("%s/%s/%s/%s", d.stateRoot, g.deviceID, g.embeddedID, suffix)
+	// The composite climate's five synthetic slots (hvac_mode, fan_mode,
+	// swing_mode, swing_h_mode, preset_mode) are backed by no catalogue entry
+	// and no register, so they are the slots most likely to drift from the
+	// coordinator's publish path — they have no shared process.Point to keep
+	// them honest. They go through the same layout (F3).
+	aux := func(suffix string) layout.Slot {
+		return d.state.Slot(g.deviceID, g.embeddedID, suffix)
 	}
-	modeBase := auxBase(HVACModeTopic)
+	mode := aux(HVACModeTopic)
 
 	modes := []string{"off"}
 	for _, v := range g.mode.Entry.Values {
@@ -203,8 +209,8 @@ func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInf
 		DefaultEntityID:         "climate." + entityObjectID(info.Name, "thermostat"),
 		UniqueID:                uid,
 		Modes:                   modes,
-		ModeStateTopic:          modeBase + "/state",
-		ModeCommandTopic:        modeBase + "/set",
+		ModeStateTopic:          mode.State(),
+		ModeCommandTopic:        mode.Command(),
 		TemperatureStateTopic:   d.StateTopic(*g.setpoint),
 		TemperatureCommandTopic: d.CommandTopic(*g.setpoint),
 		MinTemp:                 g.setpoint.Min,
@@ -223,28 +229,28 @@ func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInf
 	// Optional fan / swing / preset features, advertised only when available.
 	if len(ci.FanModes) > 0 {
 		cfg.FanModes = ci.FanModes
-		cfg.FanModeStateTopic = auxBase(FanModeTopic) + "/state"
-		cfg.FanModeCommandTopic = auxBase(FanModeTopic) + "/set"
+		cfg.FanModeStateTopic = aux(FanModeTopic).State()
+		cfg.FanModeCommandTopic = aux(FanModeTopic).Command()
 	}
 	if len(ci.SwingModes) > 0 {
 		cfg.SwingModes = ci.SwingModes
-		cfg.SwingModeStateTopic = auxBase(SwingModeTopic) + "/state"
-		cfg.SwingModeCommandTopic = auxBase(SwingModeTopic) + "/set"
+		cfg.SwingModeStateTopic = aux(SwingModeTopic).State()
+		cfg.SwingModeCommandTopic = aux(SwingModeTopic).Command()
 	}
 	if len(ci.SwingHorizontalModes) > 0 {
 		cfg.SwingHorizontalModes = ci.SwingHorizontalModes
-		cfg.SwingHorizontalModeStateTopic = auxBase(SwingHModeTopic) + "/state"
-		cfg.SwingHorizontalModeCommandTopic = auxBase(SwingHModeTopic) + "/set"
+		cfg.SwingHorizontalModeStateTopic = aux(SwingHModeTopic).State()
+		cfg.SwingHorizontalModeCommandTopic = aux(SwingHModeTopic).Command()
 	}
 	if len(ci.PresetModes) > 0 {
 		cfg.PresetModes = ci.PresetModes
-		cfg.PresetModeStateTopic = auxBase(PresetModeTopic) + "/state"
-		cfg.PresetModeCommandTopic = auxBase(PresetModeTopic) + "/set"
+		cfg.PresetModeStateTopic = aux(PresetModeTopic).State()
+		cfg.PresetModeCommandTopic = aux(PresetModeTopic).Command()
 	}
 
 	b, err := json.Marshal(cfg)
 	if err != nil {
 		return "", nil, false
 	}
-	return fmt.Sprintf("%s/climate/%s/config", d.baseTopic, uid), b, true
+	return d.ConfigTopic("climate", uid), b, true
 }

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -106,18 +107,24 @@ type publishedMsg struct {
 type stubMQTT struct {
 	mu        sync.Mutex
 	published map[string]publishedMsg
-	handler   mqtt.MessageHandler
-	filter    string
+	// counts is how often each topic was published to, not just what it last
+	// carried. A retained plane that is republished with the same bytes is
+	// indistinguishable in `published`, and F13 is exactly a question about
+	// whether a republish happens at all.
+	counts  map[string]int
+	handler mqtt.MessageHandler
+	filter  string
 }
 
 func newStubMQTT() *stubMQTT {
-	return &stubMQTT{published: map[string]publishedMsg{}}
+	return &stubMQTT{published: map[string]publishedMsg{}, counts: map[string]int{}}
 }
 
 func (m *stubMQTT) Publish(_ context.Context, topic string, payload []byte, _ mqtt.QoS, retain bool, _ ...mqtt.PublishOption) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.published[topic] = publishedMsg{payload: string(payload), retain: retain}
+	m.counts[topic]++
 	return nil
 }
 
@@ -136,6 +143,13 @@ func (m *stubMQTT) get(topic string) (publishedMsg, bool) {
 	defer m.mu.Unlock()
 	v, ok := m.published[topic]
 	return v, ok
+}
+
+// countOf returns how often topic was published to.
+func (m *stubMQTT) countOf(topic string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.counts[topic]
 }
 
 func (m *stubMQTT) count() int {
@@ -627,5 +641,75 @@ func TestPollOnceErrorHandling(t *testing.T) {
 				t.Errorf("published %d topics, want 0 on error", n)
 			}
 		})
+	}
+}
+
+// TestDataSourceAttributesAreRepublishedEveryPoll pins F13 of the ADR 0070
+// phase 8 measurement.
+//
+// publishDataSources used to run inside maybePublishDiscovery, AFTER the
+// `changed` gate. The data_source attribute reports which path serves a device
+// — cloud or local Faikin — and switching paths does not change the point set,
+// so it does not change the discovery signature, so the attribute was never
+// republished. It could be stale for as long as the point set was stable,
+// which is normally forever.
+//
+// The assertion is on the SECOND poll, the one whose discovery signature has
+// not moved: that is the poll the gate used to swallow.
+func TestDataSourceAttributesAreRepublishedEveryPoll(t *testing.T) {
+	const dev, emb = "dev1", "climateControl"
+	cloud := &stubCloud{devices: devicesJSON(dev, emb)}
+	m := newStubMQTT()
+	c := New(Deps{
+		Cfg:     testConfig(),
+		Client:  cloud,
+		MQTT:    m,
+		Catalog: loadTestCatalog(t),
+		HASS:    hass.New("homeassistant", "daikin", "en", m),
+		Logger:  slog.New(slog.DiscardHandler),
+		Clock:   fixedClock(),
+	})
+
+	const attrs = "daikin/dev1/climateControl/power/attributes"
+
+	c.pollOnce(context.Background())
+	if got := m.countOf(attrs); got != 1 {
+		var cfgs []string
+		for topic := range m.published {
+			if strings.HasPrefix(topic, "homeassistant/") {
+				cfgs = append(cfgs, topic)
+			}
+		}
+		sort.Strings(cfgs)
+		t.Fatalf("after poll 1, %s published %d times, want 1; configs seen: %v", attrs, got, cfgs)
+	}
+	// Pick a config topic that was actually published, so the gate assertion
+	// below is about the gate rather than about this test's guess at a name.
+	cfgTopic := ""
+	for topic := range m.published {
+		if strings.HasPrefix(topic, "homeassistant/") && strings.HasSuffix(topic, "/config") {
+			cfgTopic = topic
+			break
+		}
+	}
+	if cfgTopic == "" {
+		t.Fatal("no discovery config published")
+	}
+
+	c.pollOnce(context.Background())
+
+	// The discovery signature has not moved, so the retained config is NOT
+	// republished — that gate is correct and stays.
+	if got := m.countOf(cfgTopic); got != 1 {
+		t.Errorf("after poll 2, %s published %d times, want 1 — "+
+			"the discovery gate should still suppress an unchanged config", cfgTopic, got)
+	}
+	// The attributes document is, because it is not a function of the point set.
+	if got := m.countOf(attrs); got != 2 {
+		t.Errorf("after poll 2, %s published %d times, want 2 — "+
+			"data_source is still gated on the discovery signature (F13)", attrs, got)
+	}
+	if msg, ok := m.get(attrs); !ok || msg.payload != `{"data_source":"cloud"}` {
+		t.Errorf("%s = %q, want the data_source document", attrs, msg.payload)
 	}
 }

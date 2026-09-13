@@ -33,6 +33,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
 	"github.com/SukramJ/go-daikin2mqtt/internal/version"
 	"github.com/SukramJ/go-daikin2mqtt/internal/web"
@@ -105,19 +106,15 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	})
 
 	// --- MQTT ---
-	statusTopic := cfg.MQTTTopic + "/bridge/status"
+	statusTopic := bridgeStatusTopic(cfg)
 	mqttClient := mqtt.NewTCPClient(mqtt.TCPConfig{
 		BrokerURL:  fmt.Sprintf("tcp://%s:%d", cfg.MQTTServer, cfg.MQTTPort),
-		ClientID:   config.MQTTClientID,
+		ClientID:   mainClientID(cfg),
 		Username:   cfg.MQTTLogin,
 		Password:   cfg.MQTTPassword,
 		CleanStart: true,
-		Will: &mqtt.Will{
-			Topic:   statusTopic,
-			Payload: []byte("offline"),
-			Retain:  true,
-		},
-		Logger: logger,
+		Will:       bridgeWill(statusTopic),
+		Logger:     logger,
 	})
 	lifecycle := mqtt.NewLifecycle(mqtt.LifecycleConfig{Logger: logger}, mqttClient)
 	if err := lifecycle.Start(ctx); err != nil {
@@ -137,7 +134,13 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 				slog.String("to", to.String()))
 		},
 	})
-	session := &mqttSession{Breaker: breaker, Subscriber: mqttClient}
+	// The MQTT surface handed to the coordinator and HA discovery: Publish is
+	// gated by the circuit breaker, while Subscribe/Unsubscribe go straight to
+	// the client — the write-command subscription is a startup-path call with
+	// its own SUBACK-bounded wait and must not be rejected during a
+	// publish-side broker brownout. go-mqtt v1.4.0 extracted this pairing from
+	// the five bridges that each carried their own copy of it.
+	session := mqtt.SplitClient(breaker, mqttClient)
 	defer func() {
 		stopCtx, stop := context.WithTimeout(context.Background(), 3*time.Second)
 		defer stop()
@@ -158,7 +161,7 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 		} else {
 			fc := mqtt.NewTCPClient(mqtt.TCPConfig{
 				BrokerURL:  "tcp://" + cfg.FaikinBrokerAddress(),
-				ClientID:   config.MQTTClientID + "-faikin",
+				ClientID:   faikinClientID(cfg),
 				Username:   cfg.FaikinLogin(),
 				Password:   cfg.FaikinPassword(),
 				CleanStart: true,
@@ -257,19 +260,42 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	return g.Wait()
 }
 
-// mqttSession is the MQTT surface handed to the coordinator and HA
-// discovery: Publish is gated by the circuit breaker, while
-// Subscribe/Unsubscribe go straight to the client — the write-command
-// subscription is a startup-path call with its own SUBACK-bounded wait
-// and must not be rejected during a publish-side broker brownout.
-type mqttSession struct {
-	*mqtt.Breaker
-	mqtt.Subscriber
+// bridgeStatusTopic is the bridge's availability topic. It is the retained
+// "online" the coordinator publishes on connect, the "offline" the broker
+// publishes as the Last Will, and the availability_topic named by every one of
+// this bridge's discovery payloads.
+//
+// Those three used to be composed in three packages — here, in
+// internal/coordinator and in internal/hass — and nothing compared them (F3).
+// A drift is silent and total: an entity whose availability_topic nobody
+// writes is permanently unavailable in Home Assistant, with nothing in any log.
+func bridgeStatusTopic(cfg *config.Config) string {
+	return layout.New(cfg.MQTTTopic).BridgeStatus()
 }
 
-// Compile-time contract: the session satisfies the combined client role
-// the coordinator depends on.
-var _ mqtt.Client = (*mqttSession)(nil)
+// bridgeWill is the CONNECT Will: retained, so a broker that loses this daemon
+// leaves "offline" on the topic every entity reads, instead of leaving the last
+// "online" standing forever.
+func bridgeWill(statusTopic string) *mqtt.Will {
+	return &mqtt.Will{Topic: statusTopic, Payload: []byte("offline"), Retain: true}
+}
+
+// mainClientID is the MQTT client identifier the bridge presents on the main
+// broker connection. It is read from the config, not from a constant: before
+// MQTT_CLIENT_ID existed every installation presented the same string, and a
+// broker MUST disconnect an existing session when a second client presents the
+// identifier it holds (MQTT 3.1.1 §3.1.3.2 / 5.0 §3.1.4), so two daemons on
+// one broker took each other down in a loop with nothing in either log saying
+// why. That is F1 of the ADR 0070 phase 8 measurement.
+func mainClientID(cfg *config.Config) string { return cfg.MQTTClientID }
+
+// faikinClientID is the identifier for the second connection opened when the
+// Faikin modules publish to a different broker. It derives from the same
+// configured id, so setting MQTT_CLIENT_ID separates BOTH of an instance's
+// sessions from another instance's, not just the main one.
+func faikinClientID(cfg *config.Config) string {
+	return cfg.MQTTClientID + config.FaikinClientIDSuffix
+}
 
 // loadConfig resolves the config path (explicit flag or standard search) and
 // loads it with environment overrides applied.

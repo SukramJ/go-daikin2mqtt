@@ -595,3 +595,64 @@ func TestCloneCopiesOutdoorPointers(t *testing.T) {
 		t.Error("Clone shares the targets slice with the original")
 	}
 }
+
+// TestSlugDivergesFromHassSlugifyOnTheHyphen pins F10 of the ADR 0070 phase 8
+// measurement: this package's Slug and internal/hass's slugify share a
+// transliteration table but NOT a hyphen rule, and a comment here used to claim
+// they matched.
+//
+// The divergence is deliberate and must stay: a schedule's slug is frozen at
+// creation, so "syncing" them would re-key every schedule whose name contains a
+// hyphen, and Home Assistant never renames a registered entity.
+//
+// hassSlugify is transcribed from internal/hass because that function is
+// unexported and this package must not depend on internal/hass.
+func TestSlugDivergesFromHassSlugifyOnTheHyphen(t *testing.T) {
+	t.Parallel()
+
+	hassUmlauts := strings.NewReplacer("ä", "a", "ö", "o", "ü", "u", "ß", "ss")
+	hassSlugify := func(s string) string {
+		s = hassUmlauts.Replace(strings.ToLower(s))
+		var b strings.Builder
+		pendingSep := false
+		for _, r := range s {
+			if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+				if pendingSep && b.Len() > 0 {
+					b.WriteByte('_')
+				}
+				pendingSep = false
+				b.WriteRune(r)
+			} else {
+				pendingSep = true
+			}
+		}
+		return b.String()
+	}
+
+	// Where they agree: the transliteration table. If these diverge, the two
+	// halves of one installation's entity ids stop looking alike, and THAT is
+	// worth failing over.
+	for _, name := range []string{"Bürozeit", "Nacht leise", "Werktag", "Frühschicht", "Straße 5"} {
+		if got, want := Slug(name), hassSlugify(name); got != want {
+			t.Errorf("Slug(%q) = %q, hass.slugify = %q — the transliteration tables have drifted apart",
+				name, got, want)
+		}
+	}
+
+	// Where they deliberately differ: the hyphen, and only the hyphen.
+	for _, c := range []struct{ name, slug, hass string }{
+		{"EG-Wohnzimmer", "eg-wohnzimmer", "eg_wohnzimmer"},
+		{"Gäste-WC", "gaste-wc", "gaste_wc"},
+	} {
+		if got := Slug(c.name); got != c.slug {
+			t.Errorf("Slug(%q) = %q, want %q — a schedule's slug is frozen at creation and must not move",
+				c.name, got, c.slug)
+		}
+		if got := hassSlugify(c.name); got != c.hass {
+			t.Errorf("hass.slugify(%q) = %q, want %q", c.name, got, c.hass)
+		}
+		if Slug(c.name) == hassSlugify(c.name) {
+			t.Errorf("Slug and hass.slugify agree on %q — F10 is stale, update the comment in model.go", c.name)
+		}
+	}
+}

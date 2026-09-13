@@ -42,6 +42,7 @@ func TestLoadMinimalAppliesDefaults(t *testing.T) {
 	}{
 		{"MQTTPort", cfg.MQTTPort, DefaultMQTTPort},
 		{"MQTTTopic", cfg.MQTTTopic, TopicRoot},
+		{"MQTTClientID", cfg.MQTTClientID, DefaultMQTTClientID},
 		{"RedirectURI", cfg.RedirectURI, DefaultRedirectURI},
 		{"OAuthCallbackBind", cfg.OAuthCallbackBind, DefaultOAuthCallbackBind},
 		{"RefreshDayInterval", cfg.RefreshDayInterval, DefaultRefreshDayInterval},
@@ -255,4 +256,87 @@ func TestLocalDeviceMapFromEnv(t *testing.T) {
 	if h, _ := cfg.FaikinHost("abc"); h != "Klima WZ" {
 		t.Errorf("env map abc -> %q", h)
 	}
+}
+
+// TestMQTTClientIDIsConfigurable pins F1 of the ADR 0070 phase 8
+// measurement: the client identifier was a compile-time constant with no
+// override, so two daemons on one broker presented the same id and the
+// broker disconnected each in turn (MQTT 3.1.1 §3.1.3.2 / 5.0 §3.1.4).
+//
+// Three things have to hold at once for the fix to be safe: the key works
+// from YAML, it works from the environment (the add-on supplies every
+// setting that way), and saying nothing still yields the exact string the
+// daemon used before the key existed.
+func TestMQTTClientIDIsConfigurable(t *testing.T) {
+	t.Parallel()
+
+	t.Run("from yaml", func(t *testing.T) {
+		t.Parallel()
+		cfg, err := Load(strings.NewReader(minimalYAML+"MQTT_CLIENT_ID: daikin2mqtt-staging\n"), mapEnv{})
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.MQTTClientID != "daikin2mqtt-staging" {
+			t.Errorf("MQTTClientID = %q, want %q", cfg.MQTTClientID, "daikin2mqtt-staging")
+		}
+	})
+
+	t.Run("from env", func(t *testing.T) {
+		t.Parallel()
+		cfg, err := Load(strings.NewReader(minimalYAML), mapEnv{EnvPrefix + "MQTT_CLIENT_ID": "daikin2mqtt-b"})
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.MQTTClientID != "daikin2mqtt-b" {
+			t.Errorf("MQTTClientID = %q, want %q", cfg.MQTTClientID, "daikin2mqtt-b")
+		}
+	})
+
+	t.Run("unset keeps the pre-fix session", func(t *testing.T) {
+		t.Parallel()
+		cfg, err := Load(strings.NewReader(minimalYAML), mapEnv{})
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		// The literal, not the constant: an installation that says nothing
+		// must present the byte-identical id it presented before this key
+		// existed, or its first restart looks like a takeover to the broker.
+		if cfg.MQTTClientID != "daikin2mqtt" {
+			t.Errorf("default MQTTClientID = %q, want %q", cfg.MQTTClientID, "daikin2mqtt")
+		}
+		if cfg.MQTTClientID+FaikinClientIDSuffix != "daikin2mqtt-faikin" {
+			t.Errorf("faikin client id = %q, want %q",
+				cfg.MQTTClientID+FaikinClientIDSuffix, "daikin2mqtt-faikin")
+		}
+	})
+
+	t.Run("blank and whitespace are refused", func(t *testing.T) {
+		t.Parallel()
+		for _, bad := range []string{`" "`, `"a b"`, `"a\tb"`} {
+			_, err := Load(strings.NewReader(minimalYAML+"MQTT_CLIENT_ID: "+bad+"\n"), mapEnv{})
+			var ve *ValidationError
+			if !errors.As(err, &ve) {
+				t.Errorf("MQTT_CLIENT_ID %s: got %v, want a ValidationError", bad, err)
+				continue
+			}
+			if !slices.ContainsFunc(ve.Issues, func(s string) bool { return strings.Contains(s, "MQTT_CLIENT_ID") }) {
+				t.Errorf("MQTT_CLIENT_ID %s: issues %v name no MQTT_CLIENT_ID problem", bad, ve.Issues)
+			}
+		}
+	})
+
+	t.Run("two instances can differ", func(t *testing.T) {
+		t.Parallel()
+		a, err := Load(strings.NewReader(minimalYAML+"MQTT_CLIENT_ID: daikin-a\n"), mapEnv{})
+		if err != nil {
+			t.Fatalf("Load a: %v", err)
+		}
+		b, err := Load(strings.NewReader(minimalYAML), mapEnv{EnvPrefix + "MQTT_CLIENT_ID": "daikin-b"})
+		if err != nil {
+			t.Fatalf("Load b: %v", err)
+		}
+		if a.MQTTClientID == b.MQTTClientID {
+			t.Fatalf("two instances still share the client id %q — F1 is not fixed", a.MQTTClientID)
+		}
+	})
 }

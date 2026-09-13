@@ -308,3 +308,214 @@ func TestIsOwnConfig(t *testing.T) {
 		}
 	}
 }
+
+// TestLegacyConfigTopicFormNamesTheFormThisBridgePublishes is the step-6 guard.
+//
+// go-hamqtt's publisher.SupersededTopics defaults to LegacyTopicWithNodeID, the
+// FIVE-segment form "<prefix>/<platform>/<node_id>/<object_id>/config". This
+// bridge has never published that shape, so the default would retract nothing:
+// the device bundle would land while all 264 per-entity configs were still
+// retained, Home Assistant would refuse it with one "Received a conflicting
+// MQTT discovery message", and no entities would appear.
+//
+// The two candidate forms are transcribed here rather than imported, because
+// nothing in this repository takes the go-hamqtt dependency yet. Both are
+// rendered over the real builder's output, and only one of them reproduces it.
+func TestLegacyConfigTopicFormNamesTheFormThisBridgePublishes(t *testing.T) {
+	t.Parallel()
+
+	const prefix = "homeassistant"
+	d := New(prefix, "daikin", "en", nil)
+
+	// go-hamqtt publisher.LegacyTopicByUniqueID and LegacyTopicWithNodeID,
+	// transcribed. They delete themselves when the dependency is taken.
+	byUniqueID := func(platform, nodeID, uid string) string {
+		_ = nodeID
+		return prefix + "/" + platform + "/" + uid + "/config"
+	}
+	withNodeID := func(platform, nodeID, uid string) string {
+		return prefix + "/" + platform + "/" + nodeID + "/" + uid + "/config"
+	}
+
+	for _, c := range []struct{ platform, nodeID, uid string }{
+		{"sensor", "daikin_809d41d9", "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature"},
+		{"climate", "daikin_809d41d9", "daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate"},
+		{"switch", "daikin_scheduler", "daikin_schedule_werktag"},
+		{"button", "daikin_outdoor_ODU0000000001", "daikin_outdoor_ODU0000000001_refresh"},
+	} {
+		published := d.ConfigTopic(c.platform, c.uid)
+		if got := byUniqueID(c.platform, c.nodeID, c.uid); got != published {
+			t.Errorf("LegacyTopicByUniqueID renders %q, the bridge publishes %q", got, published)
+		}
+		if got := withNodeID(c.platform, c.nodeID, c.uid); got == published {
+			t.Errorf("LegacyTopicWithNodeID renders %q, which the bridge also publishes — "+
+				"the two forms are no longer distinguishable and this test proves nothing", got)
+		}
+	}
+
+	if LegacyConfigTopicForm != "publisher.LegacyTopicByUniqueID" {
+		t.Errorf("LegacyConfigTopicForm = %q, but the four-segment form is the one measured",
+			LegacyConfigTopicForm)
+	}
+}
+
+// TestConfigTopicIsTheOneFormAllThreeBuildersUse pins that the catalogue
+// entity, the composite climate and the schedule switch agree on the config
+// topic. They were three fmt.Sprintf expressions, and the composite climate's
+// and the schedule switch's hard-coded their platform into the format string.
+func TestConfigTopicIsTheOneFormAllThreeBuildersUse(t *testing.T) {
+	t.Parallel()
+
+	d := New("homeassistant", "daikin", "en", nil)
+	for _, c := range []struct{ platform, uid, want string }{
+		{"sensor", "daikin_x_room_temperature", "homeassistant/sensor/daikin_x_room_temperature/config"},
+		{"climate", "daikin_x_climate", "homeassistant/climate/daikin_x_climate/config"},
+		{"switch", "daikin_schedule_werktag", "homeassistant/switch/daikin_schedule_werktag/config"},
+	} {
+		if got := d.ConfigTopic(c.platform, c.uid); got != c.want {
+			t.Errorf("ConfigTopic(%q, %q) = %q, want %q", c.platform, c.uid, got, c.want)
+		}
+	}
+	// And the reconcile filter must match what the builder produces, or the
+	// orphan sweep collects nothing and every renamed entity lingers forever.
+	if f := d.ConfigFilter(); f != "homeassistant/+/+/config" {
+		t.Errorf("ConfigFilter = %q, want %q", f, "homeassistant/+/+/config")
+	}
+}
+
+// TestEntityIDSeedIsLanguageIndependentOnEverySubDevicePath pins F2 on all
+// four paths entityIdentity can take, not just the two a shipped fixture
+// reaches.
+//
+// Mutation testing found the gap: making subDeviceBlock (an outdoorUnit
+// management point WITHOUT a serial) seed from the localized name again
+// survived the whole suite, because no ONECTA fixture in this repository has
+// that shape. It is reachable in the field — an outdoor unit whose serial the
+// cloud does not report — and the consequence there is the same one F2
+// describes: an operator switching LANGUAGE gets a second set of entities and
+// the first set is stranded, because Home Assistant never renames a registered
+// entity.
+func TestEntityIDSeedIsLanguageIndependentOnEverySubDevicePath(t *testing.T) {
+	t.Parallel()
+
+	info := DeviceInfo{
+		Name:    "Wohnzimmer",
+		Gateway: &SubDevice{SerialNumber: "GW1"},
+		Outdoor: &SubDevice{SerialNumber: "ODU1"},
+		ModelID: "dx4",
+	}
+	noSerial := DeviceInfo{Name: "Wohnzimmer", ModelID: "dx4"}
+
+	cases := []struct {
+		name string
+		p    process.Point
+		info DeviceInfo
+		want string // the expected entity-id seed slug, in BOTH languages
+	}{
+		{"scope:outdoor shared", pointFor("outdoor_silent", "climateControl", "outdoor"), info, "daikin_outdoor_unit_outdoor_silent"},
+		{"outdoorUnit shared", pointFor("outdoor_temperature", "outdoorUnit", ""), info, "daikin_outdoor_unit_outdoor_temperature"},
+		{"outdoorUnit, no serial", pointFor("outdoor_temperature", "outdoorUnit", ""), noSerial, "wohnzimmer_outdoor_unit_outdoor_temperature"},
+		{"gateway", pointFor("wifi_strength", "gateway", ""), info, "gateway_wohnzimmer_wifi_strength"},
+		{"main device", pointFor("room_temperature", "climateControl", ""), info, "wohnzimmer_room_temperature"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			seeds := make([]string, 0, 2)
+			for _, lang := range []string{"en", "de"} {
+				d := New("homeassistant", "daikin", lang, nil)
+				_, _, seed := d.entityIdentity(c.p, c.info)
+				seeds = append(seeds, entityObjectID(seed, c.p.Topic))
+			}
+			if seeds[0] != seeds[1] {
+				t.Errorf("entity-id seed moves with LANGUAGE: en=%q de=%q (F2)", seeds[0], seeds[1])
+			}
+			if seeds[0] != c.want {
+				t.Errorf("entity-id seed = %q, want %q", seeds[0], c.want)
+			}
+		})
+	}
+}
+
+// pointFor builds the minimal process.Point entityIdentity reads.
+func pointFor(topic, mpType, scope string) process.Point {
+	return process.Point{
+		DeviceID:   "dev1",
+		EmbeddedID: mpType,
+		MPType:     mpType,
+		Topic:      topic,
+		Entry:      catalog.Entry{Platform: "sensor", Scope: scope},
+	}
+}
+
+// TestSharedSubDeviceMemberIsChosenDeterministically pins F7 of the ADR 0070
+// phase 8 measurement.
+//
+// A `scope: outdoor` catalogue entry resolves to one point per INDOOR unit,
+// all sharing a unique_id derived from the outdoor serial, and discovery
+// collapses them into one entity. Which member survives decides which device's
+// topic the RETAINED config names. It used to be "whichever came first", which
+// is the order the ONECTA `GET /devices` array arrived in — and nothing
+// promises that order is stable.
+//
+// The test feeds the same points in both orders. If the surviving member
+// depended on arrival order, the two runs would name different topics, which
+// is precisely the silent breakage: the entity keeps its unique_id, so Home
+// Assistant does not re-register it — it just starts reading somewhere else.
+func TestSharedSubDeviceMemberIsChosenDeterministically(t *testing.T) {
+	t.Parallel()
+
+	outdoor := &SubDevice{SerialNumber: "ODU1"}
+	infos := map[string]DeviceInfo{
+		"zzz-later":   {Name: "Küche", Outdoor: outdoor},
+		"aaa-earlier": {Name: "Wohnzimmer", Outdoor: outdoor},
+	}
+	point := func(deviceID string) process.Point {
+		return process.Point{
+			DeviceID: deviceID, EmbeddedID: "climateControl", MPType: "climateControl",
+			Topic: "outdoor_silent",
+			Entry: catalog.Entry{
+				Topic: "outdoor_silent", Name: "Outdoor silent", Platform: "switch",
+				Scope: "outdoor", Settable: true,
+			},
+			Value: "off",
+		}
+	}
+	const cfgTopic = "homeassistant/switch/daikin_outdoor_ODU1_outdoor_silent/config"
+
+	render := func(t *testing.T, points []process.Point) map[string]any {
+		t.Helper()
+		pub := &capturePub{}
+		d := New("homeassistant", "daikin", "en", pub)
+		if _, err := d.Publish(context.Background(), points, infos, nil); err != nil {
+			t.Fatal(err)
+		}
+		raw, ok := pub.msgs[cfgTopic]
+		if !ok {
+			t.Fatalf("no config at %s; got %v", cfgTopic, pub.msgs)
+		}
+		if len(pub.msgs) != 1 {
+			t.Errorf("the two members did not deduplicate: %d configs published", len(pub.msgs))
+		}
+		var cfg map[string]any
+		if err := json.Unmarshal(raw, &cfg); err != nil {
+			t.Fatal(err)
+		}
+		return cfg
+	}
+
+	forward := render(t, []process.Point{point("zzz-later"), point("aaa-earlier")})
+	reverse := render(t, []process.Point{point("aaa-earlier"), point("zzz-later")})
+
+	for _, key := range []string{"state_topic", "command_topic", "json_attributes_topic", "unique_id"} {
+		if forward[key] != reverse[key] {
+			t.Errorf("%s depends on the order ONECTA returned the devices in: %q vs %q (F7)",
+				key, forward[key], reverse[key])
+		}
+	}
+	// And the member it settles on is the lexicographically lowest device id,
+	// not "whichever the API happened to list first".
+	if got, want := forward["state_topic"], "daikin/aaa-earlier/climateControl/outdoor_silent/state"; got != want {
+		t.Errorf("state_topic = %q, want %q — the tie must break on the device id", got, want)
+	}
+}

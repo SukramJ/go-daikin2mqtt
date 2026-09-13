@@ -81,6 +81,9 @@ func applyDefaults(c *Config) {
 	if c.MQTTTopic == "" {
 		c.MQTTTopic = TopicRoot
 	}
+	if c.MQTTClientID == "" {
+		c.MQTTClientID = DefaultMQTTClientID
+	}
 	if c.HASSBaseTopic == "" {
 		c.HASSBaseTopic = DefaultHASSBaseTopic
 	}

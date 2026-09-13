@@ -11,7 +11,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"math"
 	"strconv"
@@ -22,6 +21,8 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/SukramJ/go-mqtt"
+
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
@@ -58,7 +59,7 @@ type Deps struct {
 // Coordinator owns the poll/publish/write loops.
 type Coordinator struct {
 	deps      Deps
-	topicRoot string
+	topicRoot layout.Root
 
 	writes      chan writeReq
 	localStates chan localStateMsg
@@ -133,7 +134,7 @@ func New(d Deps) *Coordinator {
 	}
 	return &Coordinator{
 		deps:            d,
-		topicRoot:       d.Cfg.MQTTTopic,
+		topicRoot:       layout.New(d.Cfg.MQTTTopic),
 		writes:          make(chan writeReq, 64),
 		localStates:     make(chan localStateMsg, 64),
 		refresh:         make(chan struct{}, 1),
@@ -169,7 +170,7 @@ func (c *Coordinator) Run(ctx context.Context) error {
 // PublishOnline marks the bridge available (retained). Wire this to the MQTT
 // lifecycle OnConnect to re-announce after a reconnect.
 func (c *Coordinator) PublishOnline(ctx context.Context) {
-	topic := c.topicRoot + "/bridge/status"
+	topic := c.topicRoot.BridgeStatus()
 	if err := c.deps.MQTT.Publish(ctx, topic, []byte("online"), mqtt.QoS0, true); err != nil {
 		c.deps.Logger.Warn("coordinator.publish_online_failed", slog.String("err", err.Error()))
 	}
@@ -244,6 +245,23 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 		infos := deviceInfos(devices)
 		c.applyFaikinConfigURLs(infos)
 		c.maybePublishDiscovery(ctx, points, infos, climateInfos(devices, c.deps.Cfg.Language))
+		// Each entity's data_source (cloud vs local Faikin), published every
+		// poll rather than only when the discovery signature moves.
+		//
+		// It used to run inside maybePublishDiscovery, after the `changed`
+		// gate. But data_source is a function of which PATH serves a device,
+		// and switching paths does not change the point set — so it does not
+		// change the signature, so the attribute was never republished. It
+		// could be stale for as long as the point set was stable, which is
+		// normally forever. That is F13 of the ADR 0070 phase 8 measurement.
+		//
+		// Latent rather than live today, because localActiveFor is a function
+		// of the static LOCAL_DEVICE_MAP; it goes live the moment a
+		// fall-back-to-Faikin-on-timeout behaviour is added. The documents are
+		// retained and byte-identical between polls, so republishing them
+		// costs one retained write per entity per poll and moves no byte a
+		// subscriber sees.
+		c.publishDataSources(ctx, points)
 	}
 
 	published := 0
@@ -258,7 +276,7 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 		if localTopics[p.Topic] && c.localActiveFor(p.DeviceID) {
 			continue
 		}
-		topic := fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, p.DeviceID, p.EmbeddedID, p.Topic)
+		topic := c.topicRoot.Slot(p.DeviceID, p.EmbeddedID, p.Topic).State()
 		if err := c.deps.MQTT.Publish(ctx, topic, []byte(c.formatValue(p)), mqtt.QoS0, true); err != nil {
 			c.deps.Logger.Warn("coordinator.publish_failed",
 				slog.String("topic", topic), slog.String("err", err.Error()))
@@ -321,7 +339,7 @@ func (c *Coordinator) publishHVACModes(ctx context.Context, points []process.Poi
 		if !g.hasMode {
 			continue
 		}
-		topic := fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, g.deviceID, g.embeddedID, hass.HVACModeTopic)
+		topic := c.topicRoot.Slot(g.deviceID, g.embeddedID, hass.HVACModeTopic).State()
 		payload := hass.HVACMode(g.power, g.mode)
 		if err := c.deps.MQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, true); err != nil {
 			c.deps.Logger.Warn("coordinator.publish_hvac_failed",
@@ -408,9 +426,6 @@ func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []proces
 	c.lastDiscSig = sig
 	c.mu.Unlock()
 	c.deps.Logger.Info("coordinator.discovery_published", slog.Int("entities", len(points)))
-	// Publish each entity's data_source (cloud vs local Faikin) alongside the
-	// (retained) discovery, so it shows as an entity attribute.
-	c.publishDataSources(ctx, points)
 	// Clear any of our own retained discovery configs that we no longer publish
 	// (entities removed or moved/renamed across versions), so they don't linger
 	// as unavailable entities in Home Assistant.
@@ -508,7 +523,7 @@ func (c *Coordinator) publishAttrs(ctx context.Context, topic, source string) {
 }
 
 func (c *Coordinator) subscribeWrites(ctx context.Context) error {
-	filter := c.topicRoot + "/+/+/+/set"
+	filter := c.topicRoot.CommandFilter()
 	_, err := c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(msg *mqtt.Message) {
 		// A retained /set message is a stale command the broker replays on
 		// every (re)subscribe; applying it would re-write hardware/cloud state
@@ -534,7 +549,7 @@ func (c *Coordinator) subscribeWrites(ctx context.Context) error {
 func (c *Coordinator) parseSetTopic(topic, payload string) (writeReq, bool) {
 	parts := strings.Split(topic, "/")
 	// <root>/<deviceId>/<embeddedId>/<topic>/set
-	if len(parts) != 5 || parts[0] != c.topicRoot || parts[4] != "set" {
+	if len(parts) != 5 || parts[0] != c.topicRoot.String() || parts[4] != "set" {
 		return writeReq{}, false
 	}
 	return writeReq{deviceID: parts[1], embeddedID: parts[2], topic: parts[3], payload: payload}, true

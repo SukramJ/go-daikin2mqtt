@@ -1,3 +1,61 @@
+# Unreleased
+
+## What's Changed
+
+### Added
+
+- **`MQTT_CLIENT_ID`** (`DAIKIN_MQTT_CLIENT_ID`, add-on option
+  `mqtt_client_id`). The MQTT client identifier was a compile-time
+  constant, so every go-daikin2mqtt presented the same string. A broker
+  must disconnect the session it already holds when a second client
+  presents that session's identifier, so two daemons on one broker —
+  two ONECTA accounts, a staging instance, a migration overlap —
+  disconnected each other in a loop, with nothing in either log saying
+  why. **Existing installations are unaffected:** the key defaults to
+  the exact value used before it existed. Set it only if you run more
+  than one instance.
+
+### Fixed
+
+- **The climate fan dropdown showed `unknown` in local mode** whenever
+  a unit was not on `auto`. The Faikin read path owns `fan_mode` for a
+  mapped device, and the map translating the module's reported fan
+  speed was keyed on Daikin's *humidification* vocabulary
+  (`low`/`medium`/`high`) rather than its fan-speed one
+  (`auto`/`quiet`/`1`..`5`), so every numbered speed fell through and
+  nothing was published. Cloud-only installations are unaffected.
+- **Entity ids on a shared outdoor unit no longer move with
+  `LANGUAGE`.** They were seeded from the outdoor sub-device's
+  *display* name, which this bridge composes from a translated label,
+  so switching `LANGUAGE` produced a second set of entities and left
+  the first behind as orphans — Home Assistant never renames a
+  registered entity.
+
+  **German installations: a one-time re-registration.** Entities on a
+  shared outdoor unit change id once, from
+  `sensor.daikin_aussengerat_*` to `sensor.daikin_outdoor_unit_*` (up
+  to thirteen per outdoor unit). Dashboards and automations naming the
+  old ids need updating once. Devices, device ids and every other
+  entity are untouched, and English installations see no change at
+  all.
+- **A multi-split's shared outdoor entities no longer depend on the
+  order the ONECTA API returns devices in.** The entity reads one
+  member's topic, and which member it was had been decided by the
+  order the cloud listed them; it is now chosen deterministically. All
+  members publish the value, as before, so the entity keeps reading a
+  live topic throughout. Entity ids, device ids and history are
+  unaffected. Single-indoor installations see no change.
+- **The `data_source` entity attribute** (cloud vs local Faikin) is
+  published on every poll instead of only when the set of discovered
+  entities changes, so it can no longer go stale.
+
+### Changed
+
+- Internal: every MQTT topic this bridge publishes to or subscribes to
+  is now composed by one `internal/layout` package instead of
+  seventeen separate expressions across four packages. No published
+  topic changes.
+
 # Version 0.11.0 (2026-08-16)
 
 ## What's Changed

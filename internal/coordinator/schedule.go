@@ -15,6 +15,7 @@ import (
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
 )
@@ -34,9 +35,10 @@ const (
 	// the outdoor unit instead of one per indoor unit.
 	OutdoorScheduleStateTopic = "outdoor_schedule_state"
 	OutdoorScheduleNextTopic  = "outdoor_schedule_next_change"
-	// ScheduleEnabledTopic is the per-schedule enable switch, published under
-	// the reserved device id "scheduler".
-	ScheduleEnabledTopic = "enabled"
+	// ScheduleEnabledTopic is the per-schedule enable switch's leaf segment.
+	// It is an alias of layout.EnabledTopic: internal/hass composed the same
+	// topic from a bare "enabled" literal, and nothing compared the two (F3).
+	ScheduleEnabledTopic = layout.EnabledTopic
 	// scheduleIdleValue is the catalog enum value used when no block applies.
 	scheduleIdleValue = "idle"
 )
@@ -238,8 +240,8 @@ func (c *Coordinator) PublishScheduleState(ctx context.Context, target schedule.
 	if !ok {
 		return // device not resolved yet; the next poll will publish it
 	}
-	c.publishRetained(ctx, fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, target.DeviceID, emb, ScheduleStateTopic), state)
-	c.publishRetained(ctx, fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, target.DeviceID, emb, ScheduleNextTopic), next)
+	c.publishRetained(ctx, c.topicRoot.Slot(target.DeviceID, emb, ScheduleStateTopic).State(), state)
+	c.publishRetained(ctx, c.topicRoot.Slot(target.DeviceID, emb, ScheduleNextTopic).State(), next)
 }
 
 // publishOutdoorScheduleState publishes an outdoor schedule's status on every
@@ -253,10 +255,8 @@ func (c *Coordinator) publishOutdoorScheduleState(ctx context.Context, serial, s
 		if !ok {
 			continue
 		}
-		c.publishRetained(ctx,
-			fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, member, emb, OutdoorScheduleStateTopic), state)
-		c.publishRetained(ctx,
-			fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, member, emb, OutdoorScheduleNextTopic), next)
+		c.publishRetained(ctx, c.topicRoot.Slot(member, emb, OutdoorScheduleStateTopic).State(), state)
+		c.publishRetained(ctx, c.topicRoot.Slot(member, emb, OutdoorScheduleNextTopic).State(), next)
 	}
 }
 
@@ -285,8 +285,7 @@ func (c *Coordinator) PublishScheduleSwitches(ctx context.Context, doc *schedule
 	}
 	for i := range doc.Schedules {
 		s := &doc.Schedules[i]
-		topic := fmt.Sprintf("%s/%s/%s/%s/state",
-			c.topicRoot, schedule.SchedulerDeviceID, s.ID, ScheduleEnabledTopic)
+		topic := c.topicRoot.Schedule(s.ID).State()
 		c.publishRetained(ctx, topic, onOff(s.Enabled))
 	}
 }

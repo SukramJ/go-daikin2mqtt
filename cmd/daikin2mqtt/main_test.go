@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	"github.com/SukramJ/go-mqtt"
+
+	"github.com/SukramJ/go-daikin2mqtt/internal/config"
+	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 )
 
 // failingPublisher always reports a broker-side failure so the breaker
@@ -45,12 +48,9 @@ func TestMQTTSessionPublishIsCircuitGated(t *testing.T) {
 	t.Parallel()
 
 	pub := &failingPublisher{}
-	session := &mqttSession{
-		Breaker: mqtt.NewBreaker(pub, mqtt.BreakerConfig{
-			FailureThreshold: 1,
-		}),
-		Subscriber: &recordingSubscriber{},
-	}
+	session := mqtt.SplitClient(mqtt.NewBreaker(pub, mqtt.BreakerConfig{
+		FailureThreshold: 1,
+	}), &recordingSubscriber{})
 
 	err := session.Publish(t.Context(), "t", nil, mqtt.QoS0, false)
 	if !errors.Is(err, mqtt.ErrNotConnected) {
@@ -71,10 +71,8 @@ func TestMQTTSessionSubscribeBypassesBreaker(t *testing.T) {
 	t.Parallel()
 
 	sub := &recordingSubscriber{}
-	session := &mqttSession{
-		Breaker:    mqtt.NewBreaker(&failingPublisher{}, mqtt.BreakerConfig{FailureThreshold: 1}),
-		Subscriber: sub,
-	}
+	breaker := mqtt.NewBreaker(&failingPublisher{}, mqtt.BreakerConfig{FailureThreshold: 1})
+	session := mqtt.SplitClient(breaker, sub)
 
 	// Trip the circuit open on the publish side.
 	_ = session.Publish(t.Context(), "t", nil, mqtt.QoS0, false)
@@ -91,5 +89,77 @@ func TestMQTTSessionSubscribeBypassesBreaker(t *testing.T) {
 	}
 	if len(sub.unsubscribed) != 1 || sub.unsubscribed[0] != "cmd/#" {
 		t.Fatalf("unsubscriber saw %v, want [cmd/#]", sub.unsubscribed)
+	}
+}
+
+// TestClientIDsComeFromTheConfig pins the wiring half of F1: the two MQTT
+// connections this daemon opens must take their client identifier from the
+// resolved config, so an operator running a second instance can separate them.
+// Reading a constant here is exactly the defect, and it is invisible on the
+// wire until the second instance connects.
+func TestClientIDsComeFromTheConfig(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{MQTTClientID: "daikin2mqtt-staging"}
+	if got := mainClientID(cfg); got != "daikin2mqtt-staging" {
+		t.Errorf("mainClientID = %q, want the configured id", got)
+	}
+	if got := faikinClientID(cfg); got != "daikin2mqtt-staging-faikin" {
+		t.Errorf("faikinClientID = %q, want the configured id plus the suffix", got)
+	}
+
+	// Two differently-configured instances must collide on neither session.
+	other := &config.Config{MQTTClientID: config.DefaultMQTTClientID}
+	if mainClientID(cfg) == mainClientID(other) || faikinClientID(cfg) == faikinClientID(other) {
+		t.Error("two instances still share a client id — F1 is not fixed")
+	}
+
+	// And the unconfigured instance must still present the pre-fix strings.
+	if got := mainClientID(other); got != "daikin2mqtt" {
+		t.Errorf("default mainClientID = %q, want %q", got, "daikin2mqtt")
+	}
+	if got := faikinClientID(other); got != "daikin2mqtt-faikin" {
+		t.Errorf("default faikinClientID = %q, want %q", got, "daikin2mqtt-faikin")
+	}
+}
+
+// TestTheWillWritesTheTopicEveryEntityReads is the cross-package half of F3.
+//
+// The bridge's availability topic is composed by three different packages: the
+// Last Will here, Coordinator.PublishOnline's "online", and the
+// availability_topic of all 264 discovery payloads. Nothing compared them. If
+// the will names a topic the payloads do not, entities never grey out when the
+// daemon dies; if the payloads name a topic nobody writes, they never come up
+// at all. Both failures are silent — there is no log line and no registry
+// entry that reports either one.
+func TestTheWillWritesTheTopicEveryEntityReads(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{MQTTTopic: "daikin", HASSBaseTopic: "homeassistant", Language: "en"}
+	status := bridgeStatusTopic(cfg)
+
+	// The literal an installed base already has retained on its broker.
+	if status != "daikin/bridge/status" {
+		t.Errorf("bridge status topic = %q, want %q", status, "daikin/bridge/status")
+	}
+	// What every discovery payload names as its availability_topic.
+	if adv := hass.New(cfg.HASSBaseTopic, cfg.MQTTTopic, cfg.Language, nil).BridgeStatusTopic(); adv != status {
+		t.Errorf("discovery advertises availability_topic %q, the will writes %q", adv, status)
+	}
+	// And a non-default root must move both together.
+	other := &config.Config{MQTTTopic: "haus/klima", HASSBaseTopic: "homeassistant", Language: "en"}
+	if adv := hass.New(other.HASSBaseTopic, other.MQTTTopic, other.Language, nil).BridgeStatusTopic(); adv != bridgeStatusTopic(other) {
+		t.Errorf("with a custom root, discovery advertises %q but the will writes %q", adv, bridgeStatusTopic(other))
+	}
+
+	will := bridgeWill(status)
+	if will.Topic != status {
+		t.Errorf("will topic = %q, want %q", will.Topic, status)
+	}
+	if string(will.Payload) != "offline" {
+		t.Errorf("will payload = %q, want %q", will.Payload, "offline")
+	}
+	if !will.Retain {
+		t.Error("will is not retained — a broker that loses this daemon would leave the last \"online\" standing forever")
 	}
 }
