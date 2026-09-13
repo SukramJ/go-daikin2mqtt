@@ -197,6 +197,18 @@ func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, bas
 // entity id from that makes the entity id move with LANGUAGE (F2). For a main
 // device the two are the same string: its name is the operator's own text.
 func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string, dev device, seed string) {
+	base, dev, seed := d.entityIDBase(p, info)
+	return sanitize(base + "_" + p.Topic), dev, seed
+}
+
+// entityIDBase is [Discovery.entityIdentity] without the final composition:
+// it returns the unique-id NAMESPACE the entity key hangs off, rather than the
+// finished unique id, so that the ADR 0070 phase 8 step 4 rendering path can
+// compose the same string through a go-hamqtt discovery.Context instead of
+// being handed a ready-made one. entityIdentity is sanitize(base + "_" +
+// p.Topic) and nothing else, which is what keeps the two spellings one
+// spelling.
+func (d *Discovery) entityIDBase(p process.Point, info DeviceInfo) (base string, dev device, seed string) {
 	// Outdoor-shared settings (scope: outdoor, e.g. outdoor silent) are a single
 	// knob on the outdoor unit exposed per indoor unit. Key them by the outdoor
 	// serial and attach them to the outdoor device so all the indoor units'
@@ -204,7 +216,7 @@ func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string
 	if p.Entry.Scope == "outdoor" && info.Outdoor != nil && info.Outdoor.SerialNumber != "" {
 		base := "daikin_outdoor_" + info.Outdoor.SerialNumber
 		dev, seed := d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
-		return sanitize(base + "_" + p.Topic), dev, seed
+		return base, dev, seed
 	}
 	switch p.MPType {
 	case "gateway":
@@ -213,26 +225,26 @@ func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string
 			// indoor unit so it appears as a sub-device rather than standalone.
 			base := "daikin_gateway_" + info.Gateway.SerialNumber
 			dev, seed := d.sharedSubDevice(base, mainIdentifier(p.DeviceID), "Gateway", "Gateway", info.Name, info.Gateway)
-			return sanitize(base + "_" + p.Topic), dev, seed
+			return base, dev, seed
 		}
 		// No gateway serial (e.g. a Home Hub that is itself the gateway):
 		// attach the entity to the main device so it appears as one device
 		// rather than an empty main plus a gateway sub-device.
 		dev := d.deviceBlock(p.DeviceID, info)
-		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), dev, dev.Name
+		return mainIdentifier(p.DeviceID), dev, dev.Name
 	case "outdoorUnit":
 		if info.Outdoor != nil && info.Outdoor.SerialNumber != "" {
 			// Outdoor units are commonly shared across indoor units; keep a
 			// generic name so it is not tied to one room.
 			base := "daikin_outdoor_" + info.Outdoor.SerialNumber
 			dev, seed := d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
-			return sanitize(base + "_" + p.Topic), dev, seed
+			return base, dev, seed
 		}
 		dev, seed := d.subDeviceBlock(p.DeviceID, "outdoor", "Outdoor unit", "Außengerät", info.Name, info.Outdoor)
-		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), dev, seed
+		return mainIdentifier(p.DeviceID), dev, seed
 	default:
 		dev := d.deviceBlock(p.DeviceID, info)
-		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), dev, dev.Name
+		return mainIdentifier(p.DeviceID), dev, dev.Name
 	}
 }
 
