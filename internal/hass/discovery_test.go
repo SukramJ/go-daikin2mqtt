@@ -308,3 +308,77 @@ func TestIsOwnConfig(t *testing.T) {
 		}
 	}
 }
+
+// TestLegacyConfigTopicFormNamesTheFormThisBridgePublishes is the step-6 guard.
+//
+// go-hamqtt's publisher.SupersededTopics defaults to LegacyTopicWithNodeID, the
+// FIVE-segment form "<prefix>/<platform>/<node_id>/<object_id>/config". This
+// bridge has never published that shape, so the default would retract nothing:
+// the device bundle would land while all 264 per-entity configs were still
+// retained, Home Assistant would refuse it with one "Received a conflicting
+// MQTT discovery message", and no entities would appear.
+//
+// The two candidate forms are transcribed here rather than imported, because
+// nothing in this repository takes the go-hamqtt dependency yet. Both are
+// rendered over the real builder's output, and only one of them reproduces it.
+func TestLegacyConfigTopicFormNamesTheFormThisBridgePublishes(t *testing.T) {
+	t.Parallel()
+
+	const prefix = "homeassistant"
+	d := New(prefix, "daikin", "en", nil)
+
+	// go-hamqtt publisher.LegacyTopicByUniqueID and LegacyTopicWithNodeID,
+	// transcribed. They delete themselves when the dependency is taken.
+	byUniqueID := func(platform, nodeID, uid string) string {
+		_ = nodeID
+		return prefix + "/" + platform + "/" + uid + "/config"
+	}
+	withNodeID := func(platform, nodeID, uid string) string {
+		return prefix + "/" + platform + "/" + nodeID + "/" + uid + "/config"
+	}
+
+	for _, c := range []struct{ platform, nodeID, uid string }{
+		{"sensor", "daikin_809d41d9", "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature"},
+		{"climate", "daikin_809d41d9", "daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate"},
+		{"switch", "daikin_scheduler", "daikin_schedule_werktag"},
+		{"button", "daikin_outdoor_ODU0000000001", "daikin_outdoor_ODU0000000001_refresh"},
+	} {
+		published := d.ConfigTopic(c.platform, c.uid)
+		if got := byUniqueID(c.platform, c.nodeID, c.uid); got != published {
+			t.Errorf("LegacyTopicByUniqueID renders %q, the bridge publishes %q", got, published)
+		}
+		if got := withNodeID(c.platform, c.nodeID, c.uid); got == published {
+			t.Errorf("LegacyTopicWithNodeID renders %q, which the bridge also publishes — "+
+				"the two forms are no longer distinguishable and this test proves nothing", got)
+		}
+	}
+
+	if LegacyConfigTopicForm != "publisher.LegacyTopicByUniqueID" {
+		t.Errorf("LegacyConfigTopicForm = %q, but the four-segment form is the one measured",
+			LegacyConfigTopicForm)
+	}
+}
+
+// TestConfigTopicIsTheOneFormAllThreeBuildersUse pins that the catalogue
+// entity, the composite climate and the schedule switch agree on the config
+// topic. They were three fmt.Sprintf expressions, and the composite climate's
+// and the schedule switch's hard-coded their platform into the format string.
+func TestConfigTopicIsTheOneFormAllThreeBuildersUse(t *testing.T) {
+	t.Parallel()
+
+	d := New("homeassistant", "daikin", "en", nil)
+	for _, c := range []struct{ platform, uid, want string }{
+		{"sensor", "daikin_x_room_temperature", "homeassistant/sensor/daikin_x_room_temperature/config"},
+		{"climate", "daikin_x_climate", "homeassistant/climate/daikin_x_climate/config"},
+		{"switch", "daikin_schedule_werktag", "homeassistant/switch/daikin_schedule_werktag/config"},
+	} {
+		if got := d.ConfigTopic(c.platform, c.uid); got != c.want {
+			t.Errorf("ConfigTopic(%q, %q) = %q, want %q", c.platform, c.uid, got, c.want)
+		}
+	}
+	// And the reconcile filter must match what the builder produces, or the
+	// orphan sweep collects nothing and every renamed entity lingers forever.
+	if f := d.ConfigFilter(); f != "homeassistant/+/+/config" {
+		t.Errorf("ConfigFilter = %q, want %q", f, "homeassistant/+/+/config")
+	}
+}

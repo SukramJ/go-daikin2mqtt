@@ -8,7 +8,6 @@ package hass
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/SukramJ/go-mqtt"
@@ -353,6 +352,47 @@ func (d *Discovery) IsOwnConfig(payload []byte) bool {
 // (e.g. "homeassistant/+/+/config"), for collecting retained configs to reconcile.
 func (d *Discovery) ConfigFilter() string { return d.baseTopic + "/+/+/config" }
 
+// ConfigTopic is the retained discovery topic of one entity:
+// "<prefix>/<platform>/<unique_id>/config". Four segments, no node id.
+//
+// One function, three callers — the catalogue entity builder, the composite
+// climate builder and the schedule switch builder — because the form is a
+// contract with the installed base rather than a local formatting choice, and
+// because [LegacyConfigTopicForm] has to name something that is true of all
+// three. Verified over all 264 config topics of the twelve pinned scenarios by
+// TestConfigTopicForm.
+func (d *Discovery) ConfigTopic(platform, uid string) string {
+	return d.baseTopic + "/" + platform + "/" + uid + "/config"
+}
+
+// LegacyConfigTopicForm names the go-hamqtt publisher.LegacyTopicFunc that
+// reproduces this bridge's retained per-entity config topics, and is therefore
+// the one ADR 0070 phase 8 step 6 must set in
+// publisher.Config.LegacyEntityTopics.
+//
+// It is publisher.LegacyTopicByUniqueID — the FOUR-segment form
+// "<prefix>/<platform>/<unique_id>/config" — and not the five-segment
+// publisher.LegacyTopicWithNodeID that a consumer gets by saying nothing.
+// Measured, not assumed: all 264 config topics across the twelve pinned
+// scenarios have exactly four levels, with the third byte-equal to the
+// payload's own unique_id and no node-id level anywhere
+// (TestConfigTopicForm).
+//
+// Stating it is the whole fix, because Config.LegacyEntityTopics REPLACES the
+// default rather than extending it.
+//
+// Getting it wrong is silent and total: the five-segment default would retract
+// none of the retained per-entity configs, the device bundle would be published
+// while all of them were still retained, and Home Assistant refuses that with a
+// single "WARNING [mqtt.entity] Received a conflicting MQTT discovery message".
+// No entities appear, and nothing on the wire says why.
+//
+// It is a documented constant rather than a wired-up setting because nothing
+// publishes a bundle yet; step 6 is what consumes it. The value is the
+// function's name as a string precisely so that recording it costs this module
+// no dependency on go-hamqtt one step early.
+const LegacyConfigTopicForm = "publisher.LegacyTopicByUniqueID"
+
 // buildConfig renders the discovery topic and JSON payload for a point, using
 // the precomputed unique id and device block (see [Discovery.entityIdentity]).
 func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic string, payload []byte, ok bool) {
@@ -406,7 +446,7 @@ func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic 
 		return "", nil, false
 	}
 
-	topic = fmt.Sprintf("%s/%s/%s/config", d.baseTopic, p.Entry.Platform, uid)
+	topic = d.ConfigTopic(p.Entry.Platform, uid)
 	payload, err := json.Marshal(cfg)
 	if err != nil {
 		return "", nil, false

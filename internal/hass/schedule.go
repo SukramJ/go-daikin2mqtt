@@ -6,7 +6,6 @@ package hass
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/SukramJ/go-mqtt"
 
@@ -111,5 +110,5 @@ func (d *Discovery) buildScheduleConfig(s ScheduleInfo, dev device) (topic strin
 	if err != nil {
 		return "", nil, false
 	}
-	return fmt.Sprintf("%s/switch/%s/config", d.baseTopic, uid), b, true
+	return d.ConfigTopic("switch", uid), b, true
 }

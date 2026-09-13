@@ -252,5 +252,5 @@ func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInf
 	if err != nil {
 		return "", nil, false
 	}
-	return fmt.Sprintf("%s/climate/%s/config", d.baseTopic, uid), b, true
+	return d.ConfigTopic("climate", uid), b, true
 }
