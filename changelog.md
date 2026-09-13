@@ -51,10 +51,38 @@
 
 ### Changed
 
+- **Fewer redundant MQTT messages.** Entity state is now published
+  through a de-duplicating gate: a value that has not changed since
+  the last poll is compared instead of re-written. A steady-state
+  multi-split wrote ~220 retained messages per poll, nearly all of
+  them byte-identical to the previous one; it now writes only what
+  moved. Nothing about *what* Home Assistant sees changes — every
+  topic, payload, QoS and retain flag is unchanged, and the gate is
+  re-opened on every reconnect so a broker restarted without its
+  retained store is refilled.
+- **Orphan cleanup no longer touches a config of a device this
+  instance does not poll.** The daemon clears its own retained
+  discovery configs when an entity disappears; it decided they were
+  "its own" from the `daikin_` namespace alone, which two instances
+  on one broker share exactly. It now also requires the config's
+  topics to sit under a device this instance actually polls.
+  **Consequence for a single instance:** if a device is removed from
+  your ONECTA account, its retained configs are no longer cleared
+  automatically (they were, before) and stay as unavailable entities
+  until cleared by hand. Everything else — an entity removed by a
+  catalogue change, a renamed schedule — is cleared exactly as
+  before. **Consequence for two instances:** neither can delete the
+  other's entities.
 - Internal: every MQTT topic this bridge publishes to or subscribes to
   is now composed by one `internal/layout` package instead of
   seventeen separate expressions across four packages. No published
   topic changes.
+- Internal: the state, availability and command planes are published
+  by `go-hamqtt`'s `publisher` package instead of by this bridge's own
+  code. The Last Will and the retained `online` marker now come from
+  one object rather than from three literals in three packages. No
+  published topic, payload, QoS or retain flag changes; the twelve
+  pinned surface scenarios and their digests are unmoved.
 
 # Version 0.11.0 (2026-08-16)
 

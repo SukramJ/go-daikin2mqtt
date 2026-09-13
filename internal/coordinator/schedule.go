@@ -11,8 +11,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/SukramJ/go-mqtt"
-
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
@@ -290,12 +288,12 @@ func (c *Coordinator) PublishScheduleSwitches(ctx context.Context, doc *schedule
 	}
 }
 
-// publishRetained publishes a retained QoS0 payload, logging a failure.
+// publishRetained publishes a retained QoS 0 payload through the state plane.
+//
+// An empty payload is how an unscheduled device's schedule_next_change is
+// expressed, and it stays a retained clear — see [Coordinator.publishState].
 func (c *Coordinator) publishRetained(ctx context.Context, topic, payload string) {
-	if err := c.deps.MQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, true); err != nil {
-		c.deps.Logger.Warn("coordinator.publish_failed",
-			slog.String("topic", topic), slog.String("err", err.Error()))
-	}
+	c.publishState(ctx, topic, payload)
 }
 
 // schedulePoints synthesizes the discovery points for the two per-device
