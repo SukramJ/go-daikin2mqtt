@@ -692,10 +692,23 @@ func FormatClock(minute int) string {
 // --- slugs -----------------------------------------------------------------
 
 // umlautReplacer transliterates German umlauts, so "Bürozeit" slugs to
-// "burozeit" rather than losing the non-ASCII runes. It deliberately matches
-// hass.slugify (which in turn matches Home Assistant's own slugify: ä→a, not
-// ae), so a schedule's entity id looks like every other entity id this daemon
-// publishes. Keep the two in sync.
+// "burozeit" rather than losing the non-ASCII runes. It matches hass.slugify's
+// transliteration table exactly (which in turn matches Home Assistant's own
+// slugify: ä→a, not ae).
+//
+// The two functions built on it do NOT otherwise match, and the comment that
+// used to say "Keep the two in sync" was wrong — measurably so. [Slug] keeps a
+// hyphen; hass.slugify folds it to an underscore. So a SCHEDULE named
+// "EG-Wohnzimmer" becomes switch.daikin_schedule_eg-wohnzimmer, while a DEVICE
+// named "EG-Wohnzimmer" becomes sensor.eg_wohnzimmer_…. Both are internally
+// consistent, both survive hass.sanitize (which keeps "-"), and nothing is
+// broken by the difference.
+//
+// It is recorded rather than repaired because a schedule's slug is frozen at
+// creation ([Schedule.ID]): "syncing" the two would re-key every schedule whose
+// name contains a hyphen, and Home Assistant never renames a registered
+// entity. This is F10 of the ADR 0070 phase 8 measurement.
+// TestSlugDivergesFromHassSlugifyOnTheHyphen pins it.
 var umlautReplacer = strings.NewReplacer(
 	"ä", "a", "ö", "o", "ü", "u", "ß", "ss",
 )
