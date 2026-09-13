@@ -113,15 +113,15 @@ func (d *Discovery) deviceBlock(deviceID string, info DeviceInfo) device {
 // subDeviceBlock builds a nested HA device (gateway / outdoor unit) linked to
 // the main device via via_device. suffix disambiguates the identifier;
 // labelEN/labelDE are appended to the base name.
-func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName string, sub *SubDevice) (device, string) {
+func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName string, sub *SubDevice) (dev device, seed string) {
 	label := labelEN
 	if d.lang == "de" && labelDE != "" {
 		label = labelDE
 	}
 	base := orDefault(baseName, "Daikin "+deviceID)
 	// seed is the same name with the ENGLISH label, always. See [entityObjectID].
-	seed := base + " " + labelEN
-	dev := device{
+	seed = base + " " + labelEN
+	dev = device{
 		Identifiers:      []string{mainIdentifier(deviceID) + "_" + suffix},
 		Name:             base + " " + label,
 		Manufacturer:     "Daikin",
@@ -146,7 +146,7 @@ func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName 
 // links it under a parent device when it belongs to one (per-unit gateways
 // nest under their indoor unit); pass "" for genuinely shared components with
 // no single parent (e.g. one outdoor unit serving several indoor units).
-func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, baseName string, sub *SubDevice) (device, string) {
+func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, baseName string, sub *SubDevice) (dev device, seed string) {
 	label := labelEN
 	if d.lang == "de" && labelDE != "" {
 		label = labelDE
@@ -162,8 +162,8 @@ func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, bas
 	}
 	name := compose(label)
 	// seed is the same name with the ENGLISH label, always. See [entityObjectID].
-	seed := compose(labelEN)
-	dev := device{
+	seed = compose(labelEN)
+	dev = device{
 		Identifiers:      []string{identifier},
 		Name:             name,
 		Manufacturer:     "Daikin",

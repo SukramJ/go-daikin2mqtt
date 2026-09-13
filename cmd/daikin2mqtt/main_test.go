@@ -71,8 +71,8 @@ func TestMQTTSessionSubscribeBypassesBreaker(t *testing.T) {
 	t.Parallel()
 
 	sub := &recordingSubscriber{}
-	session := mqtt.SplitClient(
-		mqtt.NewBreaker(&failingPublisher{}, mqtt.BreakerConfig{FailureThreshold: 1}), sub)
+	breaker := mqtt.NewBreaker(&failingPublisher{}, mqtt.BreakerConfig{FailureThreshold: 1})
+	session := mqtt.SplitClient(breaker, sub)
 
 	// Trip the circuit open on the publish side.
 	_ = session.Publish(t.Context(), "t", nil, mqtt.QoS0, false)

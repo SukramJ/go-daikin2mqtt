@@ -1,6 +1,8 @@
 # ADR 0070 phase 8 — measurement for go-daikin2mqtt
 
-- Status: measurement, not a decision
+- Status: measurement (step 0), plus the step 1+2 outcome and the F4, F8, F9,
+  F11, F12 and F14 decisions — see
+  [Step 2 outcome](#step-2-outcome--what-was-fixed-what-was-decided-what-stays)
 - Date: 2026-09-13
 - Subject: [ADR 0070](https://github.com/SukramJ/openccu-loom/blob/main/docs/adr/0070-shared-ha-discovery-model-module.md)
   and its rollout table, row *"8 | `go-daikin2mqtt` (846) | Proves composite
@@ -606,8 +608,10 @@ after regeneration; both are caught by the builder-against-builder test.
 
 ## Findings
 
-Ranked by severity. **None was fixed in this PR.** Every one is reproducible
-from the pins.
+Ranked by severity. **None was fixed in the measurement PR (#75).** Their
+status after steps 1+2 is in
+[Step 2 outcome](#step-2-outcome--what-was-fixed-what-was-decided-what-stays),
+which also corrects the places where this document measured wrong.
 
 <a name="f1"></a>
 ### F1 — two instances cannot both stay connected: the MQTT client id is a compile-time constant · **high**
@@ -972,6 +976,294 @@ behaviour), or leave it and document it.
 
 ---
 
+---
+
+## Step 2 outcome — what was fixed, what was decided, what stays
+
+This section was written by phase 8 steps 1+2 — the PR that fixes the defects.
+The measurement above is unchanged except where it was measured *wrong*; those
+corrections are collected in
+[Corrections to the measurement above](#corrections-to-the-measurement-above)
+rather than silently edited into the text.
+
+### Decisions taken in writing
+
+The sequencing table below puts F4, F8 and F14 at step 3, *"decided, not
+discovered"*. Three of them are decided **here**, one step early, because step 2
+had to touch the code they govern, and **a fix that contradicts a later decision
+is worse than an early decision**. Written down once, so step 4 does not reopen
+them.
+
+<a name="d-f4"></a>
+**F4 — the slug. Keep this bridge's own normalisers. Decided; do not reopen.**
+
+The question is not which slug is more correct. `topic.Slug` **is** the more
+correct one by one reading — it expands `ä ö ü` to `ae oe ue`. But
+`hass.slugify` expands them to `a o u`, which is what **Home Assistant's own
+`slugify` does**, and `discovery.go` says so at the point of definition. Being
+consistent with Home Assistant beats being consistent with a sibling Go module.
+
+Measured, the cost of swapping is entirely on one side:
+
+- **0 of 55 catalog topics diverge.** Every `topic:` in `characteristics.yaml`
+  is lower-case ASCII snake_case, so both functions are the identity on them.
+  The entity half of every id is safe either way.
+- **8 of 9 device-name probes diverge**, on two independent classes: the umlaut
+  expansion and the hyphen.
+
+So the swap buys nothing but consistency with a sibling module's
+transliteration, and costs a one-time entity-id re-registration on every
+German-named device — which in this bridge's actual user base is most of them.
+This is the third bridge in the programme to face it and the third to keep its
+own: `go-mtec2mqtt` (8 of 100) and `go-homeconnect2mqtt` (5 of 7 device probes)
+both refused the swap.
+
+**There are THREE normalisers to reproduce at step 4, not one:**
+
+| Function | File | Rule |
+| --- | --- | --- |
+| `hass.slugify` | `internal/hass/discovery.go` | lower-case; `ä→a ö→o ü→u ß→ss`; any run of other characters → one `_`; trimmed |
+| `hass.sanitize` | `internal/hass/discovery.go` | **preserves case**; keeps `[A-Za-z0-9_-]`; everything else → `_`. This is what keeps the ONECTA UUID's hyphens in `unique_id` |
+| `schedule.Slug` | `internal/schedule/model.go` | as `slugify`, but **preserves `-`**, and is frozen at a schedule's creation |
+
+A `discovery.Context` for this bridge has to supply all three. The second is the
+one most easily missed, because it is the only one that is not a slug.
+
+**Do not "fix" the transliteration either.** `Küche → kuche` is arguably wrong
+and stays: an umlaut in a room name is not a reason to break someone's entity
+registry.
+
+<a name="d-f8"></a>
+**F8 — availability. `model.BridgeOnly()`. Decided; do not reopen.**
+
+This bridge's availability plane is **correct and complete as it stands** — the
+first in the programme with no availability defect. One level, the bridge LWT at
+`daikin/bridge/status`, published by `Coordinator.PublishOnline` on connect and
+by the CONNECT Will on loss, named as `availability_topic` by all 264 discovery
+payloads, with `payload_available`/`payload_not_available` beside it and no
+`availability_mode` anywhere. **Nothing to fix.**
+
+It is recorded as a decision because it is the **trap** shape, not the fix
+shape. go-hamqtt's zero `model.Availability` resolves to
+`{LevelBridge, LevelDevice}` with mode `all`. `LevelDevice` names
+`daikin[/<scope>]/<uid>/availability` — a topic this bridge never writes and has
+no per-device reachability signal to write. Under mode `all` Home Assistant
+requires *every* listed source to say `online`, so accepting the default would
+leave **all 264 entities permanently unavailable**, with nothing in any log.
+`go-mtec2mqtt` hit exactly this.
+
+`model.BridgeOnly()` is the setting. Step 4 states it explicitly.
+
+Two things step 4 must also know:
+
+- The library's default path emits the **list** form
+  (`availability: [{topic, payload_available, payload_not_available}]`) and
+  never the singular `availability_topic` with top-level payloads. So even
+  `BridgeOnly()` does not reproduce these payloads byte for byte; it reproduces
+  them *semantically* (Home Assistant accepts both spellings identically). An
+  entity's registry keys are unaffected either way. The phase has to say which
+  it means by "byte-equal" — and it should say *semantically*, for this one key
+  group only, named.
+- There **is** a real per-device availability signal available and unused:
+  ONECTA reports `isCloudConnectionUp` per device, and the Faikin path reports
+  `online`. Wiring `LevelDevice` to those would be an improvement. It must not
+  happen in the same step as the migration.
+
+<a name="d-f9"></a>
+**F9 — QoS. What this bridge passes, read off the transport call.**
+
+Pinned, not changed. `TestPublishQoSAndRetain` asserts over every recorded
+publish of every scenario that the value reaching `mqtt.Client.Publish` is
+`mqtt.QoS0` and `retain` is `true` — **read off the transport call, not off a
+constant**, which is what made `go-mtec2mqtt`'s equivalent pin survive its whole
+plane moving. The two `retain=false` sites are the outbound Faikin *command*
+topics, correctly so, and they are outside the recorded surface.
+
+At step 5 every one of those sites must be spelled `publisher.QoSAtMostOnce`
+(`0x80`) in `Config.QoS`, `StateConfig.QoS`, `AvailabilityConfig.QoS` and
+`CommandConfig.QoS`. `publisher.QoS`'s zero value is `QoSUnset` and resolves to
+**QoS 1**. `resolveQoS` panics at construction on an unrecognised value, so a
+mistake is loud — but *omission* is silent, and omission is the failure mode.
+
+<a name="d-f11"></a>
+**F11 — the unread topics. Leave them. Decided.**
+
+Up to 13 `/state` and 16 `/attributes` topics that no published entity reads.
+Not removed, and not from oversight:
+
+- Cause 2 (the `scope: outdoor` members' copies) is **load-bearing** and must
+  not be touched — it is what makes the dedup work at all, and F7's fix does not
+  change that.
+- Causes 1 and 3 are cheap to remove and are still not removed, because
+  retiring a topic an installed base may already consume is a decision about the
+  **operator contract**, not a defect fix. `go-mtec2mqtt` declined its
+  equivalent twice, and `go-homeconnect2mqtt` once, on exactly this ground.
+
+The count moved from F11's table: F6's fix publishes two previously-dead
+`fan_mode` topics, so the local scenario's *advertised-but-unpublished* set is
+now empty (it was the only entry) while the *published-but-unread* counts stand.
+
+<a name="d-f12"></a>
+**F12 — the `origin` block. Not added here. Deliberate.**
+
+go-hamqtt makes `origin.name` a blocking validation issue, so the migration
+supplies it for free at step 4. Adding it now would be a payload addition on all
+264 configs, in the same PR as six other findings — and the measurement's own
+rule is that it "must not land in the same step as anything else". It is one
+line at step 4 and an unreviewable 264-row diff here.
+
+### Fixed in step 2
+
+| Finding | Fix | Bytes moved |
+| --- | --- | --- |
+| **F1** high | `MQTT_CLIENT_ID` config key / `DAIKIN_MQTT_CLIENT_ID` / add-on `mqtt_client_id`, defaulting to the literal `daikin2mqtt`. The Faikin connection derives from it too. | none |
+| **F3** high | `internal/layout` — one `Root`/`Slot` vocabulary replacing **twelve** state-topic builders, two attributes builders, four command builders and three bridge-status builders | none |
+| **F5** high | `Discovery.ConfigTopic` (one builder, was three) + `hass.LegacyConfigTopicForm`, the named constant step 6 must state | none |
+| **F10** low | the comment claiming `schedule.Slug` matches `hass.slugify` corrected, and the divergence pinned in both directions | none |
+| **F13** low | `publishDataSources` moved out from behind the discovery-signature gate | none |
+| **F2** high | the entity-id seed composed from the **English** label, separately from the localized display name | **2 keys**, `multisplit.de` only: `default_entity_id` on the two shared-outdoor configs |
+| **F7** medium | the surviving member of a deduplicated shared sub-device chosen on `(DeviceID, EmbeddedID)` rather than by ONECTA array order | **39 keys** across the four multi-split scenarios: `state_topic`, `json_attributes_topic`, `command_topic` |
+| **F6** medium | `faikinFanToCloud` keyed on the real `fanSpeed` vocabulary instead of the **humidification** one | **2 topics added**, `multisplit.local.en`: `…/fan_mode/state` |
+
+Total: **41 keys changed and 2 topics added, across 5 of the 12 scenarios.** No
+`unique_id`, no `device.identifiers`, no config topic, no `qos` and no `retain`
+moves anywhere. Five digests updated by hand.
+
+The diff was derived by running the **builders** at `origin/main` and at the
+branch and comparing outputs key by key — not by reading the regenerated
+fixtures, which are produced by the very code they guard.
+
+### Deliberately not fixed
+
+**F11 and F12** — see the decisions above.
+
+**F14 — two instances. Measured, written down, not fixed.** And **F1's fix
+changes its character**: see the next section.
+
+**F4's slug** — decided, not changed.
+
+### F14 — what step 6 needs to know
+
+Every identity string this bridge publishes derives from the ONECTA device id or
+a component serial, plus the catalogue topic. Neither `MQTT_TOPIC` nor
+`HASS_BASE_TOPIC` nor any instance identifier enters `unique_id`,
+`device.identifiers` or the config topic.
+`TestTwoDefaultInstancesCollideOnEveryString` shows all 30 config topics and all
+30 `unique_id`s of the multi-split scenario shared between two
+differently-configured instances.
+
+**F1's fix removed the thing that was masking it.** Before this PR two daemons
+could not both stay connected: they presented the same client id and the broker
+disconnected each in turn, so in practice they alternated rather than
+overlapped. They can now both hold a session. What two instances seeing the same
+ONECTA account then do to each other, *today*:
+
+- They write byte-identical payloads to byte-identical topics, so as long as
+  they are configured identically the result is indistinguishable from one
+  instance. Last writer wins; both are the same bytes.
+- They **diverge** the moment any of `LANGUAGE`, `MQTT_TOPIC`, `LOCAL_MODE`,
+  `LOCAL_DEVICE_MAP` or the catalogue version differs. Then each poll rewrites
+  the other's configs entity by entity, and Home Assistant sees the entity's
+  definition flip back and forth on every poll — `state_topic` pointing at one
+  root and then the other, display names switching language.
+- Neither sweeps the other away: `IsOwnConfig` accepts both, because both are in
+  the `daikin_` namespace, so the orphan reconcile leaves them alone. They do
+  not fight. They overwrite.
+- Their state planes do NOT collide if `MQTT_TOPIC` differs — but the discovery
+  configs still do, so half the entities end up naming the other instance's
+  root.
+
+**At step 6 the stakes change, and this is the part that must not land
+unexamined.** A device bundle is **one** retained topic per device carrying that
+device's **entire** component set. Overwriting stops being per-entity and
+becomes whole-entity-set replacement:
+
+- Two instances with any divergence replace each other's complete component set
+  on every publish, rather than overwriting entity by entity. It goes from "some
+  entities point at the wrong root" to "the whole device flips".
+- Worse, and this is the failure `go-mtec2mqtt`'s reviewer proved for the
+  equivalent shape: a **staggered upgrade**. Instance A is upgraded to publish
+  bundles and retracts the per-entity configs via `SupersededTopics`. Instance B
+  is still on the old build and republishes its per-entity configs on its next
+  poll — into a namespace A has just declared superseded. A's next reconcile
+  then retracts them again. Between the two, Home Assistant sees the fleet
+  appear and disappear. If instead B is upgraded second and publishes a bundle
+  keyed on the same device identifiers, **B's bundle replaces A's entire
+  fleet**, not one entity of it.
+- The retraction list is keyed on `unique_id` (see
+  [F5](#f5)/`hass.LegacyConfigTopicForm`), and both instances produce the same
+  `unique_id`s. So neither instance can tell its own retained configs from the
+  other's, in either direction.
+
+The three candidates are unchanged and **nothing is decided here**: put
+`MQTT_TOPIC` in the namespace (correct, and re-keys every `unique_id` in every
+existing installation), add an `INSTANCE_ID` key empty by default (additive, and
+empty is exactly the current behaviour), or leave it and document it. What step
+3 must decide is not *which*, but *whether a decision lands before the bundle*.
+The answer that needs no argument: **step 6 must not ship without one.**
+
+### Corrections to the measurement above
+
+The measurement got two counts wrong, both found by acting on it rather than
+reading it.
+
+1. **[F3](#f3) says nine state-topic builders. There are twelve.** The three it
+   missed:
+   - `internal/hass/climate.go:190` `auxBase` — the composite climate's five
+     synthetic slots. (§F3 mentions it in a trailing sentence but excludes it
+     from the nine.)
+   - `internal/hass/schedule.go:45` `Discovery.ScheduleStateTopic`.
+   - `internal/coordinator/schedule.go:288` `PublishScheduleSwitches`.
+
+   The last two are a **pair** — the same topic composed in two packages, from
+   two separately-declared `SchedulerDeviceID` constants, with the leaf segment
+   a bare `"enabled"` literal on one side and a named constant on the other.
+   That is precisely the shape F3 describes, and it was not in the count.
+
+   `TestStateTopicBuildersAgree`'s own doc comment in #75 said "eight places …
+   and seven inline" while listing nine sites, so the pin and the document
+   disagreed with each other as well. Both are corrected.
+
+   Counting the whole tree rather than just the state plane: **seventeen**
+   composition sites — 12 state, 2 attributes, 4 command, 3 bridge status (the
+   bridge status topic was composed in `cmd/daikin2mqtt/main.go` for the Will,
+   in `coordinator.go:172` for the retained `online`, and in
+   `hass/discovery.go:268` for all 264 payloads). The programme's running count
+   is therefore: zendure —, mtec 2 measured / 5 found, homeconnect 2 measured /
+   6 found, daikin 9 measured / **12** found. **The count has still never been
+   too high.**
+
+2. **[F6](#f6) is a confirmed defect, not a candidate.** §3.4's first unknown —
+   "whether real Faikin firmware sends `fan: auto|1..5|quiet` or
+   `auto|low|medium|…`" — is answered *from this repository*, without a live
+   module:
+   - `docs/api/onecta-cloud-api-openapi.json` gives
+     `fanSpeed.currentMode.values` as `["quiet","auto","fixed"]`, `fixed` an
+     integer 1..5 — and `low`/`medium`/`high` as the **humidification**
+     vocabulary, which is what `faikinFanToCloud` was written against.
+   - Every `fanSpeed` block in every shipped ONECTA fixture agrees.
+   - `parseFanSpeed` builds the entity's advertised `fan_modes` from exactly
+     those values.
+   - `cloudFanToFaikin`, four lines above the broken map, maps cloud
+     `auto|quiet|1..5` to Faikin `A|Q|1..5`.
+
+   So the map's keys belonged to a different characteristic entirely. Fixed.
+   What remains genuinely unknown, and is narrower than §3.4 stated: whether the
+   firmware ever reports its fan as the command *character* (`A`, `Q`) rather
+   than the word. Those are deliberately not accepted.
+
+3. **§2.2's message count for `multisplit.local.en` was 219; it is 221 after
+   F6's fix.** The two added messages are the `fan_mode` state topics that
+   finally get published.
+
+§3.4's second unknown — whether ONECTA's device array order is stable — is
+**no longer load-bearing**. [F7](#f7)'s fix removes the dependency rather than
+resolving the question. §3.4's third (whether HA accepts a bundled `climate`
+component reading a sibling component's state topic) is untouched and still
+gates step 6 at step 3b.
+
+---
+
 ## Sequencing — the rest of phase 8
 
 Ordered so each step de-risks the next, following the shape phases 5, 6 and 7
@@ -980,9 +1272,9 @@ converged on.
 | Step | Work | Why here |
 | ---: | --- | --- |
 | **0** | **This PR.** Bump `go-mqtt` v1.3.0 → v1.5.1; add the twelve-scenario surface pin, the digests, the eleven builder invariants and `.gitattributes`; measure and record F1–F14. | Nothing can be proved byte-equal against a surface that was never captured. |
-| 1 | Housekeeping the bump enables, payloads untouched — the goldens must not move. | Small, mechanical, and a free check that the pins do not fire on a non-payload change. |
-| 2 | **Fix the defects, one commit per finding, goldens regenerated with the diff reviewed.** F1 (`MQTT_CLIENT_ID`) and F3 (one topic builder) first — neither changes a byte on the wire. Then F2 (the localized entity-id seed — a one-time re-key, with a release note), F7 (deterministic outdoor member), F13, F10's comment. F6 only once §3.4's first unknown is settled. | The byte-equality proof in step 5 must compare against *corrected* bytes, not against bugs. F1 is first because it is the only finding that takes a live installation down. |
-| 3 | **Decide the three questions that are not implementation.** (a) F4: a consumer `discovery.Context` keeping `slugify`, or accept entity-id re-registration for non-ASCII device names. (b) F8: `model.BridgeOnly()` and stay byte-equal, or take `{LevelBridge, LevelDevice}` and wire `LevelDevice` to `isCloudConnectionUp`/Faikin `online` — changing all 264 payloads. (c) F14: whether an `INSTANCE_ID` lands before the bundle. Written down, not discovered. | All three are irreversible for an installed base. Phase 6 hit (a) at step 3 and paid for it. |
+| 1 | **Done.** Housekeeping the bump enables: `mqtt.SplitClient` replaces the hand-rolled `mqttSession`; `ConnectWithRetry` deliberately declined. Payloads untouched, goldens unmoved. | Small, mechanical, and a free check that the pins do not fire on a non-payload change. |
+| **2** | **Done** — see [Step 2 outcome](#step-2-outcome--what-was-fixed-what-was-decided-what-stays). F1, F3, F5, F10, F13 first (no bytes move), then F2, F7, F6 (41 keys changed, 2 topics added, 5 of 12 scenarios, 5 digests updated by hand). F4, F8, F9, F11, F12 and F14 decided in writing. | The byte-equality proof in step 5 must compare against *corrected* bytes, not against bugs. F1 was first because it is the only finding that takes a live installation down. |
+| 3 | (a) and (b) are **decided above** — F4 keeps this bridge's three normalisers, F8 takes `model.BridgeOnly()`. What is left is (c) F14: whether an `INSTANCE_ID` lands before the bundle, plus the `availability_topic`-vs-`availability`-list spelling question F8's decision raises. | All are irreversible for an installed base. Phase 6 hit (a) at step 3 and paid for it; this phase settled it at step 2 instead. |
 | 3b | **Settle §3.4's third unknown against a live Home Assistant.** One throwaway bundle carrying a `climate` component whose `current_temperature_topic` is another component's state topic, HA 2026.9, watch the log. | Half a day, and it gates step 6 for the one bridge whose composite entity is the point of the phase. |
 | 4 | **Model the catalogue as `model.Entity` and render one bundle, publishing nothing.** The composite climate as `Bindings` + `Suppressor` + `Builder`; the shared outdoor unit as `Identity.Equal` merging two indoor units' outdoor identifiers; the cloud/Faikin fusion as `Origin` + `Precedence("local", "cloud")`. Compare the rendered per-component output **against the golden files, not against the builder it replaces**. Neither pin regenerated. | This is where a `Layout`, `Context`, `Slot` or composite mismatch surfaces, at zero risk — and it is the part ADR 0070 §3.5 nominates daikin to prove. |
 | 5 | Adopt the library on the **state and command** planes, discovery still per-entity from the old path. Spell `publisher.QoSAtMostOnce` everywhere (F9). | The state plane has no registry keys to orphan; it is the cheap half. |
@@ -999,7 +1291,8 @@ converged on.
   nothing in any log.
 - **Do not fix F2 and F7 in the migration step.** Both move retained strings on
   an installed base. A migration step whose golden diff is empty is provable;
-  one whose diff is a hundred rows is not.
+  one whose diff is a hundred rows is not. *(Done at step 2, as intended: 41
+  keys, every one named to its finding.)*
 - **Do not remove the unread topics of F11 cause 2.** They are what makes the
   `scope: outdoor` dedup work at all.
 - **Do not shrink the pins.** The 38 sensors of a local-mode multi-split that

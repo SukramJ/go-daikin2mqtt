@@ -421,7 +421,7 @@ func TestEntityIDSeedIsLanguageIndependentOnEverySubDevicePath(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			var seeds []string
+			seeds := make([]string, 0, 2)
 			for _, lang := range []string{"en", "de"} {
 				d := New("homeassistant", "daikin", lang, nil)
 				_, _, seed := d.entityIdentity(c.p, c.info)
