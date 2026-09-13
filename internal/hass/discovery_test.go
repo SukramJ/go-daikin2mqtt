@@ -291,6 +291,7 @@ func keys(m map[string][]byte) []string {
 
 func TestIsOwnConfig(t *testing.T) {
 	d := New("homeassistant", "daikin", "en", &capturePub{})
+	d.ClaimDevices([]string{"dev1", "scheduler"})
 	cases := []struct {
 		name    string
 		payload string
@@ -298,14 +299,66 @@ func TestIsOwnConfig(t *testing.T) {
 	}{
 		{"our sensor", `{"unique_id":"daikin_dev1_room_temperature","state_topic":"daikin/dev1/climateControl/room_temperature/state"}`, true},
 		{"our climate (no state_topic)", `{"unique_id":"daikin_dev1_climate","mode_state_topic":"daikin/dev1/climateControl/hvac_mode/state"}`, true},
+		{"our schedule switch", `{"unique_id":"daikin_schedule_werktag","state_topic":"daikin/scheduler/werktag/enabled/state"}`, true},
+		// The two stateless classes, which is where the rule this replaces had
+		// its hole: 24 of the 264 pinned configs carry no `state_topic` — the
+		// 14 composite climates (they name mode_state_topic and friends, never
+		// a plain one) and the 10 refresh buttons (stateless by definition) —
+		// and the old rule, finding no state topic to key on, collapsed to the
+		// `daikin_` namespace, which every instance of this bridge shares.
+		{"our button", `{"unique_id":"daikin_outdoor_ODU1_refresh","command_topic":"daikin/dev1/climateControl/refresh/set"}`, true},
+		{"a sibling's button", `{"unique_id":"daikin_outdoor_ODU2_refresh","command_topic":"daikin/dev2/climateControl/refresh/set"}`, false},
+		{"a sibling's button on another root", `{"unique_id":"daikin_outdoor_ODU2_refresh","command_topic":"klima/dev2/climateControl/refresh/set"}`, false},
 		{"foreign integration", `{"unique_id":"zigbee2mqtt_0x123","state_topic":"zigbee2mqtt/x"}`, false},
 		{"daikin uid but foreign state topic", `{"unique_id":"daikin_dev1_x","state_topic":"other/x"}`, false},
 		{"garbage", `not json`, false},
+		// F14: a sibling instance's config. Same namespace, same MQTT root,
+		// same four-segment form — only the device differs, and that device is
+		// one this instance does not poll. This is the case a predicate over
+		// the TOPIC cannot decide, because the topic is keyed on a unique_id
+		// two instances produce identically.
+		{"a sibling instance's device", `{"unique_id":"daikin_dev2_room_temperature","state_topic":"daikin/dev2/climateControl/room_temperature/state"}`, false},
+		{"a sibling's climate, every slot", `{"unique_id":"daikin_dev2_climate","mode_state_topic":"daikin/dev2/climateControl/hvac_mode/state","mode_command_topic":"daikin/dev2/climateControl/hvac_mode/set"}`, false},
+		// One slot of ours and one of theirs is not half ours: the whole
+		// payload has to be this instance's or it is nobody's.
+		{"a payload straddling two instances", `{"unique_id":"daikin_dev1_climate","mode_state_topic":"daikin/dev1/climateControl/hvac_mode/state","current_temperature_topic":"daikin/dev2/climateControl/room_temperature/state"}`, false},
+		// availability_topic is bridge-level on every config and names no
+		// device, so it is not evidence of ownership on its own.
+		{"availability only", `{"unique_id":"daikin_dev1_x","availability_topic":"daikin/bridge/status"}`, false},
 	}
 	for _, tc := range cases {
 		if got := d.IsOwnConfig([]byte(tc.payload)); got != tc.want {
 			t.Errorf("%s: IsOwnConfig = %v, want %v", tc.name, got, tc.want)
 		}
+	}
+}
+
+// TestIsOwnConfigClaimsNothingBeforeTheFirstPoll pins the half of F14's fix
+// that has no payload in it: a Discovery that has not been told what this
+// instance polls claims nothing at all.
+//
+// Ownership that cannot be proven is not claimed. A retraction taken on state
+// the daemon has not learned yet is a deletion it cannot undo, and the moment
+// it would happen — a reconcile racing the first poll, or a poll that failed —
+// is exactly the moment the daemon knows least.
+func TestIsOwnConfigClaimsNothingBeforeTheFirstPoll(t *testing.T) {
+	d := New("homeassistant", "daikin", "en", &capturePub{})
+	own := []byte(`{"unique_id":"daikin_dev1_room_temperature","state_topic":"daikin/dev1/climateControl/room_temperature/state"}`)
+	if d.IsOwnConfig(own) {
+		t.Error("an uninitialised Discovery claimed a config")
+	}
+	if got := d.ClaimedDevices(); len(got) != 0 {
+		t.Errorf("ClaimedDevices = %v, want none", got)
+	}
+	d.ClaimDevices([]string{"dev1"})
+	if !d.IsOwnConfig(own) {
+		t.Error("after ClaimDevices, this instance's own config was still not claimed")
+	}
+	// And an empty claim set puts it back: a poll that resolved no device
+	// leaves the daemon knowing nothing, not knowing everything.
+	d.ClaimDevices(nil)
+	if d.IsOwnConfig(own) {
+		t.Error("an emptied claim set still claimed a config")
 	}
 }
 

@@ -17,6 +17,28 @@
 
 ### Fixed
 
+- **A second go-daikin2mqtt on the same broker could delete the
+  first's thermostat and refresh-button entities.** The daemon clears
+  retained discovery configs it no longer publishes, and decided a
+  config was "its own" from the `daikin_` prefix plus the MQTT root of
+  the config's `state_topic`. The composite thermostat entity and the
+  refresh button carry no `state_topic` at all — the thermostat names
+  one topic per function instead — so for those the rule fell back to
+  the `daikin_` prefix, which every installation shares. A second
+  instance (a second ONECTA account, a holiday home, a staging
+  daemon) therefore had its thermostats and refresh buttons removed
+  from Home Assistant — silently, and from dashboards and automations
+  with them. On a **shared** `MQTT_TOPIC` the whole second instance
+  was removed, not only those two.
+
+  A config is now recognised as this instance's own only if every
+  topic it names sits under this instance's MQTT root **and** under a
+  device this instance actually polls. **One consequence for a single
+  instance:** a device removed from your ONECTA account is no longer
+  polled, so its retained configs are no longer cleared automatically
+  and remain as unavailable entities until cleared by hand. An entity
+  removed by a catalogue change, or a deleted schedule, is cleared
+  exactly as before.
 - **The climate fan dropdown showed `unknown` in local mode** whenever
   a unit was not on `auto`. The Faikin read path owns `fan_mode` for a
   mapped device, and the map translating the module's reported fan
@@ -51,10 +73,27 @@
 
 ### Changed
 
+- **Fewer redundant MQTT messages.** Entity state is now published
+  through a de-duplicating gate: a value that has not changed since
+  the last poll is compared instead of re-written. A steady-state
+  multi-split wrote ~220 retained messages per poll, nearly all of
+  them byte-identical to the previous one; it now writes only what
+  moved. Nothing about *what* Home Assistant sees changes — every
+  topic, payload, QoS and retain flag is unchanged, and the gate is
+  re-opened on every reconnect so a broker restarted without its
+  retained store is refilled.
+- Internal: orphan cleanup — see the *Fixed* entry about a second
+  instance's entities, which is the same change.
 - Internal: every MQTT topic this bridge publishes to or subscribes to
   is now composed by one `internal/layout` package instead of
   seventeen separate expressions across four packages. No published
   topic changes.
+- Internal: the state, availability and command planes are published
+  by `go-hamqtt`'s `publisher` package instead of by this bridge's own
+  code. The Last Will and the retained `online` marker now come from
+  one object rather than from three literals in three packages. No
+  published topic, payload, QoS or retain flag changes; the twelve
+  pinned surface scenarios and their digests are unmoved.
 
 # Version 0.11.0 (2026-08-16)
 

@@ -544,13 +544,20 @@ func TestClearOrphanConfigs(t *testing.T) {
 		HASS:   hass.New("homeassistant", "daikin", "de", m),
 		Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
 	})
+	// What this instance polls. Without it nothing is claimed and nothing is
+	// cleared — see TestIsOwnConfigClaimsNothingBeforeTheFirstPoll.
+	c.deps.HASS.ClaimDevices([]string{"dev1"})
 	current := `{"unique_id":"daikin_dev1_room_temperature","state_topic":"daikin/dev1/climateControl/room_temperature/state"}`
 	orphan := `{"unique_id":"daikin_dev1_old_sensor","state_topic":"daikin/dev1/climateControl/old_sensor/state"}`
 	foreign := `{"unique_id":"zigbee2mqtt_x","state_topic":"zigbee2mqtt/x"}`
+	// A second go-daikin2mqtt instance's config: same namespace, same MQTT
+	// root, same topic form, a device this instance does not poll (F14).
+	sibling := `{"unique_id":"daikin_dev2_room_temperature","state_topic":"daikin/dev2/climateControl/room_temperature/state"}`
 	retained := map[string][]byte{
 		"homeassistant/sensor/daikin_dev1_room_temperature/config": []byte(current),
 		"homeassistant/sensor/daikin_dev1_old_sensor/config":       []byte(orphan),
 		"homeassistant/sensor/zigbee2mqtt_x/config":                []byte(foreign),
+		"homeassistant/sensor/daikin_dev2_room_temperature/config": []byte(sibling),
 	}
 	published := map[string]bool{"homeassistant/sensor/daikin_dev1_room_temperature/config": true}
 
@@ -564,5 +571,8 @@ func TestClearOrphanConfigs(t *testing.T) {
 	// The current and foreign configs are untouched.
 	if _, ok := m.get("homeassistant/sensor/zigbee2mqtt_x/config"); ok {
 		t.Error("foreign config must never be cleared")
+	}
+	if _, ok := m.get("homeassistant/sensor/daikin_dev2_room_temperature/config"); ok {
+		t.Error("another instance's config must never be cleared")
 	}
 }

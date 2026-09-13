@@ -8,7 +8,9 @@ package hass
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"strings"
+	"sync"
 
 	"github.com/SukramJ/go-mqtt"
 
@@ -22,6 +24,12 @@ type Discovery struct {
 	state     layout.Root // the state-plane topic layout, rooted at e.g. "daikin"
 	lang      string
 	pub       mqtt.Publisher
+
+	mu sync.RWMutex
+	// owned is the set of state-plane device segments this instance writes —
+	// see [Discovery.ClaimDevices]. Empty until the first resolved poll, and
+	// an empty set claims nothing.
+	owned map[string]bool
 }
 
 // New returns a Discovery publisher. baseTopic is the HA discovery prefix,
@@ -421,19 +429,112 @@ func lessPoint(a, b process.Point) bool {
 	return a.EmbeddedID < b.EmbeddedID
 }
 
-// IsOwnConfig reports whether a retained HA discovery config payload was
-// published by this daemon (its unique_id is in our `daikin_…` namespace and its
-// state topic is under our root), so orphan cleanup never touches other configs.
-func (d *Discovery) IsOwnConfig(payload []byte) bool {
-	var cfg struct {
-		UniqueID   string `json:"unique_id"`
-		StateTopic string `json:"state_topic"`
+// UniqueIDPrefix is the namespace every unique_id this daemon publishes starts
+// with. It is a compile-time literal rather than a function of MQTT_TOPIC, so
+// changing the MQTT root orphans no entity — see [mainIdentifier].
+const UniqueIDPrefix = "daikin_"
+
+// ClaimDevices states which device segments of the state plane this instance
+// actually writes: the ONECTA device ids of the last resolved poll, plus
+// [layout.SchedulerDeviceID] when the weekly scheduler is running.
+//
+// It is what makes [Discovery.IsOwnConfig] an answer about THIS instance rather
+// than about the `daikin_` namespace, and it is deliberately push-based: the
+// set is a fact about the last poll, and a Discovery that has not been told
+// claims nothing.
+func (d *Discovery) ClaimDevices(ids []string) {
+	owned := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if id != "" {
+			owned[id] = true
+		}
 	}
-	if json.Unmarshal(payload, &cfg) != nil {
+	d.mu.Lock()
+	d.owned = owned
+	d.mu.Unlock()
+}
+
+// ClaimedDevices returns the device segments currently claimed, sorted — for a
+// log line and for the tests that drive the sweep.
+func (d *Discovery) ClaimedDevices() []string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	out := make([]string, 0, len(d.owned))
+	for id := range d.owned {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// IsOwnConfig reports whether a retained HA discovery config payload was
+// published by THIS instance: its unique_id is in the `daikin_` namespace AND
+// every topic it names lives under this instance's own MQTT root and under a
+// device segment this instance actually polls ([Discovery.ClaimDevices]).
+//
+// The second half is unconditional, and that is the whole point (F14). Two
+// go-daikin2mqtt instances on one broker derive every identity string from the
+// ONECTA device id or a component serial: the legacy config topic is keyed on
+// unique_id and the bundle node id is sanitize(dev.UID()), so BOTH are
+// byte-identical between two instances seeing one device and no predicate over
+// the TOPIC can separate them. The payload can — an instance that does not poll
+// a device never writes a topic under that device's segment.
+//
+// The failure this closes is go-mtec2mqtt's, proved by its reviewer and fixed
+// in its PR #54: a staggered upgrade where one instance publishes a device
+// bundle and retracts "its" per-entity configs deletes the sibling's entire
+// fleet, permanently, because the sibling has no reason to republish. The
+// earlier version of that fix made the identity check opt-in; under the default
+// the hazard was untouched. This one has no flag.
+//
+// It returns false before the first poll has resolved anything, for the same
+// reason: ownership that cannot be proven is not claimed, and a retraction
+// taken on state the daemon has not learned yet is a deletion it cannot undo.
+//
+// availability_topic is excluded from the check because it is bridge-level by
+// construction (`<root>/bridge/status`, the same string on every config); the
+// root half is still checked, by every other topic key.
+func (d *Discovery) IsOwnConfig(payload []byte) bool {
+	var body map[string]any
+	if json.Unmarshal(payload, &body) != nil || body == nil {
 		return false
 	}
-	return strings.HasPrefix(cfg.UniqueID, "daikin_") &&
-		(cfg.StateTopic == "" || strings.HasPrefix(cfg.StateTopic, d.state.String()+"/"))
+	uid, _ := body["unique_id"].(string)
+	if !strings.HasPrefix(uid, UniqueIDPrefix) {
+		return false
+	}
+	d.mu.RLock()
+	owned := d.owned
+	d.mu.RUnlock()
+	if len(owned) == 0 {
+		return false
+	}
+	named := 0
+	for key, v := range body {
+		if !strings.HasSuffix(key, "_topic") || key == "availability_topic" {
+			continue
+		}
+		t, ok := v.(string)
+		if !ok || t == "" {
+			continue
+		}
+		if !d.ownsTopic(owned, t) {
+			return false
+		}
+		named++
+	}
+	// A payload naming no topic of ours at all is not evidence of ownership.
+	return named > 0
+}
+
+// ownsTopic reports whether t is "<our root>/<a claimed device segment>/…".
+func (d *Discovery) ownsTopic(owned map[string]bool, t string) bool {
+	rest, ok := strings.CutPrefix(t, d.state.String()+"/")
+	if !ok {
+		return false
+	}
+	seg, _, ok := strings.Cut(rest, "/")
+	return ok && owned[seg]
 }
 
 // ConfigFilter is the MQTT filter matching this daemon's discovery config topics
@@ -629,4 +730,22 @@ func orDefault(s, def string) string {
 		return def
 	}
 	return s
+}
+
+// ConfigUniqueID returns the top-level unique_id of a retained discovery config
+// payload, or "" when there is none (a device bundle carries none either).
+//
+// Exported for the sweep's report, which distinguishes a config another
+// go-daikin2mqtt instance published — same namespace, different device — from
+// one another integration published onto a topic that merely looks like ours.
+// Neither is ever retracted; telling them apart is what makes the report
+// reviewable.
+func ConfigUniqueID(payload []byte) string {
+	var body struct {
+		UniqueID string `json:"unique_id"`
+	}
+	if json.Unmarshal(payload, &body) != nil {
+		return ""
+	}
+	return body.UniqueID
 }

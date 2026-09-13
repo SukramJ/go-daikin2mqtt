@@ -25,6 +25,9 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/SukramJ/go-hamqtt/publisher"
+	hagomqtt "github.com/SukramJ/go-hamqtt/publisher/gomqtt"
+
 	"github.com/SukramJ/go-mqtt"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
@@ -106,14 +109,39 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	})
 
 	// --- MQTT ---
-	statusTopic := bridgeStatusTopic(cfg)
+	// The discovery-plane runtime is built from a FACTORY, not held as an
+	// instance: the coordinator rebuilds it on every (re)connect, because
+	// everything it remembers — what it has superseded, declared and announced
+	// — is a statement about one broker connection. See coordinator.RuntimeFactory.
+	//
+	// The transport is deferred because of an ordering this cannot escape: the
+	// Last Will is part of CONNECT, so the client needs it before it exists,
+	// while the will IS the runtime's answer. haLink is wired to the real
+	// client below, and refuses use before that rather than panicking — a
+	// publish path losing one message beats the daemon dying.
+	haLink := &deferredTransport{}
+	haConfig := coordinator.RuntimeConfig(cfg, logger)
+	newHARuntime := func() *publisher.Runtime { return publisher.New(haLink, haConfig) }
+
+	bootRuntime := newHARuntime()
+	defer bootRuntime.Close()
+	// One function for both halves of the availability policy: this will and
+	// the retained "online" the coordinator announces on every connect are the
+	// same topic and the same two words, and that topic is the one all 264
+	// discovery payloads name (RuntimeConfig's Layout derives it from
+	// internal/layout). Three literals in three packages is how a sibling
+	// bridge ended up with a will no entity reads.
+	will, err := bootRuntime.Will()
+	if err != nil {
+		return fmt.Errorf("mqtt will: %w", err)
+	}
 	mqttClient := mqtt.NewTCPClient(mqtt.TCPConfig{
 		BrokerURL:  fmt.Sprintf("tcp://%s:%d", cfg.MQTTServer, cfg.MQTTPort),
 		ClientID:   mainClientID(cfg),
 		Username:   cfg.MQTTLogin,
 		Password:   cfg.MQTTPassword,
 		CleanStart: true,
-		Will:       bridgeWill(statusTopic),
+		Will:       bridgeWill(will),
 		Logger:     logger,
 	})
 	lifecycle := mqtt.NewLifecycle(mqtt.LifecycleConfig{Logger: logger}, mqttClient)
@@ -141,6 +169,11 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	// publish-side broker brownout. go-mqtt v1.4.0 extracted this pairing from
 	// the five bridges that each carried their own copy of it.
 	session := mqtt.SplitClient(breaker, mqttClient)
+	// Publishes go through the circuit breaker, subscribes straight to the
+	// client — the same split the coordinator gets, so the library planes and
+	// the daemon's own calls cannot end up on different policies.
+	haLink.wire(hagomqtt.Split(breaker, mqttClient))
+	statePlane := coordinator.NewStatePlane(haLink, layout.New(cfg.MQTTTopic), logger)
 	defer func() {
 		stopCtx, stop := context.WithTimeout(context.Background(), 3*time.Second)
 		defer stop()
@@ -194,13 +227,15 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	// possibly on a separate local broker whose health is independent of
 	// the main link — a main-broker brownout must not reject them.
 	coord := coordinator.New(coordinator.Deps{
-		Cfg:        cfg,
-		Client:     cloud,
-		MQTT:       session,
-		FaikinMQTT: faikinClient,
-		Catalog:    cat,
-		HASS:       discovery,
-		Logger:     logger,
+		Cfg:          cfg,
+		Client:       cloud,
+		MQTT:         session,
+		FaikinMQTT:   faikinClient,
+		Catalog:      cat,
+		HASS:         discovery,
+		Logger:       logger,
+		NewHARuntime: newHARuntime,
+		StatePlane:   statePlane,
 	})
 	// Re-announce availability after every (re)connect.
 	lifecycle.OnConnect(func(cctx context.Context) { coord.PublishOnline(cctx) })
@@ -260,24 +295,23 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	return g.Wait()
 }
 
-// bridgeStatusTopic is the bridge's availability topic. It is the retained
-// "online" the coordinator publishes on connect, the "offline" the broker
-// publishes as the Last Will, and the availability_topic named by every one of
-// this bridge's discovery payloads.
+// bridgeWill copies publisher.Will onto the client's own will type, field for
+// field and with no literal of its own.
 //
-// Those three used to be composed in three packages — here, in
-// internal/coordinator and in internal/hass — and nothing compared them (F3).
-// A drift is silent and total: an entity whose availability_topic nobody
-// writes is permanently unavailable in Home Assistant, with nothing in any log.
-func bridgeStatusTopic(cfg *config.Config) string {
-	return layout.New(cfg.MQTTTopic).BridgeStatus()
-}
-
-// bridgeWill is the CONNECT Will: retained, so a broker that loses this daemon
-// leaves "offline" on the topic every entity reads, instead of leaving the last
-// "online" standing forever.
-func bridgeWill(statusTopic string) *mqtt.Will {
-	return &mqtt.Will{Topic: statusTopic, Payload: []byte("offline"), Retain: true}
+// A function rather than an inline literal because run() is a composition root
+// that dials a broker and blocks, so nothing can assert what it passed; this can
+// be asserted, and what it asserts is that the CONNECT will and the retained
+// "online" the coordinator announces come from one object. Two literals in two
+// packages is how a sibling bridge ended up with a will no entity reads — the
+// broker dutifully writes "offline" on a crash and every entity stays available
+// forever, showing the last value it ever saw.
+func bridgeWill(w publisher.Will) *mqtt.Will {
+	return &mqtt.Will{
+		Topic:   w.Topic,
+		Payload: w.Payload,
+		QoS:     mqtt.QoS(w.QoS),
+		Retain:  w.Retain,
+	}
 }
 
 // mainClientID is the MQTT client identifier the bridge presents on the main

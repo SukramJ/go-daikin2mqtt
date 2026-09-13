@@ -10,6 +10,7 @@ import (
 	hacatalog "github.com/SukramJ/go-ha-catalog"
 	"github.com/SukramJ/go-hamqtt/discovery"
 	"github.com/SukramJ/go-hamqtt/model"
+	"github.com/SukramJ/go-hamqtt/publisher"
 	hatopic "github.com/SukramJ/go-hamqtt/topic"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
@@ -736,4 +737,34 @@ func (d *Discovery) scheduleEntity(s ScheduleInfo) *renderEntity {
 		objectIDIsUniqueID: true,
 		fields:             discovery.SwitchFields{PayloadOn: "on", PayloadOff: "off", StateOn: "on", StateOff: "off"},
 	}
+}
+
+// --- ADR 0070 phase 8 step 5: what the RUNTIME reads ------------------------
+
+// Layout is the go-hamqtt [hatopic.Layout] for a state plane rooted at
+// stateRoot.
+//
+// Exported at step 5 because publisher.Config takes it: with a Layout set, the
+// runtime derives Config.StatusTopic from Layout.Bridge() and refuses a
+// StatusTopic that disagrees with it. That is what makes the birth marker, the
+// Last Will and the availability_topic of all 264 discovery payloads one
+// string by construction rather than by three literals that happen to match —
+// the drift go-mtec2mqtt shipped, where a will nobody reads is
+// indistinguishable from no will at all.
+func Layout(stateRoot string) hatopic.Layout { return hamqttLayout{root: layout.New(stateRoot)} }
+
+// LegacyConfigTopicForms is [LegacyConfigTopicForm] as the value
+// publisher.Config.LegacyEntityTopics takes.
+//
+// Stated at step 5 although nothing publishes a bundle yet, because the field
+// REPLACES the library's default rather than extending it: an unstated list is
+// the five-segment publisher.LegacyTopicWithNodeID, which reproduces 0 of this
+// bridge's 264 config topics and would therefore retract nothing at step 6 —
+// leaving every per-entity config retained under the bundle and Home Assistant
+// refusing the document with a single WARNING line. Saying it here means step 6
+// cannot forget it, and publisher.Runtime.LegacyForms() makes the choice
+// assertable (TestRuntimeStatesTheLegacyTopicForm) and visible in the
+// publisher.legacy_forms boot log line.
+func LegacyConfigTopicForms() []publisher.LegacyTopicFunc {
+	return []publisher.LegacyTopicFunc{publisher.LegacyTopicByUniqueID}
 }

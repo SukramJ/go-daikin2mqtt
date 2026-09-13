@@ -11,14 +11,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sync/errgroup"
+
+	"github.com/SukramJ/go-hamqtt/publisher"
+	hagomqtt "github.com/SukramJ/go-hamqtt/publisher/gomqtt"
 
 	"github.com/SukramJ/go-mqtt"
 
@@ -54,6 +59,14 @@ type Deps struct {
 	// used for local-first reads/writes. Optional; nil disables local mode
 	// regardless of LOCAL_MODE.
 	FaikinMQTT mqtt.Client
+	// NewHARuntime builds a fresh publisher.Runtime over the wired transport.
+	// A factory, not an instance: see [RuntimeFactory]. Optional — nil builds
+	// one over MQTT with [RuntimeConfig], which is what the tests get.
+	NewHARuntime RuntimeFactory
+	// StatePlane is the go-hamqtt state publisher every retained state and
+	// attributes topic goes out through. Optional; nil builds one over MQTT
+	// with [NewStatePlane], so the QoS is stated in one place either way.
+	StatePlane *publisher.StatePublisher
 }
 
 // Coordinator owns the poll/publish/write loops.
@@ -83,6 +96,17 @@ type Coordinator struct {
 	// schedule is the weekly-programme engine, attached by AttachScheduler.
 	// nil (the default) leaves the scheduler disabled.
 	schedule scheduler
+
+	// haRuntime is the CURRENT connection's publisher.Runtime. It is replaced
+	// wholesale by resetHAPlane on every (re)connect, never mutated, and is
+	// only ever read through ha() — never stored across a call that can block
+	// on the broker, because the connection it belongs to may be gone by then.
+	haRuntime atomic.Pointer[publisher.Runtime]
+	// commands is the go-hamqtt router for "<root>/+/+/+/set".
+	commands *publisher.CommandRouter
+	// collectWindow is how long each retained-config snapshot listens. Written
+	// once, by New, before anything can read it.
+	collectWindow time.Duration
 }
 
 // econoSuspendState tracks the powerful<->econo save/restore per outdoor group.
@@ -132,9 +156,25 @@ func New(d Deps) *Coordinator {
 	if d.Clock == nil {
 		d.Clock = time.Now
 	}
-	return &Coordinator{
+	root := layout.New(d.Cfg.MQTTTopic)
+	// The library planes are built here when the caller supplied none, over the
+	// same client the daemon publishes everything else on. One construction
+	// path, so the QoS that reaches the wire is stated in exactly one place
+	// (NewStatePlane / RuntimeConfig) whether the daemon or a test built it.
+	if d.MQTT != nil {
+		tr := hagomqtt.Split(d.MQTT, d.MQTT)
+		if d.StatePlane == nil {
+			d.StatePlane = NewStatePlane(tr, root, d.Logger)
+		}
+		if d.NewHARuntime == nil {
+			cfg := RuntimeConfig(d.Cfg, d.Logger)
+			d.NewHARuntime = func() *publisher.Runtime { return publisher.New(tr, cfg) }
+		}
+	}
+	c := &Coordinator{
 		deps:            d,
-		topicRoot:       layout.New(d.Cfg.MQTTTopic),
+		topicRoot:       root,
+		collectWindow:   reconcileCollectWindow,
 		writes:          make(chan writeReq, 64),
 		localStates:     make(chan localStateMsg, 64),
 		refresh:         make(chan struct{}, 1),
@@ -148,6 +188,11 @@ func New(d Deps) *Coordinator {
 		econoSuspend:    map[string]econoSuspendState{},
 		econoLatch:      map[string]bool{},
 	}
+	if d.NewHARuntime != nil {
+		c.haRuntime.Store(d.NewHARuntime())
+		c.commands = NewCommandRouter(hagomqtt.Split(d.MQTT, d.MQTT), d.Logger)
+	}
+	return c
 }
 
 // Run starts the poll loop and the write drain, and subscribes to /set
@@ -155,9 +200,27 @@ func New(d Deps) *Coordinator {
 func (c *Coordinator) Run(ctx context.Context) error {
 	c.PublishOnline(ctx)
 
+	// Before anything is subscribed, and a hard failure rather than a warning:
+	// a state topic that fell inside this daemon's own command filter would be
+	// delivered straight back as a command it issued to itself, and there is no
+	// safe way to run with that. It is a property of the layout and the
+	// catalogue, so it cannot be transient — unlike the subscribe below, which
+	// can fail on a broker hiccup and is retried by the reconnect.
+	if err := c.checkCommandDisjoint(); err != nil {
+		return err
+	}
 	if err := c.subscribeWrites(ctx); err != nil {
 		c.deps.Logger.Warn("coordinator.subscribe_failed", slog.String("err", err.Error()))
 	}
+	// Drains the handlers already accepted; safe on a router that never
+	// started.
+	defer func() {
+		stopCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+		defer stop()
+		if c.commands != nil {
+			_ = c.commands.Stop(stopCtx)
+		}
+	}()
 	c.subscribeLocal(ctx)
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -169,9 +232,31 @@ func (c *Coordinator) Run(ctx context.Context) error {
 
 // PublishOnline marks the bridge available (retained). Wire this to the MQTT
 // lifecycle OnConnect to re-announce after a reconnect.
+//
+// Three things happen here and the order matters. The state plane's dedup gate
+// is re-opened first, because a broker that came back without its retained
+// store holds nothing and the cache would otherwise answer "already published"
+// for every value until each one happened to change. The discovery runtime is
+// then rebuilt for the new connection (see [Coordinator.resetHAPlane]), so no
+// bookkeeping survives a connection it was made on. Only then is the marker
+// announced.
+//
+// The marker itself is publisher.Runtime.AnnounceOnline: the same retained
+// "online" on the same topic as before, now spelled by the same object that
+// produced the Last Will the broker publishes when this daemon dies
+// ([RuntimeConfig]'s Layout). That pairing used to be three independent
+// literals in three packages, which is how a sibling bridge ended up with a
+// will no entity references.
 func (c *Coordinator) PublishOnline(ctx context.Context) {
-	topic := c.topicRoot.BridgeStatus()
-	if err := c.deps.MQTT.Publish(ctx, topic, []byte("online"), mqtt.QoS0, true); err != nil {
+	if c.deps.StatePlane != nil {
+		c.deps.StatePlane.Reset()
+	}
+	c.resetHAPlane()
+	rt := c.ha()
+	if rt == nil {
+		return
+	}
+	if err := rt.AnnounceOnline(ctx); err != nil {
 		c.deps.Logger.Warn("coordinator.publish_online_failed", slog.String("err", err.Error()))
 	}
 }
@@ -242,6 +327,12 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	points = append(points, c.schedulePoints(devices)...)
 
 	if c.deps.HASS != nil {
+		// What this instance polls, and therefore which retained discovery
+		// configs it may ever claim as its own (F14). Stated before discovery
+		// publishes, because the orphan reconcile that follows the publish is
+		// what consumes it — and before the first poll has resolved anything
+		// the claim set is empty and nothing is claimed at all.
+		c.deps.HASS.ClaimDevices(c.claimedDeviceSegments(devices))
 		infos := deviceInfos(devices)
 		c.applyFaikinConfigURLs(infos)
 		c.maybePublishDiscovery(ctx, points, infos, climateInfos(devices, c.deps.Cfg.Language))
@@ -264,7 +355,7 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 		c.publishDataSources(ctx, points)
 	}
 
-	published := 0
+	published, written := 0, 0
 	for i := range points {
 		p := points[i]
 		// Buttons are stateless (command-only), so there is nothing to publish.
@@ -277,17 +368,24 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 			continue
 		}
 		topic := c.topicRoot.Slot(p.DeviceID, p.EmbeddedID, p.Topic).State()
-		if err := c.deps.MQTT.Publish(ctx, topic, []byte(c.formatValue(p)), mqtt.QoS0, true); err != nil {
-			c.deps.Logger.Warn("coordinator.publish_failed",
-				slog.String("topic", topic), slog.String("err", err.Error()))
+		w, ok := c.publishState(ctx, topic, c.formatValue(p))
+		if !ok {
 			continue
 		}
 		published++
+		if w {
+			written++
+		}
 	}
 	c.publishHVACModes(ctx, points)
 	c.publishClimateAux(ctx, devices)
+	// points is what this poll had to say; written is what actually reached the
+	// broker. The gap is the state plane's dedup gate, and a steady-state
+	// installation should show written far below points — a value that has not
+	// moved costs one comparison instead of one retained write and one Home
+	// Assistant state evaluation, forever.
 	c.deps.Logger.Info("coordinator.published",
-		slog.Int("devices", len(devices)), slog.Int("points", published))
+		slog.Int("devices", len(devices)), slog.Int("points", published), slog.Int("written", written))
 
 	// The device caches (climateEmbedded, modeCache) are now populated, so a
 	// schedule block that could not be applied before can be applied now. The
@@ -340,11 +438,7 @@ func (c *Coordinator) publishHVACModes(ctx context.Context, points []process.Poi
 			continue
 		}
 		topic := c.topicRoot.Slot(g.deviceID, g.embeddedID, hass.HVACModeTopic).State()
-		payload := hass.HVACMode(g.power, g.mode)
-		if err := c.deps.MQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, true); err != nil {
-			c.deps.Logger.Warn("coordinator.publish_hvac_failed",
-				slog.String("topic", topic), slog.String("err", err.Error()))
-		}
+		c.publishState(ctx, topic, hass.HVACMode(g.power, g.mode))
 	}
 }
 
@@ -432,6 +526,18 @@ func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []proces
 	c.reconcileOrphans(ctx, published)
 }
 
+// reconcileCollectWindow is how long a snapshot subscription listens before it
+// judges what is retained. Two seconds, the same value publisher.Sweep defaults
+// to, stated once so the hand-rolled pass and the library's report-only one
+// cannot answer the question over different windows.
+//
+// It is copied into each Coordinator at construction rather than read from the
+// package: a test that shrinks it — two seconds of real time per sweep
+// assertion is two seconds a reviewer pays on every run — would otherwise be
+// writing a global that another test's reconcile goroutine is reading, which
+// the race detector correctly calls a race.
+const reconcileCollectWindow = 2 * time.Second
+
 // reconcileOrphans clears this daemon's retained discovery configs that are no
 // longer in the published set. It collects the retained configs under the HA
 // discovery prefix, then clears ours (IsOwnConfig) that are absent from
@@ -459,7 +565,7 @@ func (c *Coordinator) reconcileOrphans(ctx context.Context, published map[string
 		case <-ctx.Done():
 			_ = c.deps.MQTT.Unsubscribe(ctx, filter)
 			return
-		case <-time.After(2 * time.Second):
+		case <-time.After(c.collectWindow):
 		}
 		_ = c.deps.MQTT.Unsubscribe(ctx, filter)
 
@@ -469,6 +575,12 @@ func (c *Coordinator) reconcileOrphans(ctx context.Context, published map[string
 		if cleared > 0 {
 			c.deps.Logger.Info("coordinator.discovery_orphans_cleared", slog.Int("count", cleared))
 		}
+		// The library's pass, report-only, STRICTLY AFTER this one has
+		// unsubscribed. Both open a snapshot subscription under the discovery
+		// prefix and a broker sends one copy per matching subscription, so two
+		// concurrent windows would double every delivery; the reconcile gate
+		// this goroutine holds is what keeps them sequential.
+		c.reportOnlySweep(ctx, published)
 	}()
 }
 
@@ -515,34 +627,113 @@ func (c *Coordinator) publishDataSources(ctx context.Context, points []process.P
 
 // publishAttrs publishes a retained data_source attributes document.
 func (c *Coordinator) publishAttrs(ctx context.Context, topic, source string) {
-	payload := `{"data_source":"` + source + `"}`
-	if err := c.deps.MQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, true); err != nil {
-		c.deps.Logger.Warn("coordinator.attrs_publish_failed",
-			slog.String("topic", topic), slog.String("err", err.Error()))
-	}
+	c.publishState(ctx, topic, `{"data_source":"`+source+`"}`)
 }
 
 func (c *Coordinator) subscribeWrites(ctx context.Context) error {
 	filter := c.topicRoot.CommandFilter()
-	_, err := c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(msg *mqtt.Message) {
-		// A retained /set message is a stale command the broker replays on
-		// every (re)subscribe; applying it would re-write hardware/cloud state
-		// on each reconnect and restart.
-		if msg.Retain {
-			c.deps.Logger.Warn("coordinator.write_retained_dropped", slog.String("topic", msg.Topic))
-			return
-		}
-		req, ok := c.parseSetTopic(msg.Topic, string(msg.Payload))
+	if c.commands == nil {
+		return nil
+	}
+	// Registered before Start, and Handle is what makes the overlap question
+	// answerable rather than argued: the router refuses two routes that both
+	// match some topic, because a broker sends one copy per matching
+	// subscription and the handler would run twice per message. This bridge
+	// registers exactly one route.
+	if err := c.commands.Handle(filter, func(_ context.Context, cmd publisher.Command) {
+		req, ok := c.parseSetTopic(cmd.Topic, string(cmd.Payload))
 		if !ok {
 			return
 		}
 		select {
 		case c.writes <- req:
 		default:
-			c.deps.Logger.Warn("coordinator.write_queue_full", slog.String("topic", msg.Topic))
+			c.deps.Logger.Warn("coordinator.write_queue_full", slog.String("topic", cmd.Topic))
 		}
-	})
-	return err
+	}); err != nil && !errors.Is(err, publisher.ErrDuplicateRoute) {
+		return err
+	}
+	return c.commands.Start(ctx)
+}
+
+// checkCommandDisjoint asserts that nothing this daemon publishes lands inside
+// its own command subscription.
+//
+// The topics are built from the same layout the publish path uses, over the
+// planes this daemon actually writes: the bridge availability marker, and the
+// state and attributes siblings of every slot it knows about. The router's own
+// CheckDisjoint does the matching, so the answer comes from the library's
+// filter semantics rather than from a string comparison written here.
+func (c *Coordinator) checkCommandDisjoint() error {
+	if c.commands == nil || c.deps.Catalog == nil {
+		return nil
+	}
+	topics := []string{c.topicRoot.BridgeStatus()}
+	for _, s := range c.knownSlots() {
+		topics = append(topics, s.State(), s.Attributes())
+	}
+	if err := c.commands.CheckDisjoint(topics...); err != nil {
+		return fmt.Errorf("coordinator: what this daemon publishes is not disjoint from what it subscribes: %w", err)
+	}
+	return nil
+}
+
+// claimedDeviceSegments is the set of state-plane device segments this instance
+// writes: the ONECTA device ids this poll resolved, plus the scheduler's
+// reserved segment when the weekly scheduler is attached.
+//
+// The scheduler segment is the one residual ambiguity of F14 and it is named
+// rather than hidden: two instances that both run a schedule with the same id
+// write the same switch topic, so each would claim the other's — exactly what
+// they do today for everything. Nothing about that gets worse here, and only an
+// instance identifier (the open step-3 decision) can close it. Every other
+// segment is a device id, which an instance that does not poll it never writes.
+func (c *Coordinator) claimedDeviceSegments(devices []model.Device) []string {
+	out := make([]string, 0, len(devices)+1)
+	for i := range devices {
+		out = append(out, devices[i].ID)
+	}
+	if c.scheduleEngine() != nil {
+		out = append(out, layout.SchedulerDeviceID)
+	}
+	return out
+}
+
+// syntheticTopics are the leaf segments this daemon publishes that no catalogue
+// entry backs: the composite climate's five slots, the refresh button and the
+// scheduler's four sensors.
+func syntheticTopics() []string {
+	return []string{
+		hass.HVACModeTopic, hass.FanModeTopic, hass.SwingModeTopic,
+		hass.SwingHModeTopic, hass.PresetModeTopic, hass.RefreshTopic,
+		ScheduleStateTopic, ScheduleNextTopic,
+		OutdoorScheduleStateTopic, OutdoorScheduleNextTopic,
+	}
+}
+
+// knownSlots is every slot this daemon can publish to, from the catalogue and
+// the synthetic points, for one representative device/management point plus
+// whatever the last poll resolved. It exists for checkCommandDisjoint: the
+// question is structural — all these topics share the four-level shape the
+// command filter wildcards — so a representative set answers it exactly.
+func (c *Coordinator) knownSlots() []layout.Slot {
+	var out []layout.Slot
+	add := func(dev, emb, topic string) { out = append(out, c.topicRoot.Slot(dev, emb, topic)) }
+	const probeDev, probeEmb = "probe-device", "climateControl"
+	entries := c.deps.Catalog.Entries()
+	for i := range entries {
+		add(probeDev, probeEmb, entries[i].Topic)
+	}
+	for _, t := range syntheticTopics() {
+		add(probeDev, probeEmb, t)
+	}
+	out = append(out, c.topicRoot.Climate(probeDev, probeEmb), c.topicRoot.Schedule("probe-schedule"))
+	c.mu.Lock()
+	for dev, emb := range c.climateEmbedded {
+		add(dev, emb, "power")
+	}
+	c.mu.Unlock()
+	return out
 }
 
 // parseSetTopic extracts the device/embedded/topic from a /set topic.
