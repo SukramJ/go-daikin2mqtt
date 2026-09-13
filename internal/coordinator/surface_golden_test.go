@@ -244,6 +244,23 @@ func goldenScheduleDoc() *schedule.Document {
 	return doc
 }
 
+// scenarioConfig is one scenario's daemon configuration. It is a function
+// rather than an inline literal so the go-hamqtt rendering path (step 4) is
+// configured from the same place as the pin it is compared against: a
+// divergence there would silently change the entity set on one side only.
+func scenarioConfig(sc surfaceScenario) *config.Config {
+	cfg := &config.Config{
+		MQTTTopic:     config.TopicRoot,
+		HASSBaseTopic: config.DefaultHASSBaseTopic,
+		Language:      sc.lang,
+	}
+	if sc.local {
+		cfg.LocalMode = true
+		cfg.LocalDeviceMap = sc.devMap
+	}
+	return cfg
+}
+
 // buildSurface runs one scenario through the real publish path and returns the
 // recorded messages.
 func buildSurface(t *testing.T, sc surfaceScenario) []recordedMsg {
@@ -259,15 +276,7 @@ func buildSurface(t *testing.T, sc surfaceScenario) []recordedMsg {
 	}
 
 	rec := &recorderMQTT{}
-	cfg := &config.Config{
-		MQTTTopic:     config.TopicRoot,
-		HASSBaseTopic: config.DefaultHASSBaseTopic,
-		Language:      sc.lang,
-	}
-	if sc.local {
-		cfg.LocalMode = true
-		cfg.LocalDeviceMap = sc.devMap
-	}
+	cfg := scenarioConfig(sc)
 	c := New(Deps{
 		Cfg:     cfg,
 		Client:  &stubCloud{devices: raw},

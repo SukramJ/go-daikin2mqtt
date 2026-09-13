@@ -1264,6 +1264,287 @@ gates step 6 at step 3b.
 
 ---
 
+## Step 4 outcome — go-hamqtt reproduces the published surface, byte for byte
+
+This section was written by phase 8 step 4, **the decisive experiment**: model
+the catalogue as `model.Device` + `model.Entity`, render it through
+`go-hamqtt` v0.32.0, and compare the result against the twelve pinned
+scenarios — **publishing nothing**.
+
+### The result
+
+| Pin | Pinned configs | Reproduced |
+| --- | ---: | ---: |
+| the twelve scenario goldens, discovery plane | **264** | **264** |
+
+**264 of 264, across all twelve scenarios, on canonical re-encoding** — which
+is the standard `TestPublishedSurfaceGolden` itself holds, because the bridge
+marshals a struct in field order and the library marshals a map in sorted-key
+order, and key *order* is not a fact Home Assistant can see. Every key, every
+value and every topic is compared exactly.
+
+**No golden was regenerated and no digest moved.** `-update-surface-golden` is
+unreachable from the new test file, the twelve SHA-256 literals in
+`goldenDigests` are byte-identical to what #76 left, and
+`git diff origin/main -- internal/coordinator/testdata` is empty. The
+comparison runs against the golden **files**, never against the builders they
+guard.
+
+**Nothing reached a broker.** `TestHamqttRenderPathPublishesNothing` drives all
+four entry points of the new path with an `mqtt.Client` that fails the test on
+contact. No publish path, coordinator or MQTT-bootstrap code was changed.
+
+### The one key group reproduced semantically rather than literally
+
+Exactly as decision [F8](#d-f8) requires, named once and nowhere else: the
+library's default path renders availability as a **list**
+(`availability: [{topic, …}]` plus `availability_mode`), and this bridge
+publishes the singular `availability_topic` with top-level payload keys. Home
+Assistant accepts both spellings identically and an entity's registry keys are
+unaffected either way.
+
+`hass.singularAvailability` performs that one re-spelling in the entity's
+`discovery.Builder`, and it **refuses anything that is not exactly one plain
+bridge-level source**. That is what keeps `model.BridgeOnly()` load-bearing
+rather than decorative: the library's zero `model.Availability` resolves to
+`{LevelBridge, LevelDevice}`, which would produce two entries and **fail the
+render** instead of silently publishing a second, never-written topic that
+would leave all 264 entities permanently unavailable. Mutation M13 proves it.
+
+### What it took
+
+`internal/hass/hamqtt.go`, ~430 lines including its argument, plus two small
+**pure extractions** in the files it has to share logic with:
+
+- **`hamqttLayout`** — a `topic.Layout` delegating to `internal/layout`, so the
+  library path and the daemon's own publish path cannot disagree about a topic.
+  F3 carried forward and asserted **builder against builder**
+  (`TestHamqttLayoutMatchesInternalLayout`), including the schedule pair — the
+  one topic composed in two packages from two constants that F3's original
+  count missed. `topic.Default` is unusable on all four methods, which
+  `TestHamqttLayoutIsNotTheLibraryDefault` records so a later reader does not
+  try.
+- **`hamqttContext`** — `discovery.StdContext` with `UniqueID`, `ObjectID` and
+  `NodeID` overridden onto this bridge's own normalisers. All three of F4's
+  normalisers are reproduced: `slugify` (in `entityObjectID`), `sanitize` (in
+  `UniqueID`/`NodeID` — the one that is not a slug and is most easily missed,
+  and the reason the ONECTA UUID keeps its hyphens) and `schedule.Slug`
+  (frozen into the schedule id the switch entity is keyed on). Nothing reaches
+  for `topic.Slug`.
+- **`climateEntity`** — the composite as `Bindings` + `Suppressor` + `Builder`,
+  see below.
+- Two extractions, each proved inert by the twelve unmoved digests:
+  `hass.entityIDBase` (`entityIdentity` without its final
+  `sanitize(base + "_" + topic)`, so the context can compose the same string
+  rather than be handed a finished one) and `hass.climateEligibleGroups` /
+  `climateConsumedKeys` (so both paths decide which management points become a
+  composite, and what it replaces, from one place rather than two).
+
+**Three library settings are load-bearing and each would have been a silent
+264-row diff:** `discovery.RawEncoding` (the zero `Encoding` attaches a
+`value_template` reading `value_json.value` to every entity with a state
+topic), the zero `discovery.Origin` on `RenderComponent` (which attaches an
+origin block whenever its name is non-empty — [F12](#d-f12), deliberately not
+added inside the byte-equality proof) and `model.BridgeOnly()`.
+
+### The topic form — settled with evidence, and the verdict holds
+
+**`publisher.LegacyTopicByUniqueID`.** Step 6 must state it explicitly in
+`publisher.Config.LegacyEntityTopics`; `hass.LegacyConfigTopicForm` already
+records it and `TestHamqttLegacyTopicForm` now asserts the constant against
+what actually reproduces the topics.
+
+Proved against the **pinned** topics rather than read off `ConfigTopic`: every
+component of every scenario is turned into a `publisher.LegacyEntity` and run
+through **all three** forms the library ships.
+
+| Form | Reproduces a pinned config topic |
+| --- | ---: |
+| `LegacyTopicByUniqueID` | **264 of 264** |
+| `LegacyTopicWithNodeID` (the library **default**) | **0 of 264** |
+| `LegacyTopicByObjectID` | **0 of 264** |
+
+Three candidates rather than two, and the two losers reproduce *nothing*, so
+the test cannot pass vacuously — the forms are unambiguously distinguishable
+here because the object id is the catalogue topic while the unique id carries
+the `daikin_<deviceID>_` prefix. Swapping the verdict fails the test (M27).
+
+### `discovery.Validate` — clean, and that is a finding too
+
+Three bridges in this programme had never validated their own output against
+Home Assistant's schemas; two of the three that have now been checked were
+refused (go-homeconnect2mqtt 11 of 687, go-unifi2mqtt 18 of 315, every
+`button`).
+
+**go-daikin2mqtt passes clean, in both forms:**
+
+- `discovery.ValidateBody` over all **264** rendered per-entity payloads: **0
+  blocking, 0 advisory.**
+- `discovery.Validate` over **31 device bundles carrying 264 components** — the
+  form step 6 publishes, validated as one document each: **0 blocking, 0
+  advisory.**
+
+This matters beyond hygiene precisely because of what step 6 does with the
+answer: a bundle reported `Blocking()` publishes **nothing at all**, so one
+refused component costs a device its entire entity set. There is no such
+finding here, and therefore **nothing in this phase gates step 6 on a payload
+fix** — which is the first time in the programme.
+
+The `button` platform, which refused 18 of 315 in go-unifi2mqtt, is present
+here (10 of the 264) and validates. There is no `device_tracker` in this
+bridge. The scheduler's switches validate as ordinary switches.
+
+### The composite `climate` — the thing phase 8 nominated this bridge to prove
+
+All **14** composite climate configs across the twelve scenarios are reproduced
+byte for byte, and the modelling needed **no runtime special case**, which is
+the claim ADR 0070 §3.5 makes about this class:
+
+- **Seven role bindings**, of which **five are synthetic** (`hvac_mode`,
+  `fan_mode`, `swing_mode`, `swing_h_mode`, `preset_mode`) — backed by no
+  catalogue entry and no register. They are ordinary `model.Slot`s on the same
+  device and management point with a synthetic leaf, resolved by the same
+  `Layout` as everything else. Nothing in the model knows they are synthetic.
+- **`model.Suppressor`** replaces the bridge's `consumed` set: all the
+  entities are handed to the model, including the three the composite replaces,
+  and `model.ApplySuppression` removes them. That is a stronger statement than
+  filtering them out first, and M22/M28/M29 prove it is doing the work.
+- **`discovery.Builder`** + `discovery.ClimateFields` spell the per-role keys.
+  The library's own guarantee carries the rest: it declines to project
+  `state_topic` onto `climate` (and onto `button`, exercised deliberately with
+  wrong input) because the platform's schema declares none.
+
+**The open question §3.4 left gating step 6 is narrowed but not closed.**
+`TestHamqttBundledClimateReadsASiblingComponentsTopic` shows the shape really
+does occur and is not hypothetical: in a rendered bundle the composite's
+`current_temperature_topic` is byte-equal to the `state_topic` of the
+`room_temperature` **component of the same bundle** (`room_temperature` is not
+among the three the composite suppresses), on both indoor units of the
+multi-split. The library renders it without complaint and Home Assistant's own
+discovery *schemas* do not refuse it. What is left for step 3b is therefore the
+**runtime** behaviour alone, against a bundle this test proves is buildable —
+a narrower experiment than the measurement budgeted for.
+
+### Mutation proof — 30 applied, 30 caught
+
+Every new assertion was verified to fail under mutation, on a **committed**
+tree, one at a time, reverted with `git checkout --` between runs.
+
+| # | Mutation | Caught by |
+| ---: | --- | --- |
+| M1 | `hamqttLayout.State` renders the command topic | goldens + the builder-against-builder pin |
+| M2 | the layout swaps a slot's Address and Channel | goldens + layout pin |
+| M3 | `hamqttLayout.Attributes` renders the state topic | goldens + layout pin |
+| M4 | `hamqttLayout.Bridge` moved into HA's own tree (mtec's defect) | goldens + layout pin + availability pin |
+| **M5** | **`hamqttLayout.Availability` starts naming a topic** | **`TestHamqttLayoutIgnoresOnlyWhatItDeclares` alone** |
+| **M6** | **the layout starts reading `Slot.Bucket`** | **the same test, plus the goldens** |
+| M7 | `UniqueID` falls back to `discovery.UniqueID` | goldens (15 of 264) + normaliser pin |
+| M8 | `ObjectID` falls back to `discovery.ObjectID` | goldens (the German device names) + normaliser pin |
+| **M9** | **`NodeID` falls back to `discovery.NodeID`** | **the normaliser pin alone** |
+| M10 | `ObjectID` ignores the climate's `thermostat` seed key | goldens + climate pin |
+| **M11** | **`ObjectID` ignores the schedule's unique-id seeding** | goldens + `TestHamqttScheduleEntityIDIsTheUniqueID` |
+| M12 | `Encoding` left at the zero `EnvelopeEncoding` | goldens + encoding pin |
+| M13 | `model.BridgeOnly()` dropped — the library's default | every render fails; availability pin names the setting |
+| M14 | `availability_mode` survives the re-spelling | goldens + availability pin |
+| **M15** | **`singularAvailability` accepts more than one source** | **availability pin alone** |
+| M16 | `binary_sensor` `payload_on` `"true"` → `"1"` | goldens |
+| M17 | `switch` loses `state_on` | goldens |
+| M18 | `button` `payload_press` `"PRESS"` → `"press"` | goldens + button pin |
+| M19 | `select` loses its options | goldens + **both validators** |
+| M20 | `number` loses `min` | goldens |
+| M21 | `button` loses its command binding | goldens + both validators + button pin |
+| M22 | the composite climate suppresses nothing | goldens + climate pin + validators |
+| M23 | `current_temperature_topic` reads the command topic | goldens + climate pin |
+| M24 | the climate mode list loses `"off"` | goldens |
+| M25 | the climate entity-id seed key `thermostat` → `climate` | goldens + climate pin |
+| M26 | an `origin` block is attached | goldens + `TestHamqttOriginIsAbsent` |
+| **M27** | **the legacy-topic-form verdict is swapped** | **`TestHamqttLegacyTopicForm`** |
+| M28 | `model.ApplySuppression` is never called | goldens + validators |
+| M29 | `climateConsumedKeys` drops the setpoint | goldens + the daemon's own suppression test |
+| M30 | `entityIDBase` loses the shared-outdoor namespace | the step-0 invariants + the input-fidelity pin |
+
+M5, M6, M9, M11 and M15 are the point of the exercise: each changes **no
+published byte**, so no golden can ever catch one. They are caught by
+assertions written for exactly that reason.
+
+### Two things asserted rather than claimed as coverage
+
+Holding #76's standard turned up two places where a mutation is **equivalent**
+rather than missed. Both are asserted directly, per that standard:
+
+1. **`sanitize` and `topic.Slug` agree on a main device's identity.** An ONECTA
+   device id is a lower-case hyphenated UUID and `topic.Slug` preserves both
+   the hyphen and the case, so **249 of the 264** unique ids would survive a
+   swap to the library's own `UniqueID` unchanged. The proof rests on the
+   other **15** — the shared gateway and outdoor sub-devices, whose serials are
+   **upper case** (`ODU0000000001`, `GW0000000001`, `ABCDEF0123456789`) and
+   which `topic.Slug` would lower-case. `TestHamqttContextUsesThisBridgesNormalisers`
+   asserts the divergent case *and* the equivalent one, so the test
+   fails if the divergence class ever grows or shrinks.
+2. **A `button` with a readable state binding.** It changes no byte, because
+   go-hamqtt projects `state_topic` only onto the platforms whose schema
+   declares it and `button` is one of the ten that do not. That is the
+   library's guarantee, and a test rendering only correct input never exercises
+   it — so one test renders the wrong input on purpose.
+
+### Two items of the step-4 plan that belong to step 5, and why
+
+The sequencing row for this step named two things this PR deliberately does not
+do, because neither is a *rendering* question and doing them here would have
+put untested behaviour inside the byte-equality proof:
+
+- **`Identity.Equal` merging two indoor units' outdoor identifiers.** The
+  shared outdoor unit is already deduplicated, by
+  `Discovery.entityIdentity` keying on the outdoor serial and `survivingPoints`
+  breaking the tie on `(DeviceID, EmbeddedID)` — [F7](#f7)'s step-2 fix. The
+  rendering path consumes that decision rather than re-taking it with
+  `Identity.Equal`, which is the right division: the library replaces the
+  rendering, not this bridge's domain logic. The proof that the two agree is
+  that all 30 configs of the two-indoor multi-split, in both languages,
+  reproduce byte for byte — including the 13 shared-outdoor entities whose
+  `state_topic` F7 moved.
+- **`Origin` + `Precedence("local", "cloud")` for the cloud/Faikin fusion.**
+  That is a **state-plane** mechanism — it decides which *reading* wins, not
+  what a discovery config says — and the state plane is step 5. It moves no
+  byte in any of the 264 payloads. What step 4 does prove about local mode is
+  that the local-first scenario's 52 entities, the richest installation
+  measured, render identically to the cloud-only ones.
+
+### What this step did NOT do, deliberately
+
+- **No publish path change.** Nothing in `internal/coordinator`, `cmd/` or the
+  MQTT bootstrap was touched. `hass.Discovery.Publish` does not call any of
+  this.
+- **[F14](#f14) is not resolved**, and nothing found here changes the analysis.
+  It is the caller's decision and it must be taken before step 6. One thing
+  step 4 *can* add to it: the retraction hazard is now concrete — the legacy
+  form is `LegacyTopicByUniqueID`, keyed on a `unique_id` that two instances
+  produce identically, so **neither instance can tell its own retained configs
+  from the other's in either direction**, exactly as [F14](#f14-—-what-step-6-needs-to-know) states. The
+  bundle node id (`sanitize(dev.UID())`) is likewise identical between two
+  instances, so a bundle publish is a whole-fleet replacement rather than a
+  collision Home Assistant could even notice.
+- **[F11](#f11), [F4](#d-f4), [F8](#d-f8), [F9](#d-f9), [F12](#d-f12)** — all
+  decided at step 2 and none reopened.
+
+### What step 5 and step 6 now know
+
+- The rendering is proved. Step 5 (state and command planes) and step 6 (the
+  bundle) are switch-overs with a test behind them.
+- `publisher.QoSAtMostOnce` must be spelled in all four QoS fields at step 5
+  ([F9](#d-f9)); `publisher.QoS`'s zero value resolves to QoS 1 and omission is
+  silent.
+- Step 6 must pass `publisher.LegacyTopicByUniqueID` — measured above, 264 of
+  264 against 0 and 0.
+- The `origin` block ([F12](#d-f12)) is one line and becomes **mandatory** at
+  step 6: `discovery.Validate` makes `origin.name` a blocking issue on a bundle
+  (and optional on a per-entity config), so the bundle step is where it lands.
+- Nothing in the payloads gates step 6. The only open gate is step 3b's live-HA
+  question, now narrowed to runtime behaviour on a bundle proved buildable —
+  and [F14](#f14).
+
+---
+
 ## Sequencing — the rest of phase 8
 
 Ordered so each step de-risks the next, following the shape phases 5, 6 and 7
@@ -1276,7 +1557,7 @@ converged on.
 | **2** | **Done** — see [Step 2 outcome](#step-2-outcome--what-was-fixed-what-was-decided-what-stays). F1, F3, F5, F10, F13 first (no bytes move), then F2, F7, F6 (41 keys changed, 2 topics added, 5 of 12 scenarios, 5 digests updated by hand). F4, F8, F9, F11, F12 and F14 decided in writing. | The byte-equality proof in step 5 must compare against *corrected* bytes, not against bugs. F1 was first because it is the only finding that takes a live installation down. |
 | 3 | (a) and (b) are **decided above** — F4 keeps this bridge's three normalisers, F8 takes `model.BridgeOnly()`. What is left is (c) F14: whether an `INSTANCE_ID` lands before the bundle, plus the `availability_topic`-vs-`availability`-list spelling question F8's decision raises. | All are irreversible for an installed base. Phase 6 hit (a) at step 3 and paid for it; this phase settled it at step 2 instead. |
 | 3b | **Settle §3.4's third unknown against a live Home Assistant.** One throwaway bundle carrying a `climate` component whose `current_temperature_topic` is another component's state topic, HA 2026.9, watch the log. | Half a day, and it gates step 6 for the one bridge whose composite entity is the point of the phase. |
-| 4 | **Model the catalogue as `model.Entity` and render one bundle, publishing nothing.** The composite climate as `Bindings` + `Suppressor` + `Builder`; the shared outdoor unit as `Identity.Equal` merging two indoor units' outdoor identifiers; the cloud/Faikin fusion as `Origin` + `Precedence("local", "cloud")`. Compare the rendered per-component output **against the golden files, not against the builder it replaces**. Neither pin regenerated. | This is where a `Layout`, `Context`, `Slot` or composite mismatch surfaces, at zero risk — and it is the part ADR 0070 §3.5 nominates daikin to prove. |
+| **4** | **Done** — see [Step 4 outcome](#step-4-outcome--go-hamqtt-reproduces-the-published-surface-byte-for-byte). **Model the catalogue as `model.Entity` and render, publishing nothing.** The composite climate as `Bindings` + `Suppressor` + `Builder`; the shared outdoor unit as `Identity.Equal` merging two indoor units' outdoor identifiers; the cloud/Faikin fusion as `Origin` + `Precedence("local", "cloud")`. Compare the rendered per-component output **against the golden files, not against the builder it replaces**. Neither pin regenerated. | This is where a `Layout`, `Context`, `Slot` or composite mismatch surfaces, at zero risk — and it is the part ADR 0070 §3.5 nominates daikin to prove. |
 | 5 | Adopt the library on the **state and command** planes, discovery still per-entity from the old path. Spell `publisher.QoSAtMostOnce` everywhere (F9). | The state plane has no registry keys to orphan; it is the cheap half. |
 | 6 | **Switch discovery to the device bundle.** `PublishBundle` + `SupersededTopics(prefix, bundle, publisher.LegacyTopicByUniqueID)` (F5), retracting all per-entity configs before the bundle lands, and teach `IsOwnConfig` to recognise a bundle in both directions. Verify against a live HA that no `Received a conflicting MQTT discovery message` warning appears. | The one step no unit test can prove. Everything above exists to make it a small diff. |
 | 7 | Apply the step-3 decisions, add the `origin` block (F12), changelog + `addon/CHANGELOG.md`, version bump across the five spots `CLAUDE.md` names. | Operator-visible last. |

@@ -130,12 +130,16 @@ type pubMsg struct {
 	payload []byte
 }
 
-// climateEntities builds combined climate entities from the resolved points.
-// It returns the discovery messages plus the set of point keys
-// (deviceID|embeddedID|topic) the climate entity consumes, so the caller can
-// suppress the redundant individual control entities (power/mode/setpoint).
-func (d *Discovery) climateEntities(points []process.Point, infos map[string]DeviceInfo, climateInfos map[string]ClimateInfo) (msgs []pubMsg, consumed map[string]bool) {
-	consumed = map[string]bool{}
+// climateEligibleGroups collects the climateControl points of each management
+// point and returns, in discovery order, the groups that qualify for a
+// composite climate entity.
+//
+// Split out from [Discovery.climateEntities] at ADR 0070 phase 8 step 4 so the
+// library rendering path decides which management points become a composite
+// from the SAME code rather than from a second copy of the rule — which is F3
+// in a different plane. It is a pure extraction: no rule, no order and no byte
+// changed, which the twelve pinned scenario goldens and their digests hold.
+func climateEligibleGroups(points []process.Point) []*climateGroup {
 	groups := map[string]*climateGroup{}
 	var order []string
 
@@ -163,6 +167,7 @@ func (d *Discovery) climateEntities(points []process.Point, infos map[string]Dev
 		}
 	}
 
+	out := make([]*climateGroup, 0, len(order))
 	for _, key := range order {
 		g := groups[key]
 		// A climate entity needs a power switch, a controllable mode and a
@@ -171,15 +176,38 @@ func (d *Discovery) climateEntities(points []process.Point, infos map[string]Dev
 		if g.power == nil || g.mode == nil || g.setpoint == nil {
 			continue
 		}
-		topic, payload, ok := d.buildClimate(g, infos[g.deviceID], climateInfos[key])
+		out = append(out, g)
+	}
+	return out
+}
+
+// climateConsumedKeys names the three individual control entities a composite
+// climate replaces, by their entity key (the catalogue topic).
+//
+// It is the suppression list on both paths: [Discovery.climateEntities]
+// composes it into the `consumed` set the publish path filters on, and
+// [Discovery.climateEntity] hands it to [model.Suppressor] so the library
+// removes the same three.
+func climateConsumedKeys(g *climateGroup) []string {
+	return []string{g.power.Topic, g.mode.Topic, g.setpoint.Topic}
+}
+
+// climateEntities builds combined climate entities from the resolved points.
+// It returns the discovery messages plus the set of point keys
+// (deviceID|embeddedID|topic) the climate entity consumes, so the caller can
+// suppress the redundant individual control entities (power/mode/setpoint).
+func (d *Discovery) climateEntities(points []process.Point, infos map[string]DeviceInfo, climateInfos map[string]ClimateInfo) (msgs []pubMsg, consumed map[string]bool) {
+	consumed = map[string]bool{}
+	for _, g := range climateEligibleGroups(points) {
+		topic, payload, ok := d.buildClimate(g, infos[g.deviceID], climateInfos[g.deviceID+"|"+g.embeddedID])
 		if !ok {
 			continue
 		}
 		msgs = append(msgs, pubMsg{topic: topic, payload: payload})
 		// Suppress the individual control entities the climate entity replaces.
-		consumed[g.deviceID+"|"+g.embeddedID+"|"+g.power.Topic] = true
-		consumed[g.deviceID+"|"+g.embeddedID+"|"+g.mode.Topic] = true
-		consumed[g.deviceID+"|"+g.embeddedID+"|"+g.setpoint.Topic] = true
+		for _, key := range climateConsumedKeys(g) {
+			consumed[g.deviceID+"|"+g.embeddedID+"|"+key] = true
+		}
 	}
 	return msgs, consumed
 }
