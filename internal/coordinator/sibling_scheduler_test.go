@@ -287,3 +287,51 @@ func TestTwoInstancesOnOneAccountStillOverwriteEachOther(t *testing.T) {
 		"component set tombstones %q, which the first instance really publishes. No predicate can "+
 		"separate the two; an instance identifier (step 3(c)) can.", victim)
 }
+
+// TestADeletedScheduleIsStillRemovedWithinOneProcess is the half of F-A's fix
+// that must NOT have been given up.
+//
+// Not claiming the scheduler segment costs the broker read-back and the sweep
+// their view of schedule switches. The in-process memo keeps its view, and that
+// is the one that matters in practice: a schedule is deleted in the daemon's
+// own web UI, with the daemon running. What is genuinely lost — and is written
+// down in changelog.md, README.md and addon/DOCS.md — is a schedule deleted
+// while the daemon is STOPPED, which leaves a phantom switch.
+func TestADeletedScheduleIsStillRemovedWithinOneProcess(t *testing.T) {
+	t.Parallel()
+	br := newRetainedBroker()
+	c := migrationCoordinator(t, br)
+	ctx := context.Background()
+
+	both := schedule.NewDocument()
+	both.Schedules = append(both.Schedules,
+		schedule.Schedule{ID: "werktag", Name: "Werktag", Type: schedule.TypeIndoor},
+		schedule.Schedule{ID: "urlaub", Name: "Urlaub", Type: schedule.TypeIndoor})
+	sched := &stubScheduler{doc: both}
+	c.AttachScheduler(sched)
+	c.PublishOnline(ctx)
+	c.pollOnce(ctx)
+	if _, ok := componentsOfRetained(t, br, siblingSchedulerDoc)["urlaub"]; !ok {
+		t.Fatal("the first poll published no switch for the schedule about to be deleted")
+	}
+
+	// The operator deletes it in the web UI, on the same connection.
+	one := schedule.NewDocument()
+	one.Schedules = append(one.Schedules,
+		schedule.Schedule{ID: "werktag", Name: "Werktag", Type: schedule.TypeIndoor})
+	sched.doc = one
+	c.pollOnce(ctx)
+
+	entry, present := componentsOfRetained(t, br, siblingSchedulerDoc)["urlaub"]
+	if !present {
+		t.Fatal("the deleted schedule's switch was omitted rather than tombstoned; " +
+			"Home Assistant keeps the entity and it reads available")
+	}
+	body, ok := entry.(map[string]any)
+	if !ok || len(body) != 1 || body["platform"] == nil {
+		t.Errorf("the tombstone for the deleted schedule is %v; a platform-only entry is what removes an entity", entry)
+	}
+	if got, ok := br.retained("homeassistant/switch/daikin_schedule_urlaub/config"); ok && got != "" {
+		t.Errorf("the deleted schedule's per-entity config was left retained: %q", got)
+	}
+}
