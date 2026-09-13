@@ -6,7 +6,6 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -302,9 +301,9 @@ func (c *Coordinator) publishClimateAux(ctx context.Context, devices []model.Dev
 			}
 			a := parseClimateAux(mp, currentMode(mp))
 			lang := c.deps.Cfg.Language
-			base := fmt.Sprintf("%s/%s/%s", c.topicRoot, d.ID, mp.EmbeddedID)
 			pub := func(suffix, val string) {
-				_ = c.deps.MQTT.Publish(ctx, base+"/"+suffix+"/state", []byte(val), mqtt.QoS0, true)
+				topic := c.topicRoot.Slot(d.ID, mp.EmbeddedID, suffix).State()
+				_ = c.deps.MQTT.Publish(ctx, topic, []byte(val), mqtt.QoS0, true)
 			}
 			// In local mode the Faikin read path owns fan/swing (the cloud poll's
 			// values are stale for a locally-controlled unit), so skip them here.

@@ -5,7 +5,6 @@ package coordinator
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
@@ -269,7 +268,7 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 		c.mu.Unlock()
 	}
 	for suffix, payload := range c.localStateMessages(deviceID, st) {
-		topic := fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, deviceID, emb, suffix)
+		topic := c.topicRoot.Slot(deviceID, emb, suffix).State()
 		if err := c.deps.MQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, true); err != nil {
 			c.deps.Logger.Warn("coordinator.local_publish_failed",
 				slog.String("topic", topic), slog.String("err", err.Error()))
@@ -321,7 +320,7 @@ func (c *Coordinator) publishOutdoorShared(ctx context.Context, deviceID string)
 			continue
 		}
 		for suffix, payload := range vals {
-			topic := fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, member, emb, suffix)
+			topic := c.topicRoot.Slot(member, emb, suffix).State()
 			if err := c.deps.MQTT.Publish(ctx, topic, []byte(payload), mqtt.QoS0, true); err != nil {
 				c.deps.Logger.Warn("coordinator.local_publish_failed",
 					slog.String("topic", topic), slog.String("err", err.Error()))
@@ -339,7 +338,7 @@ func (c *Coordinator) publishOptimistic(ctx context.Context, deviceID, topic, va
 		if !ok {
 			continue
 		}
-		t := fmt.Sprintf("%s/%s/%s/%s/state", c.topicRoot, member, emb, topic)
+		t := c.topicRoot.Slot(member, emb, topic).State()
 		if err := c.deps.MQTT.Publish(ctx, t, []byte(value), mqtt.QoS0, true); err != nil {
 			c.deps.Logger.Warn("coordinator.local_publish_failed",
 				slog.String("topic", t), slog.String("err", err.Error()))

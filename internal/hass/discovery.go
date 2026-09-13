@@ -13,13 +13,14 @@ import (
 
 	"github.com/SukramJ/go-mqtt"
 
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 )
 
 // Discovery publishes retained HA MQTT discovery configs.
 type Discovery struct {
-	baseTopic string // e.g. "homeassistant"
-	stateRoot string // e.g. "daikin"
+	baseTopic string      // e.g. "homeassistant"
+	state     layout.Root // the state-plane topic layout, rooted at e.g. "daikin"
 	lang      string
 	pub       mqtt.Publisher
 }
@@ -27,7 +28,7 @@ type Discovery struct {
 // New returns a Discovery publisher. baseTopic is the HA discovery prefix,
 // stateRoot the MQTT topic root the daemon publishes state under.
 func New(baseTopic, stateRoot, lang string, pub mqtt.Publisher) *Discovery {
-	return &Discovery{baseTopic: baseTopic, stateRoot: stateRoot, lang: lang, pub: pub}
+	return &Discovery{baseTopic: baseTopic, state: layout.New(stateRoot), lang: lang, pub: pub}
 }
 
 // SubDevice is the metadata for an auxiliary Daikin component (gateway or
@@ -265,22 +266,29 @@ type configPayload struct {
 }
 
 // BridgeStatusTopic returns the LWT/availability topic.
-func (d *Discovery) BridgeStatusTopic() string { return d.stateRoot + "/bridge/status" }
+func (d *Discovery) BridgeStatusTopic() string { return d.state.BridgeStatus() }
+
+// slot is the point's topic family. Every state / command / attributes topic
+// this package advertises goes through it, so the retained config can only
+// name topics composed exactly the way the coordinator composes them (F3).
+func (d *Discovery) slot(p process.Point) layout.Slot {
+	return d.state.Slot(p.DeviceID, p.EmbeddedID, p.Topic)
+}
 
 // AttributesTopic returns the per-entity JSON-attributes topic (a sibling of the
 // state topic), used to expose the entity's data source (cloud vs local Faikin).
 func (d *Discovery) AttributesTopic(p process.Point) string {
-	return fmt.Sprintf("%s/%s/%s/%s/attributes", d.stateRoot, p.DeviceID, p.EmbeddedID, p.Topic)
+	return d.slot(p).Attributes()
 }
 
 // StateTopic returns the state topic for a point.
 func (d *Discovery) StateTopic(p process.Point) string {
-	return fmt.Sprintf("%s/%s/%s/%s/state", d.stateRoot, p.DeviceID, p.EmbeddedID, p.Topic)
+	return d.slot(p).State()
 }
 
 // CommandTopic returns the /set topic for a point.
 func (d *Discovery) CommandTopic(p process.Point) string {
-	return fmt.Sprintf("%s/%s/%s/%s/set", d.stateRoot, p.DeviceID, p.EmbeddedID, p.Topic)
+	return d.slot(p).Command()
 }
 
 // Publish emits a retained discovery config for every point. Points that
@@ -338,7 +346,7 @@ func (d *Discovery) IsOwnConfig(payload []byte) bool {
 		return false
 	}
 	return strings.HasPrefix(cfg.UniqueID, "daikin_") &&
-		(cfg.StateTopic == "" || strings.HasPrefix(cfg.StateTopic, d.stateRoot+"/"))
+		(cfg.StateTopic == "" || strings.HasPrefix(cfg.StateTopic, d.state.String()+"/"))
 }
 
 // ConfigFilter is the MQTT filter matching this daemon's discovery config topics

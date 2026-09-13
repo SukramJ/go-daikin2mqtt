@@ -10,6 +10,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/SukramJ/go-daikin2mqtt/internal/config"
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 )
 
 // Invariants of the published surface, asserted against the BUILDERS rather
@@ -99,13 +102,20 @@ var knownAdvertisedButUnpublished = map[string][]string{
 
 // TestStateTopicBuildersAgree is the builder-against-builder pin.
 //
-// This bridge composes a `<root>/<device>/<embedded>/<topic>/state` topic in
-// eight places: hass.Discovery.StateTopic (what goes into the retained config),
-// and seven inline fmt.Sprintf sites in the coordinator (coordinator.go:261 and
-// :324, climate.go:305, local.go:272/:324/:342, schedule.go:241/:257/:288).
-// Nothing compared them. A drift in any one of them leaves entities pointing at
-// a topic nobody writes: permanently unknown, nothing in the log, nothing in
-// Home Assistant's registry to notice.
+// The measurement counted nine `<root>/<device>/<embedded>/<topic>/state`
+// builders; recounting before converging them found TWELVE, in four packages —
+// the three it missed are hass/climate.go's auxBase (the composite climate's
+// five synthetic slots), hass/schedule.go's ScheduleStateTopic, and
+// coordinator/schedule.go:288 (the per-schedule enable switch). The last two
+// are a pair that compose the same topic in two packages from two different
+// "scheduler" constants, one of them beside a bare "enabled" literal.
+//
+// They are now all internal/layout, so this test compares what the retained
+// configs advertise against what the publish path writes rather than comparing
+// twelve expressions. A drift still leaves entities pointing at a topic nobody
+// writes: permanently unknown, nothing in the log, nothing in Home Assistant's
+// registry to notice — so the pin stays, and it is what catches a change to the
+// layout that only one side of the tree is updated for.
 func TestStateTopicBuildersAgree(t *testing.T) {
 	t.Parallel()
 	for _, sc := range surfaceScenarios() {
@@ -153,9 +163,18 @@ func TestStateTopicBuildersAgree(t *testing.T) {
 // TestCommandTopicsAreSubscribed pins the inbound half: every command topic a
 // config advertises must be matched by the one filter the coordinator
 // subscribes to, `<root>/+/+/+/set`.
+//
+// The filter is read from the layout the coordinator actually subscribes with,
+// not written out as a literal here, so narrowing the filter fails this test
+// instead of quietly leaving every advertised command unroutable. A command
+// Home Assistant publishes to a topic nothing is subscribed to is reported as
+// sent, and the entity snaps back to its old value a poll later.
 func TestCommandTopicsAreSubscribed(t *testing.T) {
 	t.Parallel()
-	const filter = "daikin/+/+/+/set"
+	filter := layout.New(config.TopicRoot).CommandFilter()
+	if filter != "daikin/+/+/+/set" {
+		t.Fatalf("command filter = %q, want %q — the installed base's subscription", filter, "daikin/+/+/+/set")
+	}
 	total := 0
 	for _, sc := range surfaceScenarios() {
 		for cfgTopic, cfg := range configsOf(buildSurface(t, sc)) {

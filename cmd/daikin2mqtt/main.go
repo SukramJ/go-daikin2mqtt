@@ -33,6 +33,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
 	"github.com/SukramJ/go-daikin2mqtt/internal/version"
 	"github.com/SukramJ/go-daikin2mqtt/internal/web"
@@ -105,19 +106,15 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	})
 
 	// --- MQTT ---
-	statusTopic := cfg.MQTTTopic + "/bridge/status"
+	statusTopic := bridgeStatusTopic(cfg)
 	mqttClient := mqtt.NewTCPClient(mqtt.TCPConfig{
 		BrokerURL:  fmt.Sprintf("tcp://%s:%d", cfg.MQTTServer, cfg.MQTTPort),
 		ClientID:   mainClientID(cfg),
 		Username:   cfg.MQTTLogin,
 		Password:   cfg.MQTTPassword,
 		CleanStart: true,
-		Will: &mqtt.Will{
-			Topic:   statusTopic,
-			Payload: []byte("offline"),
-			Retain:  true,
-		},
-		Logger: logger,
+		Will:       bridgeWill(statusTopic),
+		Logger:     logger,
 	})
 	lifecycle := mqtt.NewLifecycle(mqtt.LifecycleConfig{Logger: logger}, mqttClient)
 	if err := lifecycle.Start(ctx); err != nil {
@@ -261,6 +258,26 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	}
 
 	return g.Wait()
+}
+
+// bridgeStatusTopic is the bridge's availability topic. It is the retained
+// "online" the coordinator publishes on connect, the "offline" the broker
+// publishes as the Last Will, and the availability_topic named by every one of
+// this bridge's discovery payloads.
+//
+// Those three used to be composed in three packages — here, in
+// internal/coordinator and in internal/hass — and nothing compared them (F3).
+// A drift is silent and total: an entity whose availability_topic nobody
+// writes is permanently unavailable in Home Assistant, with nothing in any log.
+func bridgeStatusTopic(cfg *config.Config) string {
+	return layout.New(cfg.MQTTTopic).BridgeStatus()
+}
+
+// bridgeWill is the CONNECT Will: retained, so a broker that loses this daemon
+// leaves "offline" on the topic every entity reads, instead of leaving the last
+// "online" standing forever.
+func bridgeWill(statusTopic string) *mqtt.Will {
+	return &mqtt.Will{Topic: statusTopic, Payload: []byte("offline"), Retain: true}
 }
 
 // mainClientID is the MQTT client identifier the bridge presents on the main
