@@ -94,6 +94,7 @@ func buildHamqttInputs(t *testing.T, sc surfaceScenario) hamqttInputs {
 		Cfg: cfg, Client: &stubCloud{devices: raw}, MQTT: rec, Catalog: cat,
 		HASS: disc, Logger: slog.New(slog.DiscardHandler), Clock: func() time.Time { return goldenClock },
 	})
+	c.collectWindow = 5 * time.Millisecond
 	if sc.local {
 		c.deps.FaikinMQTT = rec
 	}

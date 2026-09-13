@@ -22,6 +22,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/SukramJ/go-hamqtt/discovery"
 	"github.com/SukramJ/go-hamqtt/publisher"
 	hagomqtt "github.com/SukramJ/go-hamqtt/publisher/gomqtt"
 
@@ -63,6 +64,15 @@ type Deps struct {
 	// A factory, not an instance: see [RuntimeFactory]. Optional — nil builds
 	// one over MQTT with [RuntimeConfig], which is what the tests get.
 	NewHARuntime RuntimeFactory
+	// BrokerMaxPacketSize reports the Maximum Packet Size the broker advertised
+	// in its CONNACK (MQTT 5.0 property 0x27) and whether a connect has yet
+	// happened. Optional; nil skips the preflight in [Coordinator.bundleFits].
+	//
+	// A function rather than a value because the answer is renegotiated on
+	// every connect, and a function rather than a widened mqtt interface
+	// because it lives on the concrete *mqtt.TCPClient — which this package
+	// deliberately does not name.
+	BrokerMaxPacketSize func() (uint32, bool)
 	// StatePlane is the go-hamqtt state publisher every retained state and
 	// attributes topic goes out through. Optional; nil builds one over MQTT
 	// with [NewStatePlane], so the QoS is stated in one place either way.
@@ -92,7 +102,14 @@ type Coordinator struct {
 	econoSuspend    map[string]econoSuspendState // outdoor group key -> powerful<->econo save/restore state
 	econoLatch      map[string]bool              // outdoor group key -> last reliable econo state (see localOutdoorAgg)
 	lastDiscSig     string                       // signature of the last published discovery set
-	reconcileGate   sync.Mutex                   // try-locked gate so only one orphan reconcile runs at a time
+	// priorComponents is, per device-document node id, the component set that
+	// document carried BEFORE this batch — the only thing that can tell a
+	// removed entity from an omitted one. Read back once per connection
+	// (priorLoaded), then maintained in process. See
+	// [Coordinator.loadPriorComponents].
+	priorComponents map[string]map[string]discovery.Component
+	priorLoaded     bool
+	reconcileGate   sync.Mutex // try-locked gate so only one orphan sweep runs at a time
 	// schedule is the weekly-programme engine, attached by AttachScheduler.
 	// nil (the default) leaves the scheduler disabled.
 	schedule scheduler
@@ -107,6 +124,12 @@ type Coordinator struct {
 	// collectWindow is how long each retained-config snapshot listens. Written
 	// once, by New, before anything can read it.
 	collectWindow time.Duration
+	// discoveryGen counts connections, not publishes. PublishOnline bumps it;
+	// the discovery publish samples it before and after, and refuses to commit
+	// its signature across a change — a batch that went out on a connection
+	// that has since been replaced must not suppress the republish the new
+	// connection is owed.
+	discoveryGen atomic.Uint64
 }
 
 // econoSuspendState tracks the powerful<->econo save/restore per outdoor group.
@@ -189,7 +212,9 @@ func New(d Deps) *Coordinator {
 		econoLatch:      map[string]bool{},
 	}
 	if d.NewHARuntime != nil {
-		c.haRuntime.Store(d.NewHARuntime())
+		rt := d.NewHARuntime()
+		checkLegacyForms(rt)
+		c.haRuntime.Store(rt)
 		c.commands = NewCommandRouter(hagomqtt.Split(d.MQTT, d.MQTT), d.Logger)
 	}
 	return c
@@ -241,6 +266,21 @@ func (c *Coordinator) Run(ctx context.Context) error {
 // bookkeeping survives a connection it was made on. Only then is the marker
 // announced.
 //
+// The discovery plane's own gate is re-opened with the runtime, and that is
+// F16 of the phase 8 measurement, left explicitly for step 6. lastDiscSig is a
+// statement about what a BROKER holds, and a broker restarted without its
+// retained store holds nothing — so a gate that outlived the connection it was
+// computed on meant the 264 configs (now 31 documents) never came back until
+// the entity set happened to change. Step 5 could not fix it, because fixing it
+// puts traffic on the wire on every reconnect and step 5's whole claim was that
+// nothing did. Clearing it here is safe precisely because the library has a
+// second, byte-level gate underneath: an unchanged fleet re-renders and writes
+// nothing.
+//
+// priorLoaded is cleared for the same reason in the other direction: the
+// component sets the tombstone diff is taken against were read from the broker
+// this connection replaced.
+//
 // The marker itself is publisher.Runtime.AnnounceOnline: the same retained
 // "online" on the same topic as before, now spelled by the same object that
 // produced the Last Will the broker publishes when this daemon dies
@@ -252,6 +292,12 @@ func (c *Coordinator) PublishOnline(ctx context.Context) {
 		c.deps.StatePlane.Reset()
 	}
 	c.resetHAPlane()
+	c.discoveryGen.Add(1)
+	c.mu.Lock()
+	c.lastDiscSig = ""
+	c.priorLoaded = false
+	c.priorComponents = nil
+	c.mu.Unlock()
 	rt := c.ha()
 	if rt == nil {
 		return
@@ -490,42 +536,6 @@ func (c *Coordinator) updateModeCache(devices []model.Device) {
 	}
 }
 
-// maybePublishDiscovery (re)publishes discovery only when the topic set
-// changed, since configs are retained.
-func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []process.Point, infos map[string]hass.DeviceInfo, climateInfos map[string]hass.ClimateInfo) {
-	// The schedule set is part of the signature: adding, renaming or deleting a
-	// schedule changes the published entities without changing any point.
-	sig := discoverySignature(points) + c.scheduleSignature()
-	c.mu.Lock()
-	changed := sig != c.lastDiscSig
-	c.mu.Unlock()
-	if !changed {
-		return
-	}
-	published, err := c.deps.HASS.Publish(ctx, points, infos, climateInfos)
-	if err != nil {
-		// Do not commit the signature: the next poll retries, so a transient
-		// broker/breaker failure cannot permanently suppress discovery.
-		c.deps.Logger.Warn("coordinator.discovery_failed", slog.String("err", err.Error()))
-		return
-	}
-	// The schedule switches live on the daemon's own HA device. Folding their
-	// config topics into the published set lets the orphan reconcile clear a
-	// deleted schedule's config along with everything else.
-	if err := c.publishScheduleDiscovery(ctx, published); err != nil {
-		c.deps.Logger.Warn("coordinator.schedule_discovery_failed", slog.String("err", err.Error()))
-		return
-	}
-	c.mu.Lock()
-	c.lastDiscSig = sig
-	c.mu.Unlock()
-	c.deps.Logger.Info("coordinator.discovery_published", slog.Int("entities", len(points)))
-	// Clear any of our own retained discovery configs that we no longer publish
-	// (entities removed or moved/renamed across versions), so they don't linger
-	// as unavailable entities in Home Assistant.
-	c.reconcileOrphans(ctx, published)
-}
-
 // reconcileCollectWindow is how long a snapshot subscription listens before it
 // judges what is retained. Two seconds, the same value publisher.Sweep defaults
 // to, stated once so the hand-rolled pass and the library's report-only one
@@ -537,70 +547,6 @@ func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []proces
 // writing a global that another test's reconcile goroutine is reading, which
 // the race detector correctly calls a race.
 const reconcileCollectWindow = 2 * time.Second
-
-// reconcileOrphans clears this daemon's retained discovery configs that are no
-// longer in the published set. It collects the retained configs under the HA
-// discovery prefix, then clears ours (IsOwnConfig) that are absent from
-// published. Runs asynchronously; a second call while one is in flight is
-// skipped (the gate), since discovery changes are infrequent.
-func (c *Coordinator) reconcileOrphans(ctx context.Context, published map[string]bool) {
-	if c.deps.HASS == nil || !c.reconcileGate.TryLock() {
-		return
-	}
-	go func() {
-		defer c.reconcileGate.Unlock()
-		filter := c.deps.HASS.ConfigFilter()
-		var mu sync.Mutex
-		retained := map[string][]byte{}
-		if _, err := c.deps.MQTT.Subscribe(ctx, filter, mqtt.QoS0, func(msg *mqtt.Message) {
-			mu.Lock()
-			retained[msg.Topic] = append([]byte(nil), msg.Payload...)
-			mu.Unlock()
-		}); err != nil {
-			c.deps.Logger.Warn("coordinator.reconcile_subscribe_failed", slog.String("err", err.Error()))
-			return
-		}
-		// Retained configs are delivered right after subscribe; collect briefly.
-		select {
-		case <-ctx.Done():
-			_ = c.deps.MQTT.Unsubscribe(ctx, filter)
-			return
-		case <-time.After(c.collectWindow):
-		}
-		_ = c.deps.MQTT.Unsubscribe(ctx, filter)
-
-		mu.Lock()
-		cleared := c.clearOrphanConfigs(ctx, retained, published)
-		mu.Unlock()
-		if cleared > 0 {
-			c.deps.Logger.Info("coordinator.discovery_orphans_cleared", slog.Int("count", cleared))
-		}
-		// The library's pass, report-only, STRICTLY AFTER this one has
-		// unsubscribed. Both open a snapshot subscription under the discovery
-		// prefix and a broker sends one copy per matching subscription, so two
-		// concurrent windows would double every delivery; the reconcile gate
-		// this goroutine holds is what keeps them sequential.
-		c.reportOnlySweep(ctx, published)
-	}()
-}
-
-// clearOrphanConfigs clears each retained config that is ours (IsOwnConfig) and
-// absent from the published set, returning how many were cleared.
-func (c *Coordinator) clearOrphanConfigs(ctx context.Context, retained map[string][]byte, published map[string]bool) int {
-	cleared := 0
-	for topic, payload := range retained {
-		if len(payload) == 0 || published[topic] {
-			continue // already cleared, or still a current entity
-		}
-		if !c.deps.HASS.IsOwnConfig(payload) {
-			continue // belongs to another integration — never touch it
-		}
-		if err := c.deps.MQTT.Publish(ctx, topic, nil, mqtt.QoS0, true); err == nil {
-			cleared++
-		}
-	}
-	return cleared
-}
 
 // publishDataSources publishes a {"data_source": "cloud"|"local"} JSON-attributes
 // document for every entity, so Home Assistant shows where each value comes from.

@@ -1,0 +1,308 @@
+{
+  "scenario": "air-to-air-dx4.en",
+  "documents": [
+    {
+      "topic": "homeassistant/device/daikin_809d41d9-4d42-45fa-af6a-84b512143672/config",
+      "superseded": [
+        "homeassistant/binary_sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state/config",
+        "homeassistant/binary_sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode/config",
+        "homeassistant/button/daikin_809d41d9-4d42-45fa-af6a-84b512143672_refresh/config",
+        "homeassistant/climate/daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_gateway_ip_address/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_outdoor_temperature/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity/config",
+        "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature/config",
+        "homeassistant/switch/daikin_809d41d9-4d42-45fa-af6a-84b512143672_powerful_mode/config"
+      ],
+      "document": {
+        "components": {
+          "climate": {
+            "availability_topic": "daikin/bridge/status",
+            "current_temperature_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/state",
+            "default_entity_id": "climate.my_mock_a2a_hp_thermostat",
+            "fan_mode_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_mode/set",
+            "fan_mode_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_mode/state",
+            "fan_modes": [
+              "quiet",
+              "auto",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ],
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/climate/attributes",
+            "max_temp": 30,
+            "min_temp": 18,
+            "mode_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/hvac_mode/set",
+            "mode_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/hvac_mode/state",
+            "modes": [
+              "off",
+              "heat",
+              "cool",
+              "heat_cool",
+              "dry",
+              "fan_only"
+            ],
+            "name": "Thermostat",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "climate",
+            "preset_mode_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/preset_mode/set",
+            "preset_mode_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/preset_mode/state",
+            "preset_modes": [
+              "boost"
+            ],
+            "swing_horizontal_mode_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_h_mode/set",
+            "swing_horizontal_mode_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_h_mode/state",
+            "swing_horizontal_modes": [
+              "stop",
+              "swing"
+            ],
+            "swing_mode_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_mode/set",
+            "swing_mode_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_mode/state",
+            "swing_modes": [
+              "stop",
+              "swing"
+            ],
+            "temp_step": 0.5,
+            "temperature_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/temperature_setpoint/set",
+            "temperature_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/temperature_setpoint/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate"
+          },
+          "cooling_energy_daily": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_cooling_energy_daily",
+            "device_class": "energy",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily/attributes",
+            "name": "Cooling energy today",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_class": "total_increasing",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily",
+            "unit_of_measurement": "kWh"
+          },
+          "cooling_energy_monthly": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_cooling_energy_monthly",
+            "device_class": "energy",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly/attributes",
+            "name": "Cooling energy this month",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_class": "total_increasing",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly",
+            "unit_of_measurement": "kWh"
+          },
+          "cooling_energy_weekly": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_cooling_energy_weekly",
+            "device_class": "energy",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly/attributes",
+            "name": "Cooling energy this week",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_class": "total_increasing",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly",
+            "unit_of_measurement": "kWh"
+          },
+          "error_code": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_error_code",
+            "entity_category": "diagnostic",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code/attributes",
+            "name": "Error code",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code"
+          },
+          "error_state": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "binary_sensor.my_mock_a2a_hp_error_state",
+            "device_class": "problem",
+            "entity_category": "diagnostic",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state/attributes",
+            "name": "Error",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "payload_off": "false",
+            "payload_on": "true",
+            "platform": "binary_sensor",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state"
+          },
+          "gateway_ip_address": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_gateway_ip_address",
+            "entity_category": "diagnostic",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address/attributes",
+            "name": "Gateway IP address",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_gateway_ip_address"
+          },
+          "heating_energy_daily": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_heating_energy_daily",
+            "device_class": "energy",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily/attributes",
+            "name": "Heating energy today",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_class": "total_increasing",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily",
+            "unit_of_measurement": "kWh"
+          },
+          "heating_energy_monthly": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_heating_energy_monthly",
+            "device_class": "energy",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly/attributes",
+            "name": "Heating energy this month",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_class": "total_increasing",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly",
+            "unit_of_measurement": "kWh"
+          },
+          "heating_energy_weekly": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_heating_energy_weekly",
+            "device_class": "energy",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly/attributes",
+            "name": "Heating energy this week",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_class": "total_increasing",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly",
+            "unit_of_measurement": "kWh"
+          },
+          "holiday_mode": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "binary_sensor.my_mock_a2a_hp_holiday_mode",
+            "entity_category": "diagnostic",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode/attributes",
+            "name": "Holiday mode",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "payload_off": "false",
+            "payload_on": "true",
+            "platform": "binary_sensor",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode"
+          },
+          "outdoor_temperature": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_outdoor_temperature",
+            "device_class": "temperature",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/attributes",
+            "name": "Outdoor temperature",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_class": "measurement",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_outdoor_temperature",
+            "unit_of_measurement": "°C"
+          },
+          "powerful_mode": {
+            "availability_topic": "daikin/bridge/status",
+            "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/set",
+            "default_entity_id": "switch.my_mock_a2a_hp_powerful_mode",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/attributes",
+            "name": "Powerful mode",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "payload_off": "off",
+            "payload_on": "on",
+            "platform": "switch",
+            "state_off": "off",
+            "state_on": "on",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_powerful_mode"
+          },
+          "refresh": {
+            "availability_topic": "daikin/bridge/status",
+            "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/set",
+            "default_entity_id": "button.my_mock_a2a_hp_refresh",
+            "icon": "mdi:cloud-refresh",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/attributes",
+            "name": "Refresh from cloud",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "payload_press": "PRESS",
+            "platform": "button",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_refresh"
+          },
+          "room_humidity": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_room_humidity",
+            "device_class": "humidity",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity/attributes",
+            "name": "Room humidity",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_class": "measurement",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity",
+            "unit_of_measurement": "%"
+          },
+          "room_temperature": {
+            "availability_topic": "daikin/bridge/status",
+            "default_entity_id": "sensor.my_mock_a2a_hp_room_temperature",
+            "device_class": "temperature",
+            "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/attributes",
+            "name": "Room temperature",
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "platform": "sensor",
+            "state_class": "measurement",
+            "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/state",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature",
+            "unit_of_measurement": "°C"
+          }
+        },
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "my mock A2A HP",
+          "sw_version": "2100AA00"
+        },
+        "origin": {
+          "name": "go-daikin2mqtt",
+          "support_url": "https://github.com/SukramJ/go-daikin2mqtt",
+          "sw_version": "0.0.0-golden"
+        }
+      }
+    }
+  ]
+}

@@ -3,6 +3,8 @@
 
 package config
 
+import "strings"
+
 // Default values applied when the YAML omits a field. Mandatory fields
 // (the cloud credentials and MQTT server) have no default and are caught
 // by [Validate] when missing.
@@ -50,6 +52,16 @@ const (
 	DefaultScheduleCatchup = 1800
 )
 
+// Normalize is [applyDefaults] under the name the rest of the repository uses
+// for it.
+//
+// Exported so that the one boundary property another package has to be able to
+// check can be checked against the REAL normalisation rather than against a
+// second spelling of it: the discovery prefix and the MQTT topic root must come
+// out of here in the one form both go-hamqtt and internal/hass read the same
+// way. See TestTheTwoPlanesAgreeOnTheDiscoveryPrefix.
+func (c *Config) Normalize() { applyDefaults(c) }
+
 // applyDefaults fills in any field whose YAML+env round left it at its
 // zero value with the documented default. Connection parameters without a
 // default are left at zero and caught by [Validate].
@@ -78,6 +90,24 @@ func applyDefaults(c *Config) {
 	if c.MQTTPort == 0 {
 		c.MQTTPort = DefaultMQTTPort
 	}
+	// Both topic roots are trimmed of surrounding slashes BEFORE the empty
+	// check, so "/" normalises to the default rather than to an empty root.
+	//
+	// This is F15 of the ADR 0070 phase 8 measurement, checked in both
+	// directions this time. Empty: publisher.New substitutes
+	// discovery.DefaultPrefix ("homeassistant") and internal/hass uses the
+	// empty string verbatim, which would put the device documents and this
+	// daemon's own discovery filter on different trees. Trailing slash: the
+	// library's topicPrefix trims one and internal/layout does not, so
+	// HASS_BASE_TOPIC="homeassistant/" would have the runtime publish
+	// "homeassistant/device/…" while this package looked under
+	// "homeassistant//…". An empty MQTT level is legal and DISTINCT, so the
+	// two never meet — which is exactly how go-mtec2mqtt ended up subscribing
+	// a birth topic Home Assistant never writes and losing every entity after
+	// each HA restart. Normalising at the boundary means there is only one
+	// spelling for both packages to agree on.
+	c.MQTTTopic = strings.Trim(c.MQTTTopic, "/")
+	c.HASSBaseTopic = strings.Trim(c.HASSBaseTopic, "/")
 	if c.MQTTTopic == "" {
 		c.MQTTTopic = TopicRoot
 	}

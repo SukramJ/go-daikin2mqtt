@@ -4,6 +4,24 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
+# Unreleased
+
+- Home Assistant discovery now publishes **one retained document per
+  device** instead of one config per entity. Upgrading needs no action:
+  entities keep their ids, names, icons, areas and history. If the
+  add-on is stopped mid-migration the entities disappear until it
+  starts again, which redoes the migration by itself.
+- An entity removed from a device (a deleted weekly schedule,
+  `local_mode` turned off, a catalogue change) is now actually removed
+  from Home Assistant instead of lingering as a phantom that still
+  reads "available".
+- A broker restarted without its retained store now gets the discovery
+  documents back on the next connect, instead of staying empty until
+  the entity set happened to change.
+- **Downgrading to 0.11.x or earlier requires clearing the retained
+  device documents first** — see "Home Assistant discovery and rolling
+  back" in the documentation tab.
+
 # 0.11.0 (2026-08-16)
 
 - The MQTT client library go-mqtt moves to 1.3.0, an audit release that

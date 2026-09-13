@@ -327,8 +327,17 @@ func (d *Discovery) CommandTopic(p process.Point) string {
 	return d.slot(p).Command()
 }
 
-// Publish emits a retained discovery config for every point. Points that
-// map to an unsupported platform are skipped. infos maps a device ID to its
+// Publish emits a retained per-entity discovery config for every point.
+//
+// NOT ON THE PUBLISH PATH since ADR 0070 phase 8 step 6: the daemon publishes
+// device documents ([Discovery.RenderBundles]) and this builder is kept because
+// it is what the twelve pinned scenario goldens are built from, and those
+// goldens are the migration's retraction contract — the set of topics every
+// device document must supersede before it lands
+// (TestTheRetractionCoversTheWholePinnedFleet). It is removed when that pin is,
+// and not before.
+//
+// Points that map to an unsupported platform are skipped. infos maps a device ID to its
 // rich device metadata (may be absent; a fallback name is used). It returns the
 // set of config topics it published, so the caller can clear orphaned ones.
 func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos map[string]DeviceInfo, climateInfos map[string]ClimateInfo) (published map[string]bool, err error) {
@@ -503,28 +512,53 @@ func (d *Discovery) IsOwnConfig(payload []byte) bool {
 	if !strings.HasPrefix(uid, UniqueIDPrefix) {
 		return false
 	}
-	d.mu.RLock()
-	owned := d.owned
-	d.mu.RUnlock()
+	owned := d.ownedDevices()
 	if len(owned) == 0 {
 		return false
 	}
-	named := 0
+	ok, named := d.ownsNamedTopics(owned, body)
+	// A payload naming no topic of ours at all is not evidence of ownership.
+	return ok && named > 0
+}
+
+// ownedDevices returns the claimed device-segment set. Read once and used
+// throughout a predicate, so a concurrent [Discovery.ClaimDevices] cannot make
+// one payload be judged against two different claim sets.
+func (d *Discovery) ownedDevices() map[string]bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.owned
+}
+
+// ownsNamedTopics applies the topic half of [Discovery.IsOwnConfig] to one
+// decoded discovery body — a per-entity config, or one component of a device
+// document. It reports whether every topic key it names is ours, and how many
+// it named.
+//
+// availability_topic is excluded because it is bridge-level by construction
+// ("<root>/bridge/status", the same string on every config and every
+// component): it is not instance-specific, so keying on it would make the rule
+// collapse to a compile-time literal for exactly the payloads that carry
+// nothing else — which is F18, the defect that swept a sibling's 14 composite
+// climate entities and 10 refresh buttons. The root half of it is still
+// checked, by every other topic key. `named` is returned rather than folded
+// into the boolean precisely so a caller must refuse a payload that proved
+// nothing.
+func (d *Discovery) ownsNamedTopics(owned map[string]bool, body map[string]any) (ok bool, named int) {
 	for key, v := range body {
 		if !strings.HasSuffix(key, "_topic") || key == "availability_topic" {
 			continue
 		}
-		t, ok := v.(string)
-		if !ok || t == "" {
+		t, isStr := v.(string)
+		if !isStr || t == "" {
 			continue
 		}
 		if !d.ownsTopic(owned, t) {
-			return false
+			return false, named
 		}
 		named++
 	}
-	// A payload naming no topic of ours at all is not evidence of ownership.
-	return named > 0
+	return true, named
 }
 
 // ownsTopic reports whether t is "<our root>/<a claimed device segment>/…".

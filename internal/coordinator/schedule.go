@@ -372,12 +372,17 @@ func (c *Coordinator) OutdoorGroups() map[string][]string {
 	return out
 }
 
-// publishScheduleDiscovery publishes the per-schedule switch configs and adds
-// their topics to published, so the orphan reconcile treats them like every
-// other entity this daemon owns.
-func (c *Coordinator) publishScheduleDiscovery(ctx context.Context, published map[string]bool) error {
+// scheduleInfos is the weekly scheduler's entity set, as the discovery plane
+// takes it: one entry per schedule, or nil when no scheduler is attached.
+//
+// The schedule switches live on the daemon's own Home Assistant device, so a
+// deleted schedule shrinks THAT device's component set — one of the three ways
+// this bridge removes a component from a device that is otherwise unchanged,
+// and therefore one of the reasons [hass.ApplyTombstones] exists (the others
+// being LOCAL_MODE going off and a characteristics.yaml edit).
+func (c *Coordinator) scheduleInfos() []hass.ScheduleInfo {
 	eng := c.scheduleEngine()
-	if eng == nil || c.deps.HASS == nil {
+	if eng == nil {
 		return nil
 	}
 	doc := eng.Document()
@@ -386,11 +391,7 @@ func (c *Coordinator) publishScheduleDiscovery(ctx context.Context, published ma
 		s := &doc.Schedules[i]
 		infos = append(infos, hass.ScheduleInfo{ID: s.ID, Name: s.Name})
 	}
-	topics, err := c.deps.HASS.PublishSchedules(ctx, infos, c.webConfigURL())
-	for t := range topics {
-		published[t] = true
-	}
-	return err
+	return infos
 }
 
 // webConfigURL returns the URL of the diagnostic web UI for the scheduler's HA
