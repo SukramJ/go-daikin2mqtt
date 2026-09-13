@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 )
 
 func TestPublishSchedules(t *testing.T) {
@@ -90,6 +92,10 @@ func TestPublishSchedulesSkipsEmptyID(t *testing.T) {
 func TestScheduleConfigIsRecognisedAsOwn(t *testing.T) {
 	pub := &capturePub{}
 	d := New("homeassistant", "daikin", "en", pub)
+	// The scheduler's entities live on the daemon's own reserved device
+	// segment; claiming it is what the coordinator does when a scheduler is
+	// attached.
+	d.ClaimDevices([]string{layout.SchedulerDeviceID})
 	if _, err := d.PublishSchedules(context.Background(), []ScheduleInfo{{ID: "werktag", Name: "Werktag"}}, ""); err != nil {
 		t.Fatalf("PublishSchedules: %v", err)
 	}

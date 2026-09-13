@@ -339,8 +339,7 @@ func (c *Coordinator) publishClimateAux(ctx context.Context, devices []model.Dev
 			a := parseClimateAux(mp, currentMode(mp))
 			lang := c.deps.Cfg.Language
 			pub := func(suffix, val string) {
-				topic := c.topicRoot.Slot(d.ID, mp.EmbeddedID, suffix).State()
-				_ = c.deps.MQTT.Publish(ctx, topic, []byte(val), mqtt.QoS0, true)
+				c.publishState(ctx, c.topicRoot.Slot(d.ID, mp.EmbeddedID, suffix).State(), val)
 			}
 			// In local mode the Faikin read path owns fan/swing (the cloud poll's
 			// values are stale for a locally-controlled unit), so skip them here.

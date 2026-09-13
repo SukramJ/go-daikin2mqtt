@@ -539,8 +539,15 @@ func TestSubscribeWritesDropsRetained(t *testing.T) {
 	if err := c.subscribeWrites(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = c.commands.Stop(context.Background()) })
 
+	// A retained /set is a stale command the broker replays on every
+	// (re)subscribe; applying it would re-write hardware state on every
+	// reconnect. The hand-written handler checked the flag; the router drops it
+	// before a handler runs (publisher.CommandConfig.DeliverRetained). The
+	// assertion is unchanged because the behaviour must be.
 	m.handler(&mqtt.Message{Topic: "daikin/dev1/climateControl/power/set", Payload: []byte("on"), Retain: true})
+	c.commands.WaitIdle()
 	select {
 	case req := <-c.writes:
 		t.Fatalf("retained /set was queued: %+v", req)
@@ -549,6 +556,7 @@ func TestSubscribeWritesDropsRetained(t *testing.T) {
 
 	// A live (non-retained) command still goes through.
 	m.handler(&mqtt.Message{Topic: "daikin/dev1/climateControl/power/set", Payload: []byte("on"), Retain: false})
+	c.commands.WaitIdle()
 	select {
 	case <-c.writes:
 	default:
@@ -660,8 +668,9 @@ func TestDataSourceAttributesAreRepublishedEveryPoll(t *testing.T) {
 	const dev, emb = "dev1", "climateControl"
 	cloud := &stubCloud{devices: devicesJSON(dev, emb)}
 	m := newStubMQTT()
+	cfg := testConfig()
 	c := New(Deps{
-		Cfg:     testConfig(),
+		Cfg:     cfg,
 		Client:  cloud,
 		MQTT:    m,
 		Catalog: loadTestCatalog(t),
@@ -704,12 +713,31 @@ func TestDataSourceAttributesAreRepublishedEveryPoll(t *testing.T) {
 		t.Errorf("after poll 2, %s published %d times, want 1 — "+
 			"the discovery gate should still suppress an unchanged config", cfgTopic, got)
 	}
-	// The attributes document is, because it is not a function of the point set.
-	if got := m.countOf(attrs); got != 2 {
-		t.Errorf("after poll 2, %s published %d times, want 2 — "+
-			"data_source is still gated on the discovery signature (F13)", attrs, got)
+	// The attributes document is OFFERED every poll — that is F13's fix, and it
+	// is why the call sits outside the discovery-signature gate. What reaches
+	// the broker is a separate question, and since step 5 the answer is the
+	// state plane's dedup gate: an unchanged retained value is compared, not
+	// written. Asserting the write count here is asserting the dedup gate.
+	if got := m.countOf(attrs); got != 1 {
+		t.Errorf("after poll 2, %s published %d times, want 1 — "+
+			"an unchanged retained value must not be re-written (the dedup gate)", attrs, got)
 	}
 	if msg, ok := m.get(attrs); !ok || msg.payload != `{"data_source":"cloud"}` {
 		t.Errorf("%s = %q, want the data_source document", attrs, msg.payload)
+	}
+
+	// And the half F13 actually protects: when the source CHANGES, the document
+	// goes out again — offered every poll, so nothing has to change the point
+	// set for it to be noticed. A gate that swallowed this would leave
+	// data_source permanently stale, which is the defect F13 names.
+	cfg.LocalMode = true
+	cfg.LocalDeviceMap = map[string]string{dev: "Klima"}
+	c.deps.FaikinMQTT = m
+	c.pollOnce(context.Background())
+	if got := m.countOf(attrs); got != 2 {
+		t.Errorf("after the data source changed, %s published %d times, want 2", attrs, got)
+	}
+	if msg, ok := m.get(attrs); !ok || msg.payload != `{"data_source":"local"}` {
+		t.Errorf("%s = %q, want the local data_source document", attrs, msg.payload)
 	}
 }

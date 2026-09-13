@@ -140,6 +140,13 @@ func (r *recorderMQTT) Subscribe(_ context.Context, filter string, _ mqtt.QoS, _
 
 func (r *recorderMQTT) Unsubscribe(_ context.Context, _ string) error { return nil }
 
+// raw returns every publish in order, repeats included.
+func (r *recorderMQTT) raw() []recordedMsg {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]recordedMsg(nil), r.msgs...)
+}
+
 // snapshot returns the recorded messages sorted by topic (stable, so repeated
 // publishes to one topic keep their order) — the surface is a set of retained
 // topics, and sorting removes goroutine-scheduling noise from the pin.
@@ -265,6 +272,18 @@ func scenarioConfig(sc surfaceScenario) *config.Config {
 // recorded messages.
 func buildSurface(t *testing.T, sc surfaceScenario) []recordedMsg {
 	t.Helper()
+	return buildSurfaceRecorder(t, sc).snapshot()
+}
+
+// buildSurfaceRecorder is buildSurface without the collapsing snapshot, for the
+// one assertion that is about REPEATS rather than about the surface: since step
+// 5 every retained state topic goes through the library's dedup gate, and a
+// publish path that bypassed it would write the same bytes twice across the two
+// poll cycles. The golden cannot see that — it collapses byte-identical
+// repeats, which is what makes it a pin on the surface rather than on the
+// traffic.
+func buildSurfaceRecorder(t *testing.T, sc surfaceScenario) *recorderMQTT {
+	t.Helper()
 
 	raw, err := os.ReadFile(sc.fixture)
 	if err != nil {
@@ -321,7 +340,7 @@ func buildSurface(t *testing.T, sc surfaceScenario) []recordedMsg {
 		c.PublishScheduleState(ctx, schedule.Target{DeviceID: goldenSchedDeviceID}, schedule.DeviceState{})
 		c.PublishScheduleState(ctx, schedule.Target{OutdoorSerial: goldenSchedOutdoorSerial}, schedule.DeviceState{})
 	}
-	return rec.snapshot()
+	return rec
 }
 
 // --- the pin ---------------------------------------------------------------
