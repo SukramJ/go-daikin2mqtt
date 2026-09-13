@@ -17,6 +17,28 @@
 
 ### Fixed
 
+- **A second go-daikin2mqtt on the same broker could delete the
+  first's thermostat and refresh-button entities.** The daemon clears
+  retained discovery configs it no longer publishes, and decided a
+  config was "its own" from the `daikin_` prefix plus the MQTT root of
+  the config's `state_topic`. The composite thermostat entity and the
+  refresh button carry no `state_topic` at all — the thermostat names
+  one topic per function instead — so for those the rule fell back to
+  the `daikin_` prefix, which every installation shares. A second
+  instance (a second ONECTA account, a holiday home, a staging
+  daemon) therefore had its thermostats and refresh buttons removed
+  from Home Assistant — silently, and from dashboards and automations
+  with them. On a **shared** `MQTT_TOPIC` the whole second instance
+  was removed, not only those two.
+
+  A config is now recognised as this instance's own only if every
+  topic it names sits under this instance's MQTT root **and** under a
+  device this instance actually polls. **One consequence for a single
+  instance:** a device removed from your ONECTA account is no longer
+  polled, so its retained configs are no longer cleared automatically
+  and remain as unavailable entities until cleared by hand. An entity
+  removed by a catalogue change, or a deleted schedule, is cleared
+  exactly as before.
 - **The climate fan dropdown showed `unknown` in local mode** whenever
   a unit was not on `auto`. The Faikin read path owns `fan_mode` for a
   mapped device, and the map translating the module's reported fan
@@ -60,19 +82,8 @@
   topic, payload, QoS and retain flag is unchanged, and the gate is
   re-opened on every reconnect so a broker restarted without its
   retained store is refilled.
-- **Orphan cleanup no longer touches a config of a device this
-  instance does not poll.** The daemon clears its own retained
-  discovery configs when an entity disappears; it decided they were
-  "its own" from the `daikin_` namespace alone, which two instances
-  on one broker share exactly. It now also requires the config's
-  topics to sit under a device this instance actually polls.
-  **Consequence for a single instance:** if a device is removed from
-  your ONECTA account, its retained configs are no longer cleared
-  automatically (they were, before) and stay as unavailable entities
-  until cleared by hand. Everything else — an entity removed by a
-  catalogue change, a renamed schedule — is cleared exactly as
-  before. **Consequence for two instances:** neither can delete the
-  other's entities.
+- Internal: orphan cleanup — see the *Fixed* entry about a second
+  instance's entities, which is the same change.
 - Internal: every MQTT topic this bridge publishes to or subscribes to
   is now composed by one `internal/layout` package instead of
   seventeen separate expressions across four packages. No published

@@ -1169,6 +1169,18 @@ ONECTA account then do to each other, *today*:
 - Neither sweeps the other away: `IsOwnConfig` accepts both, because both are in
   the `daikin_` namespace, so the orphan reconcile leaves them alone. They do
   not fight. They overwrite.
+
+  > **This claim was wrong, and step 5 proved it wrong.** See
+  > [F18](#f18). "Accepts both, so neither sweeps the other" holds only where
+  > both are accepted *as current entities*, which is true only for identical
+  > device sets. Two instances seeing different devices — two ONECTA accounts,
+  > the home-plus-holiday-home case this document itself contemplates — each
+  > find the other's configs accepted by `IsOwnConfig` and **absent from their
+  > own published set**, which is the definition of an orphan. On a shared MQTT
+  > root that was the sibling's entire fleet; across roots it was still its
+  > composite climate entities and its refresh buttons, because those carry no
+  > `state_topic` for the root check to key on. The reconcile is live and
+  > unguarded today. They did fight.
 - Their state planes do NOT collide if `MQTT_TOPIC` differs — but the discovery
   configs still do, so half the entities end up naming the other instance's
   root.
@@ -1751,7 +1763,7 @@ changed. `PublishOnline` also calls `StatePublisher.Reset()` first, so a broker
 back without its retained store stops being told "already published" for every
 value.
 
-### Mutation proof — 35 applied, 33 caught, 2 deliberate equivalent survivors
+### Mutation proof — 37 applied, 35 caught, 2 deliberate equivalent survivors
 
 Applied to a **filesystem copy** of a **committed** tree (`cp -a`, never
 `git checkout --`), one at a time, whole suite each time.
@@ -1791,6 +1803,8 @@ Applied to a **filesystem copy** of a **committed** tree (`cp -a`, never
 | M29 | the command route widened to `<root>/#` | `TestNothingThisDaemonPublishesIsAlsoSubscribed` |
 | M30 | the report-only sweep never run | **MISSED** → a test written for it, then caught |
 | M31 | the sweep window opened inside the reconcile's | `TestTheReconcileRunsTheReportOnlySweepAfterItsOwnWindow` |
+| **M32** | **the shipped `IsOwnConfig` restored verbatim, escape hatch and all** | **`TestASiblingsStatelessEntitiesAreNeverSwept` + `TestIsOwnConfig` + the sweep report** |
+| **M33** | **`availability_topic` included in the device check instead of excluded** | **the same, plus `TestScheduleConfigIsRecognisedAsOwn` — it pins the exclusion as deliberate rather than forgotten** |
 
 Three genuine misses (M24, M28, M30), each closed by a new assertion and
 re-verified. M3, M11, M13, M14 and the sweep group move **no published byte**,
@@ -1838,6 +1852,64 @@ reconnect and this step's claim is that nothing does. It resolves naturally at
 step 6, where the runtime that owns the claims is itself rebuilt per connection
 — provided `lastDiscSig` is cleared with it. **Step 6 must do that;** it is the
 one thing in this section that is a task rather than a record.
+
+<a name="f18"></a>
+**F18 — the orphan reconcile deleted another instance's climate entities and
+refresh buttons · HIGH, live before this PR, fixed here.**
+
+Found by a cross-repository audit while this step was in flight, and it is not
+a step-6 hazard: the reconcile subscribes the **shared**
+`homeassistant/+/+/config` and `clearOrphanConfigs` gates on `IsOwnConfig`
+alone, with no topic pre-filter and no device scoping. It has shipped.
+
+The predicate this bridge carried was
+
+```go
+strings.HasPrefix(uid, "daikin_") && (stateTopic == "" || strings.HasPrefix(stateTopic, root+"/"))
+```
+
+and `stateTopic == ""` is the whole defect. **24 of the 264 pinned configs
+carry no `state_topic`**: the **14 composite climate entities**, which name
+`mode_state_topic` / `temperature_state_topic` / `current_temperature_topic`
+and never a plain one, and the **10 refresh buttons**, which are stateless by
+definition. For those the rule collapses to the `daikin_` namespace — which
+every instance of this bridge shares. Measured through the real
+`clearOrphanConfigs` against a second instance's **rendered** twenty-config
+fleet (`TestASiblingsStatelessEntitiesAreNeverSwept`):
+
+| The sibling is… | The shipped rule retracted | The rule in this PR retracts |
+| --- | ---: | ---: |
+| on the **same** MQTT root | **20 of 20** — its whole fleet | 0 |
+| on a **different** MQTT root | **2** — its climate and its button | 0 |
+
+In Home Assistant that is the sibling's climate cards and refresh buttons
+disappearing from the entity registry, dashboards and automations, silently, on
+every discovery-signature change — and on a shared root, everything else too.
+
+This is the same shape found in `go-homeconnect2mqtt` the same day (20 of 687,
+all buttons). `go-mtec2mqtt` is safe because its rule is unconditional and it
+builds no buttons; `go-zendure2mqtt` is safe because what remains when the field
+is absent is the operator-configured root, which a sibling does not share. **The
+general lesson: when the keyed field is absent, what remains must still be
+instance-specific.** Here it collapsed to a compile-time literal.
+
+The fix is the [F14](#f14-—-what-step-6-needs-to-know) work above and needs no
+payload change: every topic key in the payload, not one field that 24 configs do
+not have. Note that the *field* choice differs from mtec's deliberately — mtec
+keys on `state_topic` because its availability topic is bridge-level and
+serial-free by design; here the availability topic is likewise bridge-level and
+therefore **not** instance-specific either, so it is excluded from the check
+rather than used as the anchor. What was copied from mtec is the
+unconditionality, not the field.
+
+Two test weaknesses let it survive this long, and both are fixed: the
+`IsOwnConfig` fixtures were hand-written and included a "climate (no
+state_topic)" case asserting `want: true` — **the hole encoded as intended
+behaviour** — and the only test driving the sweep used three `sensor` fixtures
+whose "foreign" payload was a *different integration*, never a sibling instance
+of this bridge. The regression test renders its fixtures with the real builders
+and its sibling is another scenario of this same bridge, on the same root, with
+its climate and its button in the fixture.
 
 <a name="f17"></a>
 **F17 — `AvailabilityConfig.QoS` has no site on this bridge · informational.**
