@@ -447,3 +447,75 @@ func pointFor(topic, mpType, scope string) process.Point {
 		Entry:      catalog.Entry{Platform: "sensor", Scope: scope},
 	}
 }
+
+// TestSharedSubDeviceMemberIsChosenDeterministically pins F7 of the ADR 0070
+// phase 8 measurement.
+//
+// A `scope: outdoor` catalogue entry resolves to one point per INDOOR unit,
+// all sharing a unique_id derived from the outdoor serial, and discovery
+// collapses them into one entity. Which member survives decides which device's
+// topic the RETAINED config names. It used to be "whichever came first", which
+// is the order the ONECTA `GET /devices` array arrived in — and nothing
+// promises that order is stable.
+//
+// The test feeds the same points in both orders. If the surviving member
+// depended on arrival order, the two runs would name different topics, which
+// is precisely the silent breakage: the entity keeps its unique_id, so Home
+// Assistant does not re-register it — it just starts reading somewhere else.
+func TestSharedSubDeviceMemberIsChosenDeterministically(t *testing.T) {
+	t.Parallel()
+
+	outdoor := &SubDevice{SerialNumber: "ODU1"}
+	infos := map[string]DeviceInfo{
+		"zzz-later":   {Name: "Küche", Outdoor: outdoor},
+		"aaa-earlier": {Name: "Wohnzimmer", Outdoor: outdoor},
+	}
+	point := func(deviceID string) process.Point {
+		return process.Point{
+			DeviceID: deviceID, EmbeddedID: "climateControl", MPType: "climateControl",
+			Topic: "outdoor_silent",
+			Entry: catalog.Entry{
+				Topic: "outdoor_silent", Name: "Outdoor silent", Platform: "switch",
+				Scope: "outdoor", Settable: true,
+			},
+			Value: "off",
+		}
+	}
+	const cfgTopic = "homeassistant/switch/daikin_outdoor_ODU1_outdoor_silent/config"
+
+	render := func(t *testing.T, points []process.Point) map[string]any {
+		t.Helper()
+		pub := &capturePub{}
+		d := New("homeassistant", "daikin", "en", pub)
+		if _, err := d.Publish(context.Background(), points, infos, nil); err != nil {
+			t.Fatal(err)
+		}
+		raw, ok := pub.msgs[cfgTopic]
+		if !ok {
+			t.Fatalf("no config at %s; got %v", cfgTopic, pub.msgs)
+		}
+		if len(pub.msgs) != 1 {
+			t.Errorf("the two members did not deduplicate: %d configs published", len(pub.msgs))
+		}
+		var cfg map[string]any
+		if err := json.Unmarshal(raw, &cfg); err != nil {
+			t.Fatal(err)
+		}
+		return cfg
+	}
+
+	forward := render(t, []process.Point{point("zzz-later"), point("aaa-earlier")})
+	reverse := render(t, []process.Point{point("aaa-earlier"), point("zzz-later")})
+
+	for _, key := range []string{"state_topic", "command_topic", "json_attributes_topic", "unique_id"} {
+		if forward[key] != reverse[key] {
+			t.Errorf("%s depends on the order ONECTA returned the devices in: %q vs %q (F7)",
+				key, forward[key], reverse[key])
+		}
+	}
+	// And the member it settles on is the lexicographically lowest device id,
+	// not "whichever the API happened to list first".
+	if got, want := forward["state_topic"], "daikin/aaa-earlier/climateControl/outdoor_silent/state"; got != want {
+		t.Errorf("state_topic = %q, want %q — the tie must break on the device id", got, want)
+	}
+}

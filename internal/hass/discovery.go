@@ -328,19 +328,18 @@ func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos m
 		pub(m.topic, m.payload)
 	}
 
-	// seen deduplicates shared sub-device entities (gateway / outdoor unit)
-	// that repeat across the API devices of a multi-split system.
-	seen := map[string]bool{}
+	// Shared sub-device entities (gateway / outdoor unit) repeat across the API
+	// devices of a multi-split system and collapse to one entity. Which member
+	// survives decides which device's state topic the retained config names, so
+	// it is chosen deterministically rather than by arrival order — see
+	// [survivingPoints].
+	survives := survivingPoints(d, points, infos, consumed)
 	for i := range points {
 		p := points[i]
-		if consumed[p.DeviceID+"|"+p.EmbeddedID+"|"+p.Topic] {
+		if !survives[i] {
 			continue
 		}
 		uid, dev, seed := d.entityIdentity(p, infos[p.DeviceID])
-		if seen[uid] {
-			continue
-		}
-		seen[uid] = true
 		topic, payload, ok := d.buildConfig(p, uid, dev, seed)
 		if !ok {
 			continue
@@ -348,6 +347,66 @@ func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos m
 		pub(topic, payload)
 	}
 	return published, firstErr
+}
+
+// survivingPoints decides, for each deduplicated unique_id, WHICH of the points
+// sharing it the published config is built from. It returns a set of indices
+// into points.
+//
+// This matters because the surviving point's device and embedded id are what
+// the retained config's state_topic and json_attributes_topic name. A
+// `scope: outdoor` catalogue entry resolves to one point per INDOOR unit, all
+// sharing a unique_id derived from the outdoor serial; the same is true of a
+// gateway shared across a multi-split.
+//
+// It used to be "whichever came first", which is the order process.ResolveAt
+// walked the devices, which is the order the ONECTA `GET /devices` array
+// arrived in. Nothing in the API documentation promises that order is stable.
+// If it flips, discoverySignature changes, discovery is republished, and the
+// retained config now names a DIFFERENT device's topic — silently. The entity
+// keeps its unique_id (the serial), so it is not re-registered; it just starts
+// reading somewhere else, with a retained value that may be a poll old. On a
+// two-indoor multi-split that is up to thirteen entities per outdoor unit.
+//
+// The tie is now broken on (DeviceID, EmbeddedID), lexicographically lowest,
+// which is a property of the installation rather than of a response. This is
+// F7 of the ADR 0070 phase 8 measurement, and it does not depend on whether
+// the array order actually varies — it removes the dependency instead of
+// hoping.
+//
+// The non-surviving members' state is still published (every member carries
+// the value), deliberately: see publishOutdoorShared and
+// publishOutdoorScheduleState in internal/coordinator. That redundancy is what
+// made the arrival-order version work at all, and it stays, because a
+// deterministic choice is not the same as a choice this daemon can make before
+// it has seen every device.
+func survivingPoints(d *Discovery, points []process.Point, infos map[string]DeviceInfo, consumed map[string]bool) map[int]bool {
+	best := map[string]int{}
+	for i := range points {
+		p := points[i]
+		if consumed[p.DeviceID+"|"+p.EmbeddedID+"|"+p.Topic] {
+			continue
+		}
+		uid, _, _ := d.entityIdentity(p, infos[p.DeviceID])
+		j, seen := best[uid]
+		if !seen || lessPoint(p, points[j]) {
+			best[uid] = i
+		}
+	}
+	out := make(map[int]bool, len(best))
+	for _, i := range best {
+		out[i] = true
+	}
+	return out
+}
+
+// lessPoint orders two points sharing a unique_id. Only the device and its
+// management point can differ — the topic is what made them share the id.
+func lessPoint(a, b process.Point) bool {
+	if a.DeviceID != b.DeviceID {
+		return a.DeviceID < b.DeviceID
+	}
+	return a.EmbeddedID < b.EmbeddedID
 }
 
 // IsOwnConfig reports whether a retained HA discovery config payload was

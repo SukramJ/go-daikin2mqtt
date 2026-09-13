@@ -75,10 +75,10 @@ var goldenDigests = map[string]string{
 	"altherma-air-to-water-wlan.de": "dc81ae70db58df36f4690333eae968b8a295fb00eeb2c5d3f4163264b714105b",
 	"d2cnd-gas-boiler.en":           "6b483b00cc3f220b3bcbc3251377f67161338a7a9646210cd8206292b2ad9d86",
 	"d2cnd-gas-boiler.de":           "5139888de2ac08f7c03175c209010608780e51a375f59a86a4c35922d905f55e",
-	"multisplit.en":                 "94ff2a7b98d04de02a1992bb72604ab076fdc5906d4709e41a150d7e49a9c7a1",
-	"multisplit.de":                 "1075067132af3703e9b3b0b4fc4a82b13630003c27ee2a2e4a78545423f8a114",
-	"multisplit.local.en":           "3808b86a5f27262d46c2210f69c71acd159510ccf9ea2b275609c37bb6b81f17",
-	"multisplit.scheduler.en":       "8b26fd8fef9a3ec0dc0caaaeb7e96d9edb70bf4d6bcfb746a8c4f8d7ea31cf1b",
+	"multisplit.en":                 "b46353dc72c65b4cead5c39b89c0883f7446b2c918c406bd09ebb13c9f4fd0a4",
+	"multisplit.de":                 "b1c90994c510dc4f0e56fa5824a54ba067f71c52b394c0b445cafcc21c9d9280",
+	"multisplit.local.en":           "700ba97ccb813402a007ae93200d9469bb7c538a836aba91e19c5b1db67e728e",
+	"multisplit.scheduler.en":       "07ce4f79e89988edfb8d1bb0916ab3b046659fadb2505542f464e137bdd04ee2",
 }
 
 // --- recording broker ------------------------------------------------------

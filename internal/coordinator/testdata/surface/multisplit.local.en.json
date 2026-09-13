@@ -1267,7 +1267,7 @@
       "retain": true,
       "json": {
         "availability_topic": "daikin/bridge/status",
-        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/set",
+        "command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refresh/set",
         "default_entity_id": "button.daikin_outdoor_unit_refresh",
         "device": {
           "configuration_url": "https://onecta.daikineurope.com",
@@ -1281,7 +1281,7 @@
           "sw_version": "22018703"
         },
         "icon": "mdi:cloud-refresh",
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refresh/attributes",
         "name": "Refresh from cloud",
         "payload_available": "online",
         "payload_not_available": "offline",
@@ -1435,7 +1435,7 @@
       "retain": true,
       "json": {
         "availability_topic": "daikin/bridge/status",
-        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/demand_control/set",
+        "command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/demand_control/set",
         "default_entity_id": "number.daikin_outdoor_unit_demand_control",
         "device": {
           "configuration_url": "https://onecta.daikineurope.com",
@@ -1448,13 +1448,13 @@
           "serial_number": "ODU0000000001",
           "sw_version": "22018703"
         },
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/demand_control/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/demand_control/attributes",
         "max": 100,
         "min": 40,
         "name": "Demand limit",
         "payload_available": "online",
         "payload_not_available": "offline",
-        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/demand_control/state",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/demand_control/state",
         "step": 5,
         "unique_id": "daikin_outdoor_ODU0000000001_demand_control",
         "unit_of_measurement": "%"
@@ -2446,12 +2446,12 @@
         },
         "device_class": "frequency",
         "entity_category": "diagnostic",
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/compressor_frequency/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/compressor_frequency/attributes",
         "name": "Compressor frequency",
         "payload_available": "online",
         "payload_not_available": "offline",
         "state_class": "measurement",
-        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/compressor_frequency/state",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/compressor_frequency/state",
         "unique_id": "daikin_outdoor_ODU0000000001_compressor_frequency",
         "unit_of_measurement": "Hz"
       }
@@ -2475,12 +2475,12 @@
           "sw_version": "22018703"
         },
         "device_class": "energy",
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_cooling_energy_total/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_cooling_energy_total/attributes",
         "name": "Cooling energy total (system)",
         "payload_available": "online",
         "payload_not_available": "offline",
         "state_class": "total_increasing",
-        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_cooling_energy_total/state",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_cooling_energy_total/state",
         "unique_id": "daikin_outdoor_ODU0000000001_outdoor_cooling_energy_total",
         "unit_of_measurement": "kWh"
       }
@@ -2504,12 +2504,12 @@
           "sw_version": "22018703"
         },
         "device_class": "energy",
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_energy_total/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_energy_total/attributes",
         "name": "Energy total (system)",
         "payload_available": "online",
         "payload_not_available": "offline",
         "state_class": "total_increasing",
-        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_energy_total/state",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_energy_total/state",
         "unique_id": "daikin_outdoor_ODU0000000001_outdoor_energy_total",
         "unit_of_measurement": "kWh"
       }
@@ -2533,12 +2533,12 @@
           "sw_version": "22018703"
         },
         "device_class": "energy",
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_heating_energy_total/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_heating_energy_total/attributes",
         "name": "Heating energy total (system)",
         "payload_available": "online",
         "payload_not_available": "offline",
         "state_class": "total_increasing",
-        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_heating_energy_total/state",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_heating_energy_total/state",
         "unique_id": "daikin_outdoor_ODU0000000001_outdoor_heating_energy_total",
         "unit_of_measurement": "kWh"
       }
@@ -2562,12 +2562,12 @@
           "sw_version": "22018703"
         },
         "device_class": "power",
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_power/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_power/attributes",
         "name": "Power (system)",
         "payload_available": "online",
         "payload_not_available": "offline",
         "state_class": "measurement",
-        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_power/state",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_power/state",
         "unique_id": "daikin_outdoor_ODU0000000001_outdoor_power",
         "unit_of_measurement": "W"
       }
@@ -2591,12 +2591,12 @@
           "sw_version": "22018703"
         },
         "device_class": "temperature",
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature/attributes",
         "name": "Outdoor temperature",
         "payload_available": "online",
         "payload_not_available": "offline",
         "state_class": "measurement",
-        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/state",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature/state",
         "unique_id": "daikin_outdoor_ODU0000000001_outdoor_temperature",
         "unit_of_measurement": "°C"
       }
@@ -2735,7 +2735,7 @@
       "retain": true,
       "json": {
         "availability_topic": "daikin/bridge/status",
-        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/econo_mode/set",
+        "command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/econo_mode/set",
         "default_entity_id": "switch.daikin_outdoor_unit_econo_mode",
         "device": {
           "configuration_url": "https://onecta.daikineurope.com",
@@ -2748,7 +2748,7 @@
           "serial_number": "ODU0000000001",
           "sw_version": "22018703"
         },
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/econo_mode/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/econo_mode/attributes",
         "name": "Econo mode",
         "payload_available": "online",
         "payload_not_available": "offline",
@@ -2756,7 +2756,7 @@
         "payload_on": "on",
         "state_off": "off",
         "state_on": "on",
-        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/econo_mode/state",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/econo_mode/state",
         "unique_id": "daikin_outdoor_ODU0000000001_econo_mode"
       }
     },
@@ -2766,7 +2766,7 @@
       "retain": true,
       "json": {
         "availability_topic": "daikin/bridge/status",
-        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_silent/set",
+        "command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_silent/set",
         "default_entity_id": "switch.daikin_outdoor_unit_outdoor_silent",
         "device": {
           "configuration_url": "https://onecta.daikineurope.com",
@@ -2779,7 +2779,7 @@
           "serial_number": "ODU0000000001",
           "sw_version": "22018703"
         },
-        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_silent/attributes",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_silent/attributes",
         "name": "Outdoor silent",
         "payload_available": "online",
         "payload_not_available": "offline",
@@ -2787,7 +2787,7 @@
         "payload_on": "on",
         "state_off": "off",
         "state_on": "on",
-        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_silent/state",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_silent/state",
         "unique_id": "daikin_outdoor_ODU0000000001_outdoor_silent"
       }
     }
