@@ -1,0 +1,6 @@
+# The published-surface goldens are pinned by SHA-256 held in Go literals
+# (internal/coordinator/surface_golden_test.go), so their checked-out bytes must
+# be identical on every platform. Without this, Git rewrites them to CRLF on a
+# Windows checkout (the CI test matrix includes windows-latest) and the digests
+# differ there. LF is also what the regeneration helper writes.
+* text=auto eol=lf

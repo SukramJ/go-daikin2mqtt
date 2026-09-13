@@ -1,0 +1,2795 @@
+{
+  "scenario": "multisplit.local.en",
+  "messages": [
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/compressor_frequency/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/compressor_frequency/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/compressor_frequency/state",
+      "qos": 0,
+      "retain": true,
+      "text": "42.0"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_daily/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_daily/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.100"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_monthly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_monthly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.000"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "334.500"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_weekly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_weekly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.300"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/demand_control/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/demand_control/state",
+      "qos": 0,
+      "retain": true,
+      "text": "80"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/econo_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/econo_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "off"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "1234.500"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_code/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_code/state",
+      "qos": 0,
+      "retain": true,
+      "text": "00"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_state/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_speed/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_speed/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_speed/state",
+      "qos": 0,
+      "retain": true,
+      "text": "870"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_daily/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_daily/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.000"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_monthly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_monthly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.000"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "900.000"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_weekly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_weekly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.000"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/holiday_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/holiday_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/hvac_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "heat_cool"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/hvac_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "heat"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/operation_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/operation_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "Heating"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_cooling_energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_cooling_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_cooling_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "334.500"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "1234.500"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_heating_energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_heating_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_heating_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "900.000"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_power/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "610"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "1220"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_silent/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_silent/state",
+      "qos": 0,
+      "retain": true,
+      "text": "on"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "4.5"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "on"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/power_consumption/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/power_consumption/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/power_consumption/state",
+      "qos": 0,
+      "retain": true,
+      "text": "610"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/powerful_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/powerful_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "off"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/preset_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "none"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refresh/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refrigerant_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refrigerant_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refrigerant_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "31.5"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_humidity/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_humidity/state",
+      "qos": 0,
+      "retain": true,
+      "text": "44"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "20.5"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/streamer/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/streamer/state",
+      "qos": 0,
+      "retain": true,
+      "text": "on"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/swing_h_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "stop"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/swing_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "swing"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/temperature_setpoint/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/temperature_setpoint/state",
+      "qos": 0,
+      "retain": true,
+      "text": "21.5"
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/gateway/gateway_ip_address/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/gateway/gateway_ip_address/state",
+      "qos": 0,
+      "retain": true,
+      "text": "192.168.0.3"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/compressor_frequency/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/compressor_frequency/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/compressor_frequency/state",
+      "qos": 0,
+      "retain": true,
+      "text": "42.0"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.100"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.000"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "334.500"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.300"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/demand_control/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/demand_control/state",
+      "qos": 0,
+      "retain": true,
+      "text": "80"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/econo_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/econo_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "off"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "1234.500"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code/state",
+      "qos": 0,
+      "retain": true,
+      "text": "00"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_speed/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_speed/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_speed/state",
+      "qos": 0,
+      "retain": true,
+      "text": "870"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.000"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.000"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "900.000"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.000"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/hvac_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "heat_cool"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/hvac_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "heat"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/operation_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/operation_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "Heating"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_cooling_energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_cooling_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_cooling_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "334.500"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "1234.500"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_heating_energy_total/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_heating_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_heating_energy_total/state",
+      "qos": 0,
+      "retain": true,
+      "text": "900.000"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_power/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "610"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "1220"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_silent/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_silent/state",
+      "qos": 0,
+      "retain": true,
+      "text": "on"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "4.5"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "on"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power_consumption/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power_consumption/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power_consumption/state",
+      "qos": 0,
+      "retain": true,
+      "text": "610"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "off"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/preset_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "none"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refrigerant_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refrigerant_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refrigerant_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "31.5"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity/state",
+      "qos": 0,
+      "retain": true,
+      "text": "44"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "20.5"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/streamer/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/streamer/state",
+      "qos": 0,
+      "retain": true,
+      "text": "on"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_h_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "stop"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "swing"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/temperature_setpoint/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "local"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/temperature_setpoint/state",
+      "qos": 0,
+      "retain": true,
+      "text": "21.5"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address/state",
+      "qos": 0,
+      "retain": true,
+      "text": "192.168.0.3"
+    },
+    {
+      "topic": "daikin/bridge/status",
+      "qos": 0,
+      "retain": true,
+      "text": "online"
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_11112222-3333-4444-5555-666677778888_error_state/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.kuche_error_state",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "problem",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_state/attributes",
+        "name": "Error",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_state/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_state"
+      }
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_11112222-3333-4444-5555-666677778888_holiday_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.kuche_holiday_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/holiday_mode/attributes",
+        "name": "Holiday mode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/holiday_mode/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_holiday_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.wohnzimmer_error_state",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "problem",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state/attributes",
+        "name": "Error",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state"
+      }
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.wohnzimmer_holiday_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode/attributes",
+        "name": "Holiday mode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/button/daikin_outdoor_ODU0000000001_refresh/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/set",
+        "default_entity_id": "button.daikin_outdoor_unit_refresh",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_outdoor_ODU0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "RXTA30C2V1B",
+          "name": "Daikin Outdoor unit",
+          "serial_number": "ODU0000000001",
+          "sw_version": "22018703"
+        },
+        "icon": "mdi:cloud-refresh",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/attributes",
+        "name": "Refresh from cloud",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_press": "PRESS",
+        "unique_id": "daikin_outdoor_ODU0000000001_refresh"
+      }
+    },
+    {
+      "topic": "homeassistant/climate/daikin_11112222-3333-4444-5555-666677778888_climate/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "current_temperature_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_temperature/state",
+        "default_entity_id": "climate.kuche_thermostat",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "fan_mode_command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_mode/set",
+        "fan_mode_state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_mode/state",
+        "fan_modes": [
+          "quiet",
+          "auto",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ],
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/climate/attributes",
+        "max_temp": 30,
+        "min_temp": 18,
+        "mode_command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/hvac_mode/set",
+        "mode_state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/hvac_mode/state",
+        "modes": [
+          "off",
+          "heat",
+          "cool",
+          "heat_cool",
+          "dry",
+          "fan_only"
+        ],
+        "name": "Thermostat",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "preset_mode_command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/preset_mode/set",
+        "preset_mode_state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/preset_mode/state",
+        "preset_modes": [
+          "boost"
+        ],
+        "swing_horizontal_mode_command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/swing_h_mode/set",
+        "swing_horizontal_mode_state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/swing_h_mode/state",
+        "swing_horizontal_modes": [
+          "stop",
+          "swing"
+        ],
+        "swing_mode_command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/swing_mode/set",
+        "swing_mode_state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/swing_mode/state",
+        "swing_modes": [
+          "stop",
+          "swing"
+        ],
+        "temp_step": 0.5,
+        "temperature_command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/temperature_setpoint/set",
+        "temperature_state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/temperature_setpoint/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_climate"
+      }
+    },
+    {
+      "topic": "homeassistant/climate/daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "current_temperature_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/state",
+        "default_entity_id": "climate.wohnzimmer_thermostat",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "fan_mode_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_mode/set",
+        "fan_mode_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_mode/state",
+        "fan_modes": [
+          "quiet",
+          "auto",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ],
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/climate/attributes",
+        "max_temp": 30,
+        "min_temp": 18,
+        "mode_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/hvac_mode/set",
+        "mode_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/hvac_mode/state",
+        "modes": [
+          "off",
+          "heat",
+          "cool",
+          "heat_cool",
+          "dry",
+          "fan_only"
+        ],
+        "name": "Thermostat",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "preset_mode_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/preset_mode/set",
+        "preset_mode_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/preset_mode/state",
+        "preset_modes": [
+          "boost"
+        ],
+        "swing_horizontal_mode_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_h_mode/set",
+        "swing_horizontal_mode_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_h_mode/state",
+        "swing_horizontal_modes": [
+          "stop",
+          "swing"
+        ],
+        "swing_mode_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_mode/set",
+        "swing_mode_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_mode/state",
+        "swing_modes": [
+          "stop",
+          "swing"
+        ],
+        "temp_step": 0.5,
+        "temperature_command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/temperature_setpoint/set",
+        "temperature_state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/temperature_setpoint/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate"
+      }
+    },
+    {
+      "topic": "homeassistant/number/daikin_outdoor_ODU0000000001_demand_control/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/demand_control/set",
+        "default_entity_id": "number.daikin_outdoor_unit_demand_control",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_outdoor_ODU0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "RXTA30C2V1B",
+          "name": "Daikin Outdoor unit",
+          "serial_number": "ODU0000000001",
+          "sw_version": "22018703"
+        },
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/demand_control/attributes",
+        "max": 100,
+        "min": 40,
+        "name": "Demand limit",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/demand_control/state",
+        "step": 5,
+        "unique_id": "daikin_outdoor_ODU0000000001_demand_control",
+        "unit_of_measurement": "%"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_cooling_energy_daily/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_cooling_energy_daily",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_daily/attributes",
+        "name": "Cooling energy today",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_daily/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_daily",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_cooling_energy_monthly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_cooling_energy_monthly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_monthly/attributes",
+        "name": "Cooling energy this month",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_monthly/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_monthly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_cooling_energy_total/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_cooling_energy_total",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_total/attributes",
+        "name": "Cooling energy total",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_total/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_total",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_cooling_energy_weekly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_cooling_energy_weekly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_weekly/attributes",
+        "name": "Cooling energy this week",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_weekly/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_weekly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_energy_total/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_energy_total",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/energy_total/attributes",
+        "name": "Energy total",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/energy_total/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_energy_total",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_error_code/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_error_code",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_code/attributes",
+        "name": "Error code",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_code/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_code"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_fan_speed/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_fan_speed",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_speed/attributes",
+        "name": "Fan speed",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_speed/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_fan_speed",
+        "unit_of_measurement": "rpm"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_heating_energy_daily/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_heating_energy_daily",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_daily/attributes",
+        "name": "Heating energy today",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_daily/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_daily",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_heating_energy_monthly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_heating_energy_monthly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_monthly/attributes",
+        "name": "Heating energy this month",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_monthly/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_monthly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_heating_energy_total/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_heating_energy_total",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_total/attributes",
+        "name": "Heating energy total",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_total/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_total",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_heating_energy_weekly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_heating_energy_weekly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_weekly/attributes",
+        "name": "Heating energy this week",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_weekly/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_weekly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_power_consumption/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_power_consumption",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "power",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/power_consumption/attributes",
+        "name": "Power",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/power_consumption/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_power_consumption",
+        "unit_of_measurement": "W"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_refrigerant_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_refrigerant_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "temperature",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refrigerant_temperature/attributes",
+        "name": "Refrigerant temperature",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refrigerant_temperature/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_refrigerant_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_room_humidity/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_room_humidity",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "humidity",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_humidity/attributes",
+        "name": "Room humidity",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_humidity/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_humidity",
+        "unit_of_measurement": "%"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_room_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.kuche_room_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_temperature/attributes",
+        "name": "Room temperature",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_temperature/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_cooling_energy_daily",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily/attributes",
+        "name": "Cooling energy today",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_cooling_energy_monthly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly/attributes",
+        "name": "Cooling energy this month",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_total/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_cooling_energy_total",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_total/attributes",
+        "name": "Cooling energy total",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_total/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_total",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_cooling_energy_weekly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly/attributes",
+        "name": "Cooling energy this week",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_energy_total/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_energy_total",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/energy_total/attributes",
+        "name": "Energy total",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/energy_total/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_energy_total",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_error_code",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code/attributes",
+        "name": "Error code",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_fan_speed/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_fan_speed",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_speed/attributes",
+        "name": "Fan speed",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_speed/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_fan_speed",
+        "unit_of_measurement": "rpm"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_heating_energy_daily",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily/attributes",
+        "name": "Heating energy today",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_heating_energy_monthly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly/attributes",
+        "name": "Heating energy this month",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_total/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_heating_energy_total",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_total/attributes",
+        "name": "Heating energy total",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_total/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_total",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_heating_energy_weekly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly/attributes",
+        "name": "Heating energy this week",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_power_consumption/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_power_consumption",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "power",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power_consumption/attributes",
+        "name": "Power",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power_consumption/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_power_consumption",
+        "unit_of_measurement": "W"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_refrigerant_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_refrigerant_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "temperature",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refrigerant_temperature/attributes",
+        "name": "Refrigerant temperature",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refrigerant_temperature/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_refrigerant_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_room_humidity",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "humidity",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity/attributes",
+        "name": "Room humidity",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity",
+        "unit_of_measurement": "%"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.wohnzimmer_room_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/attributes",
+        "name": "Room temperature",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_gateway_GW0000000001_gateway_ip_address/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.gateway_wohnzimmer_gateway_ip_address",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "connections": [
+            [
+              "mac",
+              "9c:50:d1:bf:22:5c"
+            ]
+          ],
+          "identifiers": [
+            "daikin_gateway_GW0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "BRP069C4x",
+          "name": "Gateway Wohnzimmer",
+          "serial_number": "GW0000000001",
+          "sw_version": "1_30_0",
+          "via_device": "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address/attributes",
+        "name": "Gateway IP address",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address/state",
+        "unique_id": "daikin_gateway_GW0000000001_gateway_ip_address"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_gateway_GW0000000002_gateway_ip_address/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.gateway_kuche_gateway_ip_address",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "connections": [
+            [
+              "mac",
+              "9c:50:d1:bf:22:5c"
+            ]
+          ],
+          "identifiers": [
+            "daikin_gateway_GW0000000002"
+          ],
+          "manufacturer": "Daikin",
+          "model": "BRP069C4x",
+          "name": "Gateway Küche",
+          "serial_number": "GW0000000002",
+          "sw_version": "1_30_0",
+          "via_device": "daikin_11112222-3333-4444-5555-666677778888"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/gateway/gateway_ip_address/attributes",
+        "name": "Gateway IP address",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/gateway/gateway_ip_address/state",
+        "unique_id": "daikin_gateway_GW0000000002_gateway_ip_address"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_outdoor_ODU0000000001_compressor_frequency/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.daikin_outdoor_unit_compressor_frequency",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_outdoor_ODU0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "RXTA30C2V1B",
+          "name": "Daikin Outdoor unit",
+          "serial_number": "ODU0000000001",
+          "sw_version": "22018703"
+        },
+        "device_class": "frequency",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/compressor_frequency/attributes",
+        "name": "Compressor frequency",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/compressor_frequency/state",
+        "unique_id": "daikin_outdoor_ODU0000000001_compressor_frequency",
+        "unit_of_measurement": "Hz"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_outdoor_ODU0000000001_outdoor_cooling_energy_total/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_cooling_energy_total",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_outdoor_ODU0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "RXTA30C2V1B",
+          "name": "Daikin Outdoor unit",
+          "serial_number": "ODU0000000001",
+          "sw_version": "22018703"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_cooling_energy_total/attributes",
+        "name": "Cooling energy total (system)",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_cooling_energy_total/state",
+        "unique_id": "daikin_outdoor_ODU0000000001_outdoor_cooling_energy_total",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_outdoor_ODU0000000001_outdoor_energy_total/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_energy_total",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_outdoor_ODU0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "RXTA30C2V1B",
+          "name": "Daikin Outdoor unit",
+          "serial_number": "ODU0000000001",
+          "sw_version": "22018703"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_energy_total/attributes",
+        "name": "Energy total (system)",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_energy_total/state",
+        "unique_id": "daikin_outdoor_ODU0000000001_outdoor_energy_total",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_outdoor_ODU0000000001_outdoor_heating_energy_total/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_heating_energy_total",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_outdoor_ODU0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "RXTA30C2V1B",
+          "name": "Daikin Outdoor unit",
+          "serial_number": "ODU0000000001",
+          "sw_version": "22018703"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_heating_energy_total/attributes",
+        "name": "Heating energy total (system)",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_heating_energy_total/state",
+        "unique_id": "daikin_outdoor_ODU0000000001_outdoor_heating_energy_total",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_outdoor_ODU0000000001_outdoor_power/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_power",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_outdoor_ODU0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "RXTA30C2V1B",
+          "name": "Daikin Outdoor unit",
+          "serial_number": "ODU0000000001",
+          "sw_version": "22018703"
+        },
+        "device_class": "power",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_power/attributes",
+        "name": "Power (system)",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_power/state",
+        "unique_id": "daikin_outdoor_ODU0000000001_outdoor_power",
+        "unit_of_measurement": "W"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_outdoor_ODU0000000001_outdoor_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_outdoor_ODU0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "RXTA30C2V1B",
+          "name": "Daikin Outdoor unit",
+          "serial_number": "ODU0000000001",
+          "sw_version": "22018703"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/attributes",
+        "name": "Outdoor temperature",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/state",
+        "unique_id": "daikin_outdoor_ODU0000000001_outdoor_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_11112222-3333-4444-5555-666677778888_powerful_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/powerful_mode/set",
+        "default_entity_id": "switch.kuche_powerful_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/powerful_mode/attributes",
+        "name": "Powerful mode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/powerful_mode/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_powerful_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_11112222-3333-4444-5555-666677778888_streamer/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/streamer/set",
+        "default_entity_id": "switch.kuche_streamer",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/streamer/attributes",
+        "name": "Streamer",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/streamer/state",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_streamer"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_809d41d9-4d42-45fa-af6a-84b512143672_powerful_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/set",
+        "default_entity_id": "switch.wohnzimmer_powerful_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/attributes",
+        "name": "Powerful mode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_powerful_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_809d41d9-4d42-45fa-af6a-84b512143672_streamer/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/streamer/set",
+        "default_entity_id": "switch.wohnzimmer_streamer",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/streamer/attributes",
+        "name": "Streamer",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/streamer/state",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_streamer"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_outdoor_ODU0000000001_econo_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/econo_mode/set",
+        "default_entity_id": "switch.daikin_outdoor_unit_econo_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_outdoor_ODU0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "RXTA30C2V1B",
+          "name": "Daikin Outdoor unit",
+          "serial_number": "ODU0000000001",
+          "sw_version": "22018703"
+        },
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/econo_mode/attributes",
+        "name": "Econo mode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/econo_mode/state",
+        "unique_id": "daikin_outdoor_ODU0000000001_econo_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_outdoor_ODU0000000001_outdoor_silent/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_silent/set",
+        "default_entity_id": "switch.daikin_outdoor_unit_outdoor_silent",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_outdoor_ODU0000000001"
+          ],
+          "manufacturer": "Daikin",
+          "model": "RXTA30C2V1B",
+          "name": "Daikin Outdoor unit",
+          "serial_number": "ODU0000000001",
+          "sw_version": "22018703"
+        },
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_silent/attributes",
+        "name": "Outdoor silent",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_silent/state",
+        "unique_id": "daikin_outdoor_ODU0000000001_outdoor_silent"
+      }
+    }
+  ]
+}

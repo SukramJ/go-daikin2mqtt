@@ -1,0 +1,627 @@
+{
+  "scenario": "d2cnd-gas-boiler.de",
+  "messages": [
+    {
+      "topic": "daikin/bridge/status",
+      "qos": 0,
+      "retain": true,
+      "text": "online"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_error_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_error_state/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_ip_address/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_ip_address/state",
+      "qos": 0,
+      "retain": true,
+      "text": "10.32.4.10"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code/state",
+      "qos": 0,
+      "retain": true,
+      "empty": true
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_state/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/holiday_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/holiday_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/hvac_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "off"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/operation_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/operation_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "heatingNight"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/outdoor_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/outdoor_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "9.5"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "on"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/room_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/room_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "23.0"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/temperature_setpoint/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/temperature_setpoint/state",
+      "qos": 0,
+      "retain": true,
+      "text": "25.0"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/warning_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/warning_state/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_error_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_error_state/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "off"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_tank_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_tank_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "45.0"
+    },
+    {
+      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/refresh/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_error_state/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.climate_control_dhw_error_state",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "device_class": "problem",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_error_state/attributes",
+        "name": "Warmwasser-Fehler",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_error_state/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_error_state"
+      }
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_error_state/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.climate_control_error_state",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "device_class": "problem",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_state/attributes",
+        "name": "Fehler",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_state/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_error_state"
+      }
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_gateway_error_state/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.climate_control_gateway_error_state",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "device_class": "problem",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_error_state/attributes",
+        "name": "Gateway-Fehler",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_error_state/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_gateway_error_state"
+      }
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_holiday_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.climate_control_holiday_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/holiday_mode/attributes",
+        "name": "Urlaubsmodus",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/holiday_mode/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_holiday_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_warning_state/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.climate_control_warning_state",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "device_class": "problem",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/warning_state/attributes",
+        "name": "Warnung",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/warning_state/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_warning_state"
+      }
+    },
+    {
+      "topic": "homeassistant/button/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_refresh/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/refresh/set",
+        "default_entity_id": "button.climate_control_refresh",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "icon": "mdi:cloud-refresh",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/refresh/attributes",
+        "name": "Aus Cloud aktualisieren",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_press": "PRESS",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_refresh"
+      }
+    },
+    {
+      "topic": "homeassistant/climate/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_climate/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "current_temperature_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/room_temperature/state",
+        "default_entity_id": "climate.climate_control_thermostat",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/climate/attributes",
+        "max_temp": 30,
+        "min_temp": 10,
+        "mode_command_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/hvac_mode/set",
+        "mode_state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/hvac_mode/state",
+        "modes": [
+          "off",
+          "heat",
+          "cool",
+          "heat_cool",
+          "dry",
+          "fan_only"
+        ],
+        "name": "Thermostat",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "temp_step": 0.5,
+        "temperature_command_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/temperature_setpoint/set",
+        "temperature_state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/temperature_setpoint/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_climate"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_tank_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.climate_control_dhw_tank_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_tank_temperature/attributes",
+        "name": "Speichertemperatur",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_tank_temperature/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_tank_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_error_code/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.climate_control_error_code",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code/attributes",
+        "name": "Fehlercode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_error_code"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_gateway_ip_address/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.climate_control_gateway_ip_address",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_ip_address/attributes",
+        "name": "Gateway-IP-Adresse",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_ip_address/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_gateway_ip_address"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_outdoor_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.climate_control_outdoor_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/outdoor_temperature/attributes",
+        "name": "Außentemperatur",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/outdoor_temperature/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_outdoor_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_room_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.climate_control_room_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/room_temperature/attributes",
+        "name": "Raumtemperatur",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/room_temperature/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_room_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_power/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_power/set",
+        "default_entity_id": "switch.climate_control_dhw_power",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+          ],
+          "manufacturer": "Daikin",
+          "model": "D2CND",
+          "model_id": "NDJ",
+          "name": "Climate control",
+          "sw_version": "03_AD_C"
+        },
+        "json_attributes_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_power/attributes",
+        "name": "Warmwasser",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_power/state",
+        "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_power"
+      }
+    }
+  ]
+}

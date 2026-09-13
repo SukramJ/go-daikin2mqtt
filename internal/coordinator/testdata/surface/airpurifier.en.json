@@ -1,0 +1,367 @@
+{
+  "scenario": "airpurifier.en",
+  "messages": [
+    {
+      "topic": "daikin/bridge/status",
+      "qos": 0,
+      "retain": true,
+      "text": "online"
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "Econo"
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code/state",
+      "qos": 0,
+      "retain": true,
+      "text": "00"
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "on"
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity/state",
+      "qos": 0,
+      "retain": true,
+      "text": "40"
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "26.0"
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address/state",
+      "qos": 0,
+      "retain": true,
+      "text": "192.168.0.31"
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_state/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.my_mock_air_purifier_error_state",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5"
+          ],
+          "manufacturer": "Daikin",
+          "model": "MC80Z",
+          "model_id": "air-purifier",
+          "name": "my mock air purifier",
+          "sw_version": "22001E02"
+        },
+        "device_class": "problem",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state/attributes",
+        "name": "Error",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state/state",
+        "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_state"
+      }
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_holiday_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.my_mock_air_purifier_holiday_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5"
+          ],
+          "manufacturer": "Daikin",
+          "model": "MC80Z",
+          "model_id": "air-purifier",
+          "name": "my mock air purifier",
+          "sw_version": "22001E02"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode/attributes",
+        "name": "Holiday mode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode/state",
+        "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_holiday_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/select/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_air_purification_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/set",
+        "default_entity_id": "select.my_mock_air_purifier_air_purification_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5"
+          ],
+          "manufacturer": "Daikin",
+          "model": "MC80Z",
+          "model_id": "air-purifier",
+          "name": "my mock air purifier",
+          "sw_version": "22001E02"
+        },
+        "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/attributes",
+        "name": "Air purification mode",
+        "options": [
+          "Manual fan",
+          "Auto fan",
+          "Econo",
+          "Anti-pollen",
+          "Circulator"
+        ],
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/state",
+        "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_air_purification_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_code/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_air_purifier_error_code",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5"
+          ],
+          "manufacturer": "Daikin",
+          "model": "MC80Z",
+          "model_id": "air-purifier",
+          "name": "my mock air purifier",
+          "sw_version": "22001E02"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code/attributes",
+        "name": "Error code",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code/state",
+        "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_code"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_gateway_ip_address/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_air_purifier_gateway_ip_address",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5"
+          ],
+          "manufacturer": "Daikin",
+          "model": "MC80Z",
+          "model_id": "air-purifier",
+          "name": "my mock air purifier",
+          "sw_version": "22001E02"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address/attributes",
+        "name": "Gateway IP address",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address/state",
+        "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_gateway_ip_address"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_humidity/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_air_purifier_room_humidity",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5"
+          ],
+          "manufacturer": "Daikin",
+          "model": "MC80Z",
+          "model_id": "air-purifier",
+          "name": "my mock air purifier",
+          "sw_version": "22001E02"
+        },
+        "device_class": "humidity",
+        "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity/attributes",
+        "name": "Room humidity",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity/state",
+        "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_humidity",
+        "unit_of_measurement": "%"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_air_purifier_room_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5"
+          ],
+          "manufacturer": "Daikin",
+          "model": "MC80Z",
+          "model_id": "air-purifier",
+          "name": "my mock air purifier",
+          "sw_version": "22001E02"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature/attributes",
+        "name": "Room temperature",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature/state",
+        "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_power/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/set",
+        "default_entity_id": "switch.my_mock_air_purifier_power",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5"
+          ],
+          "manufacturer": "Daikin",
+          "model": "MC80Z",
+          "model_id": "air-purifier",
+          "name": "my mock air purifier",
+          "sw_version": "22001E02"
+        },
+        "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/attributes",
+        "name": "Power",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/state",
+        "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_power"
+      }
+    }
+  ]
+}
