@@ -183,6 +183,27 @@ configs are retracted automatically before the documents are published,
 and every entity keeps its `unique_id`, so its entity id, name, icon,
 area and history are unaffected.
 
+### Running more than one instance
+
+Run **one daemon per ONECTA account per `MQTT_TOPIC`**, and give each one
+its own `MQTT_CLIENT_ID`.
+
+Two instances on **different** accounts coexist: their device ids differ,
+so neither claims the other's entities. Their weekly-schedule switches
+used to be the exception — those live on a topic segment and a Home
+Assistant device whose names are the same in every installation — and
+each instance deleted the other's from the entity registry. Since 0.12
+no instance claims schedule switches, so they coexist too; the cost is
+that a schedule deleted while the daemon is **stopped** leaves its
+switch behind to remove by hand (deleting a schedule in the web UI, the
+normal way, still removes it).
+
+Two instances on the **same** ONECTA account see the same devices and
+cannot be told apart by anything on the wire. If they are configured
+differently — different `LOCAL_MODE`, a different `characteristics.yaml`
+— the one with fewer entities will keep removing the other's from Home
+Assistant. Use one instance, or separate `MQTT_TOPIC` values.
+
 ### Rolling back
 
 Home Assistant refuses a per-entity config while a device document

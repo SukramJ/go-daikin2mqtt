@@ -2043,6 +2043,18 @@ reached the socket (`TestTheSweepIsArmedOnlyOverAPopulatedClaimSet`), and the
 claim set names even a failed document so a transient error cannot make the
 sweep clear a config this daemon still intends to publish.
 
+**Correction (F-B).** The claim set as this step shipped it was keyed by
+DEVICE-DOCUMENT topics, while `sweepReport`'s `Inspect` looks every retained
+config up by its four-segment PER-ENTITY topic — so `case claimed[topic]` could
+not match, `Claimed` was structurally 0 and the batch half of the sentence above
+was vacuous. It is seeded from `publisher.SupersededTopics` now, which renders
+exactly the per-entity topics a document replaces (the tombstoned components'
+included, whose `unique_id` it takes from `Bundle.Tombstones`). No user-visible
+failure followed from the old shape — after a successful batch every own
+per-entity config has just been superseded, and `allSent` blocks the sweep when
+a document was withheld — so what is fixed is a safety claim and the backstop
+behind it, not a live defect.
+
 **`SweepResult.Unclaimed` is still not used, and now permanently.** It is
 topic-only, and every string `publisher.ConfigTopic` offers is byte-identical
 between two instances seeing one ONECTA device (F14): acting on it deletes a
@@ -2115,13 +2127,26 @@ outside the payload, because putting it back would un-remove the entity) so
 `SupersededTopics` also clears its retained per-entity config.
 
 **Every failure direction of the read-back produces FEWER tombstones, never
-different ones** — a window that sees nothing, a document that does not parse, a
-component with no platform or a `unique_id` outside this namespace, and a
-document the payload predicate does not claim all simply do not become prior
-state. That is what makes a read-back safe to put in front of the one publish
-that cannot be undone: its failure mode is the behaviour of not having it.
-`TestTheTombstoneReadBackIgnoresASiblingsDocument` pins the one direction that
-would be destructive.
+different ones — PROVIDED the document read back is attributable to this
+instance.** A window that sees nothing, a partial read, a timeout, a document
+that does not parse, a component with no platform or a `unique_id` outside this
+namespace, an already-tombstoned entry, and a document the payload predicate
+does not claim all simply do not become prior state. That qualified form is what
+makes a read-back safe to put in front of the one publish that cannot be undone:
+on every one of those directions its failure mode is the behaviour of not having
+it. `TestTheTombstoneReadBackIgnoresASiblingsDocument` pins the direction that
+would otherwise be destructive.
+
+**The unqualified claim this section first made was wrong, and the review proved
+it.** The proviso is the whole of it: where a document topic's node id is a
+COMPILE-TIME LITERAL, the document read back is *some* instance's, and the diff
+then produces DIFFERENT tombstones for LIVE components — not fewer. That is
+exactly what the scheduler's `daikin_scheduler` node id did (F-A below). The
+review verified the unqualified half for partial read, timeout, malformed
+payload, missing platform, foreign namespace and already-tombstoned entries; it
+broke only on the shared node id. The qualified statement above is still the
+reason a read-back is acceptable on the irreversible path — it is not deleted,
+it is stated accurately.
 
 `BundleIsOwnConfig` is the payload predicate for a document: the per-entity rule
 applied component by component, `availability_topic` excluded for the same
@@ -2238,6 +2263,284 @@ shipped. Fixed before the push.
   are what the twelve pins are built from and therefore what makes the
   retraction contract checkable. Removing them is a step-7 question and must be
   answered together with the pins.
+
+---
+
+## Adversarial review of #78/#79/#80 (at `532909d`) — F-A … F-G
+
+Six findings. One destroys entities a user currently has; the rest are a
+vacuous safety claim, two gates judging the wrong document, an unguarded
+constant, and a doc comment describing a design the code does not implement.
+All fixed in one PR, F-A first.
+
+### F-A (HIGH, proven end to end) — a sibling instance's LIVE schedule switches
+
+Three constants, none derived from anything an operator sets:
+
+| | value | consequence |
+| --- | --- | --- |
+| `layout.SchedulerDeviceID` | `"scheduler"` | every instance writes `<root>/scheduler/…` |
+| the scheduler's HA node id | `"daikin_scheduler"` | every instance writes ONE document topic |
+| `claimedDeviceSegments` | added `"scheduler"` | both of the above resolved as "ours" |
+
+So `BundleIsOwnConfig` accepted the other instance's document — root matches,
+segment claimed, `daikin_schedule_*` in our namespace, `named > 0` — and the
+diff tombstoned its LIVE switches; the sweep then classed its per-entity
+configs as this instance's own unclaimed orphans and retracted them. Driven
+through the real coordinator (`PublishOnline` + `pollOnce`, broker pre-seeded
+with instance A's retained document):
+
+```
+TOMBSTONE for a live component of another instance: "nacht_leise" -> map[platform:switch]
+TOMBSTONE for a live component of another instance: "werktag"     -> map[platform:switch]
+instance A's legacy config was RETRACTED: homeassistant/switch/daikin_schedule_werktag/config
+instance A's legacy config was RETRACTED: homeassistant/switch/daikin_schedule_nacht_leise/config
+```
+
+In Home Assistant those two entities are **removed from the entity registry**:
+gone from dashboards and automations, area/rename/icon lost. A restores them
+when its own discovery signature next moves or it reconnects — and does the
+same back. A permanent ping-pong. It needs **no shared schedule id**; the
+fixtures' ids are disjoint.
+
+**This is the hole F18 closed for the other 262 configs.** The schedule switch's
+payload names only `<root>/scheduler/…` topics plus the bridge-level
+`availability_topic`, which F18 deliberately excludes because it is not
+instance-specific — so with the segment claimed, what remained was the `daikin_`
+namespace, which every installation shares. F18's own lesson, applied to the two
+configs it did not cover.
+
+**Newly live in #80 in two independent ways**: the tombstone path did not exist
+before, and the sweep reaches the same configs by the same predicate and was
+`ReportOnly` until #80 armed it. So the comment at `coordinator.go:631-636` was
+wrong twice — the collision needs no shared id, and it *does* get worse; before
+#80 the two sets sat on disjoint per-entity topics and coexisted. The comment is
+rewritten with the code.
+
+#### The choice, and why not the other one
+
+The reviewer offered two: **(1)** make the scheduler node id and its `scheduler`
+topic segment instance-specific, or **(2)** exclude the scheduler device from
+the tombstone read-back and from `claimedDeviceSegments`.
+
+**Taken: (2).** Option (1) fixes ownership properly and is the right answer *if
+an instance identifier exists* — and one does not. It is ADR 0070 step 3(c),
+still undecided, and inventing one here would move an HA identity with **no
+migration path**: `unique_id` `daikin_schedule_<slug>` (one per schedule), the
+device `identifiers` `daikin_scheduler`, and the `<root>/scheduler/<id>/enabled`
+state and command topics. Home Assistant never re-keys a registered entity, so
+every existing user's schedule switches would re-register under new ids —
+`switch.daikin_schedule_werktag_2` and the old one stranded — losing rename,
+icon, area, dashboards, automations and history. That is a certain cost to every
+single-instance user to fix a fault that bites only multi-instance ones.
+Option (2) is **byte-neutral**: `ClaimDevices`' set is read by the two ownership
+predicates and by nothing that publishes.
+
+**What (2) costs, stated exactly.** With `"scheduler"` unclaimed, a schedule
+switch's retained config is a "sibling" to every instance including the one that
+wrote it, so the sweep never retracts it, and the broker read-back never
+tombstones a schedule component. The in-process memo (`recordPublished`) still
+does — which covers deleting a schedule in the daemon's own web UI, the way
+schedules are deleted. What is left: **a schedule deleted while the daemon is
+stopped leaves a phantom switch** to remove by hand. `changelog.md`,
+`addon/CHANGELOG.md`, `README.md` and `addon/DOCS.md` all say so.
+
+Both closures are implemented, and each is pinned on its own, because the
+read-back stands in front of the publish that cannot be undone: the segment is
+not claimed (`TestThePollClaimsNoSchedulerSegment`) **and** the read-back's
+`Owns` declines `hass.SchedulerNodeID` outright
+(`TestTheTombstoneReadBackDeclinesTheSchedulerDocument`, which re-claims the
+segment by hand so it tests the second closure alone). The node-id constant is
+pinned against the renderer that produces it.
+
+#### The same-account variant — covered as far as it can be, then named
+
+Two instances on the **same** ONECTA account with different `LOCAL_MODE` or
+`characteristics.yaml` resolve the same device ids and claim them **legitimately**.
+Every ownership predicate this bridge has says "ours" about both, correctly, so
+the instance with the smaller component set reads the larger one's document,
+diffs it, and tombstones components the other instance really publishes.
+
+This is **not** F-A and it is not fixable by any predicate: a component that
+disappears because `LOCAL_MODE` was turned off is byte-for-byte the same
+evidence whether the operator turned it off *here* or never turned it on in a
+sibling. "Only tombstone what this instance could publish" saves the sibling
+case and destroys the legitimate one — they are the same shape. Only an instance
+identifier separates them (step 3(c)).
+
+It is also **not new in #80**: post-#78/#79 the per-entity reconcile already
+retracted the larger instance's extra configs by exactly this route. So it is
+F14 proper, and it is **pinned rather than fixed**
+(`TestTwoInstancesOnOneAccountStillOverwriteEachOther`, which `t.Skip`s with an
+instruction if a future instance identifier makes it stop colliding) and written
+for operators in `changelog.md` and `README.md`: one daemon per ONECTA account
+per `MQTT_TOPIC`.
+
+#### The corrected safety claim
+
+#80 stated: *"every failure direction produces fewer tombstones, never different
+ones."* The reviewer verified that for partial read, timeout, malformed payload,
+missing platform, foreign namespace and already-tombstoned entries — and it
+breaks on a shared node id. Restated, not deleted, because the qualified version
+is still the reason a read-back is acceptable on the irreversible path:
+
+> Every failure direction of the read-back produces FEWER tombstones, never
+> different ones — **provided the document read back is attributable to this
+> instance**. Where a document topic's node id is a compile-time literal it is
+> not, and the diff then produces DIFFERENT tombstones for LIVE components.
+
+The same correction is in `bundle.go`'s `loadPriorComponents` doc comment and in
+the "Tombstones" section above.
+
+### F-B (medium) — the sweep's claim set was structurally vacuous
+
+`publishBundles` returned `published` keyed by **device-document** topics;
+`sweepReport` seeded `claimed` from it and from `rt.Declared()`, which
+post-step-6 holds only document topics. But `Inspect` runs under
+`Owns: OwnsConfigTopic`, which declines bundles, and computes a **four-segment
+legacy** topic — never a key of `claimed`. So `runtime.go`'s `case claimed[topic]`
+was unreachable and `fan.Claimed` was always 0 (`inspected=0 claimed=0` on the
+driven armed migration).
+
+No user-visible failure follows — after a successful batch every own per-entity
+config has just been superseded, and `allSent` blocks the sweep when a document
+was withheld — so this is a **vacuous safety claim plus a fixture-shaped test**,
+not a live defect. Fixed by making `claimed` actually reachable, which is the
+better design: it is seeded from `publisher.SupersededTopics(prefix, bundle,
+LegacyConfigTopicForms()...)`, exactly the per-entity topics a document replaces
+(tombstoned components included, whose `unique_id` comes from
+`Bundle.Tombstones`). The doc comments on `sweepOrphans` and `publishBundles`
+now say what the set is; `TestAFailedDocumentStaysInTheClaimSet` asserts the
+per-entity topics rather than pinning `published`'s contents; and
+`TestReportOnlySweepOverTheRealFleet`, whose `published` argument was a
+step-5-era legacy-topic shape `publishBundles` could not produce, is now
+production-shaped without changing a line of its fixture.
+
+`TestTheClaimedBranchIsReachedByARealMigration` drives the branch over a real
+batch's claim set. The state it constructs is a production one: discovery is
+published at **QoS 0**, so a retraction that "went out" is a statement about one
+socket write, and a broker that never applied it still holds the config while
+the document landed. That is what the claim set is the backstop for.
+
+### F-C (medium-low, measured) — both gates judged a different document
+
+`buildBundles` (→ `bundleValidates` + `bundleFits`) ran BEFORE
+`loadPriorComponents` → `tombstone`, and `ApplyTombstones` → `RemoveComponents`
+**adds** platform-only entries: **+42 bytes per tombstone** (`multisplit.local.en`,
+10 tombstones, +410 B). `bundleFits` exists precisely because a size miss happens
+*after* the retraction; `bundleValidates` has the same gap and a worse failure
+(HA discards the document with nothing in any log). The live version was refuted
+— all 12 tombstoned documents validate `nil` today — but neither gate ran on the
+published shape.
+
+Fixed by re-ordering: `buildBundles` now renders only, and
+`bundlesPublishable` runs after `tombstone`.
+`TestATombstonedDocumentIsGatedInTheShapeItIsPublished` sets the broker's
+advertised maximum to exactly what the **untombstoned** document needs and
+requires the batch to be withheld, with a positive control beside it (the same
+run with room for the tombstone) so it cannot pass by never fitting.
+
+### F-D (low-medium) — the margin was read but never checked
+
+`bundlePublishOverhead = 64` was read by a test from the production constant —
+so the "spelled twice" trap was already closed — but nothing asserted the margin
+was non-zero or sufficient: `64 → 0` survived 3/3. At 0, a document whose
+payload+topic exactly equals the broker's advertised maximum passes the
+preflight, gets its per-entity configs retracted, then fails the PUBLISH on the
+fixed header + remaining-length varint + topic-length prefix.
+
+`TestTheOversizeMarginCoversTheMQTTPacketHeader` asserts it where it acts: a
+document offered a limit equal to its own size must be REFUSED; one offered its
+size plus the full margin must be accepted (so the margin is a margin, not a
+wall); and the constant is compared against an independently spelled derivation
+(1 + 4 + 2 + 1).
+
+### F-E (low) — a doc comment describing a design the code does not implement
+
+`bundle.go` said "one withheld device withholds the SWEEP for the whole batch,
+not just itself", implying the other documents still publish. In fact
+`buildBundles` returned `allOK=false` and `maybePublishDiscovery` returned
+before publishing **anything** — one oversized or invalid device withholds the
+migration for all 31. The behaviour is the safer one (a half-migrated fleet is
+the one state with no owner); the comment is fixed on
+`bundlesPublishable`. `TestAnOversizedDocumentIsWithheldBeforeAnythingIsRetracted`
+used a one-device fixture and could not tell the two designs apart, so
+`TestAnOversizedDocumentWithholdsTheWholeBatch` adds a two-document fixture (the
+ONECTA device plus the daemon's own scheduler) with a limit that the scheduler's
+document fits and the device's does not, and requires that **nothing** is
+published.
+
+### F-F / F-G — recorded, not chased
+
+Neither was constructed by the reviewer and neither became trivial from the F-A
+work, so both are recorded here and left:
+
+- **F-F** — two snapshot windows on one client across a runtime replacement.
+  Both outcomes are in the safe direction (the read-back produces prior state or
+  it does not; a sweep that sees a stale window reports, and the retraction is
+  taken on the payload afterwards). Worth a look if the collect window is ever
+  driven from a reconnect path.
+- **F-G** — a platform change across releases would leave an un-retracted legacy
+  config, because `SupersededTopics` renders the topic from the component's
+  CURRENT platform. There is no such change in the catalogue today. It would
+  become live the first time an entity moves platform (e.g. `sensor` →
+  `binary_sensor`), and the fix would be a one-release retraction list.
+
+### What the review confirmed sound — deliberately not touched
+
+F18's fix is complete across the fleet (264 configs, all twelve scenarios, zero
+own-predicate misses on any platform, the 14 climate and 10 button payloads
+correctly owned and correctly declined; the only sibling false-claim was F-A's
+two); `availability_topic`'s exclusion is deliberate and pinned; the reconnect
+test drives a real reconnect and is stable over 15 repeats; the generation guard
+holds; sizes reproduce exactly; the downgrade log line carries the topic
+verbatim at the default level; twelve digests and all goldens untouched; no data
+race under `-race`; twelve of thirteen independent mutations caught 3/3. None of
+it was churned.
+
+### Bytes and digests
+
+**Nothing on the wire moves.** No topic, payload, QoS or retain flag changes for
+a single-instance installation. `claimedDeviceSegments` feeds only the two
+ownership predicates; the claim set feeds only the sweep; the gate re-ordering
+changes when a document is judged, not what it contains; the margin is unchanged
+at 64. The twelve SHA-256 digests are untouched, `-update-surface-golden` and
+`-update-bundle-golden` were never passed, and
+`git diff origin/main -- internal/coordinator/testdata` is empty.
+
+**No HA identity moves**, which is the whole reason option (2) was taken:
+nothing re-registers, no entity id changes, no history is lost.
+
+### Mutation proof
+
+**10 applied, 10 caught, 0 survivors.** Each applied to a `cp -a` copy of a
+**committed** tree, one at a time, and each run **three times** in three fresh
+processes (`go test -count=1 ./internal/coordinator/ ./internal/hass/`) — the
+review found a survivor a single run missed, and a review elsewhere found a pin
+whose mutation survived 10 of 12 runs while the record called it caught. All ten
+were 3/3.
+
+| # | Mutation | For | Caught 3/3 by (first failure line) |
+| ---: | --- | --- | --- |
+| 1 | `claimedDeviceSegments` claims `layout.SchedulerDeviceID` again | F-A, closure 1 | `TestThePollClaimsNoSchedulerSegment`, `TestAPollClaimsTheDevicesItResolved`, `TestASiblingsLiveScheduleSwitchesSurviveAMigration` |
+| 2 | the read-back's `Owns` drops `!= hass.SchedulerNodeID` | F-A, closure 2 | `TestTheTombstoneReadBackDeclinesTheSchedulerDocument` |
+| 3 | both closures gone — **the shipped code** | F-A end to end | all of the above **plus** `TestASiblingsLiveScheduleSwitchesSurviveAMigration` |
+| 4 | `hass.SchedulerNodeID` drifts from the renderer's node id | F-A | `TestTheSchedulerNodeIDIsTheOneTheRendererProduces` (+ 2 others) |
+| 5 | the claim set holds document topics only — **the shipped code** | F-B | `TestTheClaimedBranchIsReachedByARealMigration`, `TestAFailedDocumentStaysInTheClaimSet` |
+| 6 | the gates run before the tombstones — **the shipped code** | F-C | `TestATombstonedDocumentIsGatedInTheShapeItIsPublished/exactly_the_untombstoned_document` |
+| 7 | `bundlePublishOverhead = 64 → 0` (**survived 3/3 before this PR**) | F-D | `TestTheOversizeMarginCoversTheMQTTPacketHeader` |
+| 8 | both gates always pass | F-C/F-E | the three oversize/gate tests |
+| 9 | withhold only the offending device, publish the rest | F-E | `TestAnOversizedDocumentWithholdsTheWholeBatch` |
+| 10 | the tombstone step is skipped entirely (control) | the capability itself | `TestARemovedComponentIsTombstonedRatherThanOmitted` + 3 |
+
+Mutation 3 is the important one: it restores `532909d` exactly and the driven
+end-to-end test fails, which is what says the fix is a fix rather than a
+rearrangement. Mutations 1 and 2 fail *separately*, which is what says the two
+closures are independent rather than one guard written twice.
+
+`make check` clean and **`-race` run locally on the whole suite before
+pushing** (`internal/coordinator` 280 s, `internal/hass` 2.3 s, both clean) —
+#78 and #80 both shipped CI-only parallel-test failures.
 
 ---
 

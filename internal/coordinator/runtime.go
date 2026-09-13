@@ -120,6 +120,10 @@ type sweepFanOut struct {
 func (c *Coordinator) sweepReport(
 	ctx context.Context, rt *publisher.Runtime, published map[string]bool,
 ) (sweepFanOut, publisher.SweepResult) {
+	// published is keyed by the PER-ENTITY topics the batch's documents
+	// supersede (plus the document topics themselves) — which is the form the
+	// Inspect below looks a config up by. Keyed by document topics alone, as it
+	// was, the claimed branch could never be reached (F-B).
 	claimed := make(map[string]bool, len(published))
 	for topic := range published {
 		claimed[topic] = true

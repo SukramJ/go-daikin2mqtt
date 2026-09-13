@@ -107,6 +107,12 @@ func (c *Coordinator) maybePublishDiscovery(
 	// them. See [Coordinator.loadPriorComponents].
 	c.loadPriorComponents(ctx, rt)
 	c.tombstone(bundles)
+	// AFTER the tombstones, never before: [hass.ApplyTombstones] adds entries
+	// to `components`, so the document the gates must judge is not the one
+	// buildBundles rendered. See [Coordinator.bundlesPublishable].
+	if !c.bundlesPublishable(bundles) {
+		return
+	}
 
 	published, allSent := c.publishBundles(ctx, rt, bundles)
 	if !allSent {
@@ -130,27 +136,9 @@ func (c *Coordinator) maybePublishDiscovery(
 	c.sweepOrphans(ctx, published)
 }
 
-// buildBundles renders every device document and refuses, per device, anything
-// that must not be published.
-//
-// Both refusals happen HERE and not on the publish path, and that is the whole
-// point: publisher.Runtime.PublishBundle retracts the per-entity configs before
-// it writes the document, so a document that fails at that moment costs the
-// device its entire entity set — the configs are gone and nothing replaced
-// them. Refusing early leaves the per-entity configs retained and the device's
-// entities working, on the old form, with a loud log line.
-//
-//   - discovery.Validate is Home Assistant's own schemas. A blocking issue
-//     means HA discards the document without a line in its log, so publishing
-//     it would trade a working fleet for silence. (Measured at step 4: all 31
-//     bundles carrying all 264 components validate clean, which is why this
-//     gate has never fired here. It is the gate, not the measurement, that
-//     makes that safe to rely on.)
-//   - The broker's advertised Maximum Packet Size, see [Coordinator.bundleFits].
-//
-// One withheld device withholds the SWEEP for the whole batch, not just itself:
-// a device still on the per-entity form has retained configs that this daemon
-// no longer claims, which is precisely the shape the sweep exists to delete.
+// buildBundles renders every device document. It publishes nothing and judges
+// nothing — the two refusals live in [Coordinator.bundlesPublishable], which
+// runs after the tombstones have been applied (F-C).
 func (c *Coordinator) buildBundles(
 	rt *publisher.Runtime,
 	points []process.Point,
@@ -170,16 +158,49 @@ func (c *Coordinator) buildBundles(
 	}
 	bundles = append(bundles, scheds...)
 
-	out := make([]hass.Bundle, 0, len(bundles))
+	return bundles, true
+}
+
+// bundlesPublishable refuses, for the WHOLE BATCH, anything that must not be
+// published.
+//
+// Both refusals happen HERE and not on the publish path, and that is the whole
+// point: publisher.Runtime.PublishBundle retracts the per-entity configs before
+// it writes the document, so a document that fails at that moment costs the
+// device its entire entity set — the configs are gone and nothing replaced
+// them. Refusing early leaves the per-entity configs retained and the device's
+// entities working, on the old form, with a loud log line.
+//
+//   - discovery.Validate is Home Assistant's own schemas. A blocking issue
+//     means HA discards the document without a line in its log, so publishing
+//     it would trade a working fleet for silence. (Measured at step 4: all 31
+//     bundles carrying all 264 components validate clean, which is why this
+//     gate has never fired here. It is the gate, not the measurement, that
+//     makes that safe to rely on.)
+//   - The broker's advertised Maximum Packet Size, see [Coordinator.bundleFits].
+//
+// It runs on the TOMBSTONED document, which is the one that goes on the wire.
+// [hass.ApplyTombstones] adds a platform-only entry per removed component —
+// measured at +42 bytes each — so a batch gated before the tombstones is gated
+// on a document the daemon never publishes. bundleFits exists precisely because
+// a size miss happens AFTER the retraction; bundleValidates has the same
+// exposure and a worse failure (Home Assistant discards the document silently),
+// so both are taken on the published shape (F-C).
+//
+// One refused device withholds THE WHOLE BATCH, not just itself, and nothing at
+// all is published: the caller returns before publishBundles. That is the safer
+// of the two designs — a half-migrated fleet is the one state with no owner —
+// and it is what the code does, which the comment here used to contradict
+// (F-E). Every refused device is logged, not just the first, so one loud line
+// per device survives the batch decision.
+func (c *Coordinator) bundlesPublishable(bundles []hass.Bundle) bool {
 	allOK := true
 	for _, b := range bundles {
 		if !c.bundleValidates(b) || !c.bundleFits(b) {
 			allOK = false
-			continue
 		}
-		out = append(out, b)
 	}
-	return out, allOK
+	return allOK
 }
 
 // bundleValidates runs Home Assistant's own discovery schemas over one document.
@@ -257,10 +278,24 @@ func (c *Coordinator) bundleFits(b hass.Bundle) bool {
 // publishBundles writes each device document, retracting its per-entity configs
 // first (inside publisher.Runtime.PublishBundle).
 //
-// It returns the claim set the sweep subtracts — which names every document of
-// this batch INCLUDING one whose publish failed, so a transient broker error
-// can never make the sweep clear a config this daemon still intends to
-// publish — and whether all of them reached the socket.
+// It returns the claim set the sweep subtracts and whether every document
+// reached the socket.
+//
+// The claim set is keyed by the topics the SWEEP inspects, which are the
+// four-segment PER-ENTITY ones — not the device-document topics. That was F-B:
+// the set used to hold document topics only, while [Coordinator.sweepReport]
+// looks each inspected config up by publisher.LegacyTopicByUniqueID, so the
+// claimed branch could never match, `Claimed` was structurally 0 and the "the
+// claim set is exactly the batch just published" sentence that ARMS the sweep
+// was untrue of the batch half. publisher.SupersededTopics renders exactly the
+// per-entity topics a document replaces — including the tombstoned components',
+// whose unique_id it takes from Bundle.Tombstones — so the set now names what
+// the sweep actually asks about. The document topic is kept in it as well: it
+// costs nothing and it is what rt.Declared() also carries.
+//
+// It names every document of this batch INCLUDING one whose publish failed, so
+// a transient broker error can never make the sweep clear a config this daemon
+// still intends to publish.
 func (c *Coordinator) publishBundles(
 	ctx context.Context, rt *publisher.Runtime, bundles []hass.Bundle,
 ) (map[string]bool, bool) {
@@ -268,6 +303,9 @@ func (c *Coordinator) publishBundles(
 	allSent := true
 	for _, b := range bundles {
 		published[b.Topic] = true
+		for _, legacy := range publisher.SupersededTopics(rt.Prefix(), b.Bundle, hass.LegacyConfigTopicForms()...) {
+			published[legacy] = true
+		}
 		written, err := rt.PublishBundle(ctx, b.Bundle)
 		if err != nil {
 			allSent = false
@@ -299,13 +337,32 @@ func (c *Coordinator) publishBundles(
 // its ownership predicate declines device documents on purpose
 // ([OwnsConfigTopic]).
 //
-// Every failure direction here produces FEWER tombstones, never different ones:
-// a window that sees nothing, a document that does not parse, a component with
-// no platform or a unique_id outside this bridge's namespace all simply do not
-// become prior state, and the publish proceeds exactly as it would have without
-// this step. That is what makes a read-back safe to put in front of the one
-// publish that cannot be undone — the failure mode is the behaviour of not
-// having it.
+// Every failure direction here produces FEWER tombstones, never different ones
+// — PROVIDED the document read back is attributable to this instance. A window
+// that sees nothing, a partial read, a timeout, a document that does not parse,
+// a component with no platform or a unique_id outside this bridge's namespace,
+// a payload the ownership predicate declines and an already-tombstoned entry
+// all simply do not become prior state, and the publish proceeds exactly as it
+// would have without this step. That qualified form is the reason a read-back
+// is acceptable in front of the one publish that cannot be undone: on every
+// failure direction the failure mode is the behaviour of not having it.
+//
+// The proviso is not decoration — it is the one way the claim can break, and it
+// broke. A document topic whose node id is a COMPILE-TIME LITERAL is written by
+// every instance of this bridge, so what came back was a sibling's live
+// component set and the diff produced DIFFERENT tombstones, not fewer: a
+// sibling's schedule switches marked removed and its per-entity configs
+// retracted. Two things close it, independently — the scheduler's topic segment
+// is no longer claimed, so the payload predicate declines the document, and
+// Owns above declines the node id outright (F-A).
+//
+// What the proviso still covers rather than excludes: two instances on the same
+// ONECTA account with different LOCAL_MODE or characteristics.yaml claim the
+// same device ids LEGITIMATELY, and a shrunken component set there is
+// indistinguishable from this instance's own configuration change — the case
+// the tombstone exists for. No predicate separates them; an instance identifier
+// does (F14, step 3(c)). It is pinned, not fixed:
+// TestTwoInstancesOnOneAccountStillOverwriteEachOther.
 func (c *Coordinator) loadPriorComponents(ctx context.Context, rt *publisher.Runtime) {
 	c.mu.Lock()
 	done := c.priorLoaded
@@ -321,7 +378,17 @@ func (c *Coordinator) loadPriorComponents(ctx context.Context, rt *publisher.Run
 		// publish, and the only kind this daemon ever runs.
 		ReportOnly: true,
 		Window:     c.collectWindow,
-		Owns:       func(t publisher.ConfigTopic) bool { return t.Bundle && t.NodeID != "" },
+		Owns: func(t publisher.ConfigTopic) bool {
+			// The scheduler's node id is a compile-time literal, so EVERY
+			// instance of this bridge writes this one document topic and no
+			// payload found there can be attributed (F-A). Declining it here
+			// is the second of two independent closures — [hass.Discovery]
+			// already declines it, because the scheduler's topic segment is
+			// not a claimed device segment — and it is stated twice on purpose:
+			// the cost of getting this wrong is a sibling's live switches
+			// deleted from Home Assistant's entity registry.
+			return t.Bundle && t.NodeID != "" && t.NodeID != hass.SchedulerNodeID
+		},
 		Inspect: func(t publisher.ConfigTopic, body []byte) {
 			// The payload predicate, not the topic: a sibling instance's
 			// document sits on a topic this one cannot distinguish from its
@@ -402,9 +469,14 @@ func (c *Coordinator) recordPublished(b hass.Bundle) {
 // argument then was arithmetic: the runtime published no config at all, so its
 // claim set was empty and any acting pass would have judged this bridge's whole
 // retained fleet an orphan. Now the documents go out through that same runtime,
-// so the claim set is exactly the batch just published plus what the runtime
-// still declares — established, not assumed, by the allSent guard above and by
-// TestTheSweepIsArmedOnlyOverAPopulatedClaimSet.
+// so the claim set is exactly the PER-ENTITY configs the batch just published
+// supersedes, plus the document topics, plus what the runtime still declares —
+// established, not assumed, by the allSent guard above, by
+// TestTheSweepIsArmedOnlyOverAPopulatedClaimSet and, for the batch half, by
+// TestTheClaimedBranchIsReachedByARealMigration. That last one is F-B: the set
+// used to be keyed by document topics while the sweep looks configs up by their
+// per-entity topic, so the batch half of this sentence was false and `Claimed`
+// was structurally 0 (see [Coordinator.publishBundles]).
 //
 // What it actually clears after the migration: a per-entity config for an
 // entity that no longer exists anywhere. publisher.SupersededTopics retracts

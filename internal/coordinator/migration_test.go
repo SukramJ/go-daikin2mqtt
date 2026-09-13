@@ -905,6 +905,12 @@ func TestTheRenderedTopicIsTheOneTheRuntimeWrites(t *testing.T) {
 // that can only matter if the allSent guard is ever relaxed — the sweep does
 // not run at all on a failed batch — which is exactly why it is asserted here
 // rather than left to be rediscovered.
+//
+// It asserts the set in the form the SWEEP reads it, not just the form
+// publishBundles happens to build. That was F-B: this test pinned the presence
+// of document topics, which sweepReport never looks up, so a claim set that
+// protected nothing passed it. The failed document's PER-ENTITY topics are what
+// the sweep would otherwise retract, so they are what has to be in the set.
 func TestAFailedDocumentStaysInTheClaimSet(t *testing.T) {
 	t.Parallel()
 	br := newRetainedBroker()
@@ -913,7 +919,8 @@ func TestAFailedDocumentStaysInTheClaimSet(t *testing.T) {
 
 	in := buildHamqttInputs(t, surfaceScenarios()[0])
 	bundles, err := in.disc.RenderBundles(
-		config.DefaultHASSBaseTopic, version.Version, in.points, in.infos, in.climateInfos)
+		config.DefaultHASSBaseTopic, version.Version, in.points, in.infos, in.climateInfos,
+	)
 	if err != nil || len(bundles) == 0 {
 		t.Fatalf("render: %v", err)
 	}
@@ -924,6 +931,16 @@ func TestAFailedDocumentStaysInTheClaimSet(t *testing.T) {
 	for _, b := range bundles {
 		if !published[b.Topic] {
 			t.Errorf("%s was dropped from the claim set because its publish failed", b.Topic)
+		}
+		legacy := publisher.SupersededTopics(config.DefaultHASSBaseTopic, b.Bundle, hass.LegacyConfigTopicForms()...)
+		if len(legacy) == 0 {
+			t.Fatalf("%s supersedes no per-entity config; the legacy form is not stated", b.Topic)
+		}
+		for _, topic := range legacy {
+			if !published[topic] {
+				t.Errorf("%s is not in the claim set, so the sweep would retract a config the failed "+
+					"document still intends to replace", topic)
+			}
 		}
 	}
 }

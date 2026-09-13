@@ -370,7 +370,9 @@ func TestReportOnlySweepOverTheRealFleet(t *testing.T) {
 	br := newRetainedBroker()
 	c, rt := sweepCoordinator(t, br)
 	defer rt.Close()
-	c.deps.HASS.ClaimDevices([]string{"dev1", layout.SchedulerDeviceID})
+	// Exactly what a poll claims: device ids, and not the scheduler's shared
+	// reserved segment (F-A).
+	c.deps.HASS.ClaimDevices([]string{"dev1"})
 
 	// This instance's live fleet: three configs it is publishing right now.
 	live := map[string]bool{}
@@ -880,13 +882,15 @@ func TestAPollClaimsTheDevicesItResolved(t *testing.T) {
 	if got := c.deps.HASS.ClaimedDevices(); !equalStrings(got, []string{dev}) {
 		t.Errorf("after a poll the instance claims %v, want [%s]", got, dev)
 	}
-	// The scheduler's reserved segment is claimed only when a scheduler is
-	// attached — it is the one segment two instances can still collide on, and
-	// claiming it unconditionally would widen that for nothing.
+	// Attaching a scheduler changes nothing: the scheduler's reserved segment
+	// is a compile-time literal every instance writes under, so claiming it
+	// made a sibling's live schedule switches resolve as this instance's own
+	// (F-A). See TestThePollClaimsNoSchedulerSegment.
 	c.AttachScheduler(&stubScheduler{doc: goldenScheduleDoc()})
 	c.pollOnce(context.Background())
-	if got := c.deps.HASS.ClaimedDevices(); !equalStrings(got, []string{dev, layout.SchedulerDeviceID}) {
-		t.Errorf("with a scheduler attached the instance claims %v, want [%s %s]", got, dev, layout.SchedulerDeviceID)
+	if got := c.deps.HASS.ClaimedDevices(); !equalStrings(got, []string{dev}) {
+		t.Errorf("with a scheduler attached the instance claims %v, want [%s] — "+
+			"the scheduler's shared segment must not be claimed", got, dev)
 	}
 }
 

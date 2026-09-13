@@ -117,6 +117,12 @@ seven-day calendar per device, and the list of schedules with their switches.
   indoor unit on it. Each setting can be left alone, so a night block can
   enable the silent mode without also changing the power limit.
 - The schedules are stored in `/data/schedules.json` and survive add-on updates.
+- **If you run a second go-daikin2mqtt against the same broker**, its schedule
+  switches sit on the same topics and the same *daikin2mqtt Scheduler* device as
+  this one's — the names are identical in every installation. Since 0.12 neither
+  instance removes the other's switches. The one side effect: a schedule deleted
+  while the add-on is **stopped** leaves its switch behind as an entity to remove
+  by hand. Deleting a schedule in the UI removes it as before.
 
 ## Local-first mode (optional)
 
