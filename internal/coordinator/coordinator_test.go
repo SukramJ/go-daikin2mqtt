@@ -161,21 +161,24 @@ func (m *stubMQTT) count() int {
 // flakyPub is an mqtt.Publisher whose Publish fails while fail is set.
 type flakyPub struct {
 	*stubMQTT
-	fmu  sync.Mutex
-	fail bool
+	fmu sync.Mutex
+	// failPrefix refuses every publish under it, which is what lets a test put
+	// the daemon in the one state the migration cannot survive on its own: the
+	// per-entity retractions applied, the device document refused.
+	failPrefix string
 }
 
-func (f *flakyPub) setFail(v bool) {
+func (f *flakyPub) setFailPrefix(p string) {
 	f.fmu.Lock()
 	defer f.fmu.Unlock()
-	f.fail = v
+	f.failPrefix = p
 }
 
 func (f *flakyPub) Publish(ctx context.Context, topic string, payload []byte, qos mqtt.QoS, retain bool, opts ...mqtt.PublishOption) error {
 	f.fmu.Lock()
-	fail := f.fail
+	prefix := f.failPrefix
 	f.fmu.Unlock()
-	if fail {
+	if prefix != "" && strings.HasPrefix(topic, prefix) {
 		return errors.New("broker down")
 	}
 	return f.stubMQTT.Publish(ctx, topic, payload, qos, retain, opts...)
@@ -598,11 +601,11 @@ func TestDiscoveryRetriedAfterPublishFailure(t *testing.T) {
 	const dev, emb = "dev1", "climateControl"
 	cloud := &stubCloud{devices: devicesJSON(dev, emb)}
 	m := newStubMQTT()
-	flaky := &flakyPub{stubMQTT: newStubMQTT(), fail: true}
+	flaky := &flakyPub{stubMQTT: m, failPrefix: "homeassistant/device/"}
 	c := New(Deps{
 		Cfg:     testConfig(),
 		Client:  cloud,
-		MQTT:    m,
+		MQTT:    flaky,
 		Catalog: loadTestCatalog(t),
 		HASS:    hass.New("homeassistant", "daikin", "en", flaky),
 		Logger:  slog.New(slog.DiscardHandler),
@@ -617,7 +620,7 @@ func TestDiscoveryRetriedAfterPublishFailure(t *testing.T) {
 		t.Fatalf("lastDiscSig committed despite publish failure: %q", sig)
 	}
 
-	flaky.setFail(false)
+	flaky.setFailPrefix("")
 	c.pollOnce(context.Background())
 	c.mu.Lock()
 	sig = c.lastDiscSig

@@ -113,53 +113,10 @@ type sweepFanOut struct {
 	Orphan []string
 }
 
-// reportOnlySweep runs one publisher.Runtime.Sweep in ReportOnly mode and logs
-// what a retracting pass would have cleared, without clearing anything.
-//
-// Report-only, and it stays that way until step 6. Two independent reasons:
-//
-//   - The library's retracting pass compares what it saw against what THE
-//     RUNTIME has claimed, and at step 5 the runtime publishes no config at
-//     all — discovery still goes out through hass.Discovery.Publish. Its claim
-//     set is therefore empty and an armed pass would judge this bridge's entire
-//     retained fleet an orphan and delete it. The library says so itself: the
-//     ordinary pass must run AFTER the boot snapshot has published.
-//   - This daemon's own rule has always been the stronger one — the retained
-//     PAYLOAD must be ours, not just the topic. A pass that retracted on the
-//     topic namespace alone would widen what this daemon is willing to delete
-//     from a discovery tree it shares with every other MQTT integration on the
-//     broker, inside a step whose whole claim is that nothing changed.
-//
-// So Owns scopes the window and Inspect decides ownership, exactly as the
-// acting path already does, and the verdict is logged instead of applied.
-// SweepResult.Unclaimed is deliberately NOT the answer here: it is every owned
-// topic minus the runtime's (empty) claim set, which is the list that cleared 29
-// live configs in a sibling repo when it was mistaken for one.
-func (c *Coordinator) reportOnlySweep(ctx context.Context, published map[string]bool) {
-	rt := c.ha()
-	if rt == nil || c.deps.HASS == nil {
-		return
-	}
-	fan, res := c.sweepReport(ctx, rt, published)
-	if res.Inspected == 0 && len(fan.Orphan) == 0 && fan.Claimed == 0 {
-		// Inspected is logged beside the orphan count on purpose: a window that
-		// saw none of this bridge's configs and a window that saw all of them
-		// and correctly found nothing to do both read as "0 retracted".
-		c.deps.Logger.Debug("coordinator.discovery_sweep_report", slog.Int("inspected", 0))
-		return
-	}
-	c.deps.Logger.Info("coordinator.discovery_sweep_report",
-		slog.Int("inspected", res.Inspected),
-		slog.Int("claimed", fan.Claimed),
-		slog.Int("sibling", fan.Sibling),
-		slog.Int("foreign", fan.Foreign),
-		slog.Int("would_retract", len(fan.Orphan)),
-		slog.Any("orphans", fan.Orphan),
-		slog.Bool("report_only", true))
-}
-
-// sweepReport is reportOnlySweep without the logging, so the fan-out can be
-// asserted rather than read out of a log line.
+// sweepReport opens one publisher.Runtime.Sweep window in ReportOnly mode and
+// returns the verdict, so the fan-out can be asserted rather than read out of a
+// log line — and so the RETRACTION is [Coordinator.sweepOrphans]', taken on the
+// payload predicate, rather than the library's, taken on the topic alone.
 func (c *Coordinator) sweepReport(
 	ctx context.Context, rt *publisher.Runtime, published map[string]bool,
 ) (sweepFanOut, publisher.SweepResult) {

@@ -6,6 +6,7 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"sort"
 	"strings"
@@ -565,6 +566,34 @@ func sweepCoordinator(t *testing.T, br *retainedBroker) (*Coordinator, *publishe
 	return c, rt
 }
 
+// runArmedSweep drives the real armed sweep to completion.
+//
+// published is the claim set — the device documents this batch wrote. It is
+// passed in rather than derived so a test can state the worst case (an empty
+// set, which the sweep must refuse outright) as easily as the ordinary one.
+//
+// The sweep runs asynchronously behind a try-locked gate; taking the gate is
+// what says it has finished.
+func runArmedSweep(t *testing.T, c *Coordinator, published map[string]bool) {
+	t.Helper()
+	c.sweepOrphans(context.Background(), published)
+	deadline := time.Now().Add(10 * time.Second)
+	for !c.reconcileGate.TryLock() {
+		if time.Now().After(deadline) {
+			t.Fatal("the sweep never released its gate")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	c.reconcileGate.Unlock()
+}
+
+// aClaimedDocument is a non-empty claim set for a sweep that is not itself
+// under test. Its content is irrelevant — what matters is that it is not empty,
+// because an empty one makes the sweep refuse to run at all.
+func aClaimedDocument() map[string]bool {
+	return map[string]bool{"homeassistant/device/daikin_claimed/config": true}
+}
+
 // retainedBroker is an mqtt.Client that replays its retained messages to a new
 // subscriber, the way a broker does — which is the only thing a sweep window
 // reads.
@@ -573,6 +602,18 @@ type retainedBroker struct {
 	messages map[string]string
 	sent     int
 	events   []string
+	// order is every publish in the order it was made — the only thing that can
+	// answer the question the migration turns on, which is whether the
+	// retractions preceded the document.
+	order []string
+	// failPrefix refuses every publish under it, so a test can put the daemon
+	// in the state the migration cannot survive on its own: retractions
+	// applied, document refused.
+	failPrefix string
+	// onPublish runs before each publish is recorded, so a test can make
+	// something happen mid-batch — a reconnect landing while the documents are
+	// still going out, for instance.
+	onPublish func(topic string)
 }
 
 func newRetainedBroker() *retainedBroker {
@@ -591,17 +632,51 @@ func (b *retainedBroker) Publish(
 ) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.failPrefix != "" && strings.HasPrefix(topic, b.failPrefix) {
+		return errors.New("broker down")
+	}
+	if b.onPublish != nil {
+		hook := b.onPublish
+		b.mu.Unlock()
+		hook(topic)
+		b.mu.Lock()
+	}
 	b.sent++
+	b.order = append(b.order, topic)
 	if retain {
 		b.messages[topic] = string(payload)
 	}
 	return nil
 }
 
+// publishOrder returns every publish in order.
+func (b *retainedBroker) publishOrder() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]string(nil), b.order...)
+}
+
+// refuse makes every publish under prefix fail; "" lifts it.
+func (b *retainedBroker) refuse(prefix string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.failPrefix = prefix
+}
+
 func (b *retainedBroker) publishes() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.sent
+}
+
+// retained returns one retained payload and whether the topic is present at
+// all. A retraction leaves the topic present with an EMPTY payload here, which
+// is what lets a test tell "cleared" from "never written".
+func (b *retainedBroker) retained(topic string) (string, bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	v, ok := b.messages[topic]
+	return v, ok
 }
 
 func (b *retainedBroker) retainedCount() int {
@@ -841,17 +916,54 @@ func TestTheStatePlaneRefusesToPublishIntoItsOwnCommandTree(t *testing.T) {
 	}
 }
 
-// TestTheReconcileRunsTheReportOnlySweepAfterItsOwnWindow drives the real
-// reconcile path end to end.
+// TestTheSweepOpensOneWindowAndRetractsFromIt drives the real armed sweep end
+// to end.
 //
-// Two things are asserted and both are about ORDER. The library's sweep really
-// does run — a mutation that drops the call is otherwise invisible, because a
-// report-only pass changes nothing an assertion on the broker could see. And it
-// runs strictly AFTER the hand-rolled reconcile has unsubscribed: the two
-// filters overlap (see TestSubscriptionFiltersCannotOverlap), so a broker with
-// both installed would deliver every retained config to both handlers, and what
-// keeps that from happening is the sequencing inside one gated goroutine.
-func TestTheReconcileRunsTheReportOnlySweepAfterItsOwnWindow(t *testing.T) {
+// Three things are asserted. The sweep runs at all — a mutation that drops the
+// call is otherwise invisible, because the orphan it clears is one topic among
+// a tree nothing else touches. It opens exactly ONE window, `homeassistant/#`,
+// and closes it: step 5 had two overlapping windows (the hand-rolled
+// `homeassistant/+/+/config` reconcile and the library's report-only pass) kept
+// apart only by their sequencing inside one gated goroutine, and this step
+// removes the hand-rolled one rather than continuing to sequence it. And what
+// the window found IS retracted, which is the arming.
+func TestTheSweepOpensOneWindowAndRetractsFromIt(t *testing.T) {
+	t.Parallel()
+	br := newRetainedBroker()
+	c, _ := sweepCoordinator(t, br)
+	c.deps.HASS.ClaimDevices([]string{"dev1"})
+	const orphan = "homeassistant/sensor/daikin_dev1_retired/config"
+	br.retain(orphan,
+		`{"unique_id":"daikin_dev1_retired","state_topic":"daikin/dev1/climateControl/retired/state"}`)
+
+	runArmedSweep(t, c, aClaimedDocument())
+
+	want := []string{"sub homeassistant/#", "unsub homeassistant/#"}
+	if got := br.log(); !equalStrings(got, want) {
+		t.Errorf("subscription sequence %v, want %v", got, want)
+	}
+	if got, ok := br.retained(orphan); !ok || got != "" {
+		t.Errorf("the orphan was not retracted: retained %q (present=%v)", got, ok)
+	}
+}
+
+// TestTheSweepIsArmedOnlyOverAPopulatedClaimSet is the guard step 5 said had to
+// exist before the sweep could ever act, and the one go-mtec2mqtt's reviewer
+// found testing the wrong thing.
+//
+// The library's acting pass compares what a window saw against what the runtime
+// has CLAIMED. Until this step the runtime published no discovery at all, so
+// that set was empty and an armed pass would have judged this bridge's entire
+// retained fleet an orphan — once per boot. What makes arming possible is that
+// the device documents now go out through that same runtime.
+//
+// So the question the guard must ask is "was a document PUBLISHED", not "was
+// one BUILT". The two come apart exactly where it matters: a valid document
+// whose publish failed (an open circuit breaker, a broker brownout) leaves the
+// per-entity configs that are still carrying the fleet — and a sweep would then
+// delete every one of them and put nothing back. go-mtec2mqtt logged "no device
+// document was published" while testing that one had been built.
+func TestTheSweepIsArmedOnlyOverAPopulatedClaimSet(t *testing.T) {
 	t.Parallel()
 	br := newRetainedBroker()
 	c, _ := sweepCoordinator(t, br)
@@ -859,26 +971,15 @@ func TestTheReconcileRunsTheReportOnlySweepAfterItsOwnWindow(t *testing.T) {
 	br.retain("homeassistant/sensor/daikin_dev1_retired/config",
 		`{"unique_id":"daikin_dev1_retired","state_topic":"daikin/dev1/climateControl/retired/state"}`)
 
-	c.reconcileOrphans(context.Background(), map[string]bool{})
-	// The reconcile runs asynchronously behind a try-locked gate; taking the
-	// gate is what says it has finished.
-	deadline := time.Now().Add(5 * time.Second)
-	for !c.reconcileGate.TryLock() {
-		if time.Now().After(deadline) {
-			t.Fatal("the reconcile never released its gate")
-		}
-		time.Sleep(time.Millisecond)
-	}
-	c.reconcileGate.Unlock()
+	// The build-succeeded-publish-failed state, spelled as the claim set the
+	// publish path hands over: empty.
+	runArmedSweep(t, c, map[string]bool{})
 
-	want := []string{
-		"sub homeassistant/+/+/config",
-		"unsub homeassistant/+/+/config",
-		"sub homeassistant/#",
-		"unsub homeassistant/#",
+	if got := br.log(); len(got) != 0 {
+		t.Errorf("the sweep opened a window with nothing published: %v", got)
 	}
-	if got := br.log(); !equalStrings(got, want) {
-		t.Errorf("subscription sequence %v, want %v — the two overlapping discovery windows must not be open together", got, want)
+	if n := br.publishes(); n != 0 {
+		t.Errorf("%d retractions went out over an empty claim set", n)
 	}
 }
 
@@ -978,13 +1079,17 @@ func TestASiblingsStatelessEntitiesAreNeverSwept(t *testing.T) {
 		t.Errorf("this instance claims %d of its own %d configs", ownClaimed, len(configsOf(own)))
 	}
 
-	// The real acting path, with an empty published set — the worst case, and
-	// the one an instance is in on its first reconcile after a restart.
-	if n := c.clearOrphanConfigs(context.Background(), retained, map[string]bool{}); n != 0 {
-		t.Errorf("the orphan reconcile cleared %d of a sibling instance's %d configs", n, len(retained))
+	// The real acting path, over a real window, with the claim set a batch of
+	// device documents leaves behind — which after this step claims NONE of
+	// the four-segment per-entity topics the window sees, so every one of the
+	// sibling's twenty configs is unclaimed and the payload predicate is the
+	// only thing standing between them and a retraction.
+	for topic, body := range retained {
+		br.retain(topic, string(body))
 	}
+	runArmedSweep(t, c, aClaimedDocument())
 	if n := br.publishes(); n != 0 {
-		t.Errorf("%d retractions went to the broker", n)
+		t.Errorf("the sweep cleared %d of a sibling instance's %d configs", n, len(retained))
 	}
 
 	// A sibling on a DIFFERENT MQTT root: the same fleet with every topic
@@ -1004,8 +1109,18 @@ func TestASiblingsStatelessEntitiesAreNeverSwept(t *testing.T) {
 		}
 		otherRoot[topic] = b
 	}
-	if n := c.clearOrphanConfigs(context.Background(), otherRoot, map[string]bool{}); n != 0 {
-		t.Errorf("the orphan reconcile cleared %d configs of a sibling on another root", n)
+	br2 := newRetainedBroker()
+	c2, _ := sweepCoordinator(t, br2)
+	c2.deps.HASS.ClaimDevices([]string{
+		"809d41d9-4d42-45fa-af6a-84b512143672",
+		"11112222-3333-4444-5555-666677778888",
+	})
+	for topic, body := range otherRoot {
+		br2.retain(topic, string(body))
+	}
+	runArmedSweep(t, c2, aClaimedDocument())
+	if n := br2.publishes(); n != 0 {
+		t.Errorf("the sweep cleared %d configs of a sibling on another root", n)
 	}
 
 	// And what the shipped predicate would have done with both inputs, so the

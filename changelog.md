@@ -2,6 +2,70 @@
 
 ## What's Changed
 
+### Changed
+
+- **Home Assistant discovery now uses the device bundle.** Instead of
+  one retained config per entity — 264 of them on a measured
+  twelve-scenario fleet — the daemon publishes **one retained document
+  per Home Assistant device**, at
+  `homeassistant/device/<node id>/config`, carrying that device's whole
+  component set. The exact topics are logged, one line per device, as
+  `coordinator.discovery_bundle_published`.
+
+  **What a migrating user sees: nothing.** Every entity keeps its
+  `unique_id`, so Home Assistant's registry entry survives the move —
+  the entity id, any rename, any custom icon or area, and the recorded
+  history. What changes is only where the definition lives. The old
+  per-entity configs are retracted first, automatically, because Home
+  Assistant refuses a device document while a per-entity config for one
+  of its ids is still retained (and says so only as
+  `WARNING [mqtt.entity] Received a conflicting MQTT discovery message`
+  in its own log).
+
+  **If the daemon dies mid-migration**, the device is left with no
+  discovery config at all and its entities disappear from Home
+  Assistant until the daemon starts again — which repeats the whole
+  migration from scratch, because nothing about it is remembered across
+  a restart. No manual step is needed.
+
+  **If you roll back to 0.11.x or earlier**, you must clear the
+  retained device documents by hand, or the old build's per-entity
+  configs are refused by the same rule in the other direction. See
+  "Rolling back" in the README.
+
+- **A removed entity is now removed.** An entity that disappears from a
+  device — a deleted weekly schedule, `LOCAL_MODE` turned off, an entry
+  dropped from `characteristics.yaml` — is marked as deleted in the
+  device document rather than merely left out of it. Omitting a
+  component does not remove it from Home Assistant: the entity stays,
+  and because this bridge's availability is bridge-level it would read
+  *available* rather than unavailable, with nothing on screen to say it
+  is dead.
+
+- **An oversized device document is withheld rather than half-applied.**
+  The document is checked against the Maximum Packet Size the broker
+  advertised before anything is retracted, so a broker with a low cap
+  leaves the working per-entity configs in place and logs
+  `coordinator.discovery_bundle_too_large` instead of clearing them and
+  then failing to publish. A broker that advertises no limit is treated
+  as having none, which is what MQTT says it means.
+
+### Fixed
+
+- **A broker restarted without its retained store got its entities
+  back.** Discovery was only republished when the entity set changed,
+  and that gate survived a reconnect — so a broker that came back empty
+  stayed empty, possibly forever, since a stable installation's entity
+  set never changes. The gate is now re-opened on every connect. An
+  unchanged fleet still costs no broker traffic: the library compares
+  the document bytes underneath it.
+
+- **`MQTT_TOPIC` and `HASS_BASE_TOPIC` written with a leading or
+  trailing `/`** are now trimmed at the configuration boundary. An empty
+  MQTT topic level is legal and distinct, so `homeassistant/` would have
+  put the daemon's own discovery filter on a different tree from the one
+  it publishes to, with nothing in any log to say so.
+
 ### Added
 
 - **`MQTT_CLIENT_ID`** (`DAIKIN_MQTT_CLIENT_ID`, add-on option

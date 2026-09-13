@@ -268,11 +268,66 @@ func scenarioConfig(sc surfaceScenario) *config.Config {
 	return cfg
 }
 
-// buildSurface runs one scenario through the real publish path and returns the
-// recorded messages.
+// buildSurface returns one scenario's surface in the PER-ENTITY discovery form
+// — the shape this bridge published from 0.1 up to and including 0.11.
+//
+// Read this before using it. Since ADR 0070 phase 8 step 6 the live publish
+// path emits device DOCUMENTS, so the twelve goldens are no longer a snapshot
+// of the current wire. They are kept, unregenerated and with all twelve SHA-256
+// literals intact, because they are now something else and something the
+// migration needs more: THE RETRACTION CONTRACT. Every one of the 264 config
+// topics in them must be superseded before a bundle lands, or Home Assistant
+// refuses the document and nothing appears. TestTheRetractionCoversTheWholePinnedFleet
+// compares the two directly, 264 of 264, so this file's content stays wired to
+// what the daemon actually does rather than becoming a museum piece.
+//
+// The two halves therefore come from two places, on purpose:
+//
+//   - the state, command and availability planes from the REAL publish path,
+//     exactly as before — that is still live and still pinned;
+//   - the discovery plane from the per-entity builders, fed the same
+//     re-derived inputs (TestHamqttInputsReproduceThePublishedConfigTopics
+//     proves that derivation reproduces this very golden).
+//
+// What the live path now writes under the discovery prefix — 31 documents and
+// their retractions — is pinned separately, by its own golden with its own
+// flag, in bundle_golden_test.go.
 func buildSurface(t *testing.T, sc surfaceScenario) []recordedMsg {
 	t.Helper()
-	return buildSurfaceRecorder(t, sc).snapshot()
+	out := make([]recordedMsg, 0, 128)
+	for _, m := range buildSurfaceRecorder(t, sc).snapshot() {
+		// Everything under the discovery prefix is the bundle path's now.
+		if !strings.HasPrefix(m.Topic, config.DefaultHASSBaseTopic+"/") {
+			out = append(out, m)
+		}
+	}
+	out = append(out, legacyDiscoverySurface(t, sc)...)
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Topic < out[j].Topic })
+	return out
+}
+
+// legacyDiscoverySurface publishes one scenario's per-entity discovery configs
+// through the builders that produced the twelve goldens, into a recorder.
+//
+// The inputs are buildHamqttInputs' — re-derived from a warmed coordinator
+// rather than intercepted, and checked against this golden's own config plane
+// by TestHamqttInputsReproduceThePublishedConfigTopics, so a divergence in the
+// derivation fails loudly instead of quietly re-blessing a smaller surface.
+func legacyDiscoverySurface(t *testing.T, sc surfaceScenario) []recordedMsg {
+	t.Helper()
+	in := buildHamqttInputs(t, sc)
+	rec := &recorderMQTT{}
+	cfg := scenarioConfig(sc)
+	d := hass.New(cfg.HASSBaseTopic, cfg.MQTTTopic, cfg.Language, rec)
+	if _, err := d.Publish(t.Context(), in.points, in.infos, in.climateInfos); err != nil {
+		t.Fatalf("legacy discovery: %v", err)
+	}
+	if len(in.schedules) > 0 {
+		if _, err := d.PublishSchedules(t.Context(), in.schedules, in.configURL); err != nil {
+			t.Fatalf("legacy schedule discovery: %v", err)
+		}
+	}
+	return rec.snapshot()
 }
 
 // buildSurfaceRecorder is buildSurface without the collapsing snapshot, for the
@@ -305,6 +360,12 @@ func buildSurfaceRecorder(t *testing.T, sc surfaceScenario) *recorderMQTT {
 		Logger:  slog.New(slog.DiscardHandler),
 		Clock:   func() time.Time { return goldenClock },
 	})
+	// Shrunk on this coordinator rather than on the package: the discovery
+	// plane opens one snapshot window per connection (the tombstone read-back,
+	// see Coordinator.loadPriorComponents) and the recorder delivers nothing,
+	// so the full two seconds would be two seconds of nothing, twelve times
+	// over, on every test that builds a surface.
+	c.collectWindow = 5 * time.Millisecond
 	if sc.local {
 		c.deps.FaikinMQTT = rec
 	}

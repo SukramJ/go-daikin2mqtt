@@ -236,6 +236,20 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 		Logger:       logger,
 		NewHARuntime: newHARuntime,
 		StatePlane:   statePlane,
+		// The broker's own outbound limit, renegotiated on every connect. The
+		// device document is preflighted against it BEFORE the retraction —
+		// go-mqtt refuses an oversized packet from its write path, by which
+		// time the per-entity configs the document supersedes are already
+		// gone. This is the broker's ADVERTISED limit, not
+		// mqtt.TCPConfig.MaximumPacketSize, which is this client's own inbound
+		// cap and says nothing about what the broker will accept.
+		BrokerMaxPacketSize: func() (uint32, bool) {
+			res, ok := mqttClient.ConnectResult()
+			if !ok {
+				return 0, false
+			}
+			return res.MaximumPacketSize, true
+		},
 	})
 	// Re-announce availability after every (re)connect.
 	lifecycle.OnConnect(func(cctx context.Context) { coord.PublishOnline(cctx) })

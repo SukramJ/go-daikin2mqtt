@@ -4,7 +4,10 @@
 package coordinator
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/SukramJ/go-hamqtt/discovery"
@@ -179,3 +182,52 @@ var publishedPlatforms = map[string]bool{
 	"sensor":        true,
 	"switch":        true,
 }
+
+// checkLegacyForms refuses, at boot, a publisher.Runtime that was not built
+// with [RuntimeConfig].
+//
+// publisher.Config.LegacyEntityTopics REPLACES the library's default rather
+// than extending it, and the default — the five-segment
+// publisher.LegacyTopicWithNodeID — reproduces 0 of this bridge's 264 retained
+// config topics (measured at step 4, against 264 of 264 for
+// publisher.LegacyTopicByUniqueID). A runtime that omits the field therefore
+// publishes every device document while every per-entity config it conflicts
+// with is still retained, and Home Assistant refuses the document with one
+// WARNING line and no entities. Nothing on the wire, and nothing in this
+// daemon's log, says why.
+//
+// This is go-mtec2mqtt's worst mutation finding, copied deliberately: dropping
+// the field at the composition root was caught by NOTHING there, because the
+// daemon and every fixture each spelled the config out and the fixtures still
+// had it. The want side is DERIVED from RuntimeConfig rather than written out
+// again, so there is no second literal to drift.
+func checkLegacyForms(rt *publisher.Runtime) {
+	if rt == nil {
+		return
+	}
+	if got, want := rt.LegacyForms(), wantLegacyForms(); !slices.Equal(got, want) {
+		panic("coordinator: the discovery runtime states legacy config topic forms " +
+			fmt.Sprint(got) + ", want " + fmt.Sprint(want) +
+			"; build it with RuntimeConfig, or every device document is published while " +
+			"the per-entity configs it conflicts with are still retained and Home Assistant " +
+			"refuses it in silence")
+	}
+}
+
+// wantLegacyForms is what [RuntimeConfig] states, read back off a throwaway
+// runtime so the expectation cannot be a second spelling of the answer.
+func wantLegacyForms() []string {
+	probe := publisher.New(nopTransport{}, RuntimeConfig(&config.Config{}, slog.New(slog.DiscardHandler)))
+	defer probe.Close()
+	return probe.LegacyForms()
+}
+
+// nopTransport is a publisher.Transport that reaches no broker, for the
+// construction-time probe above.
+type nopTransport struct{}
+
+func (nopTransport) Publish(context.Context, string, []byte, byte, bool) error { return nil }
+
+func (nopTransport) Subscribe(context.Context, string, byte, publisher.Handler) error { return nil }
+
+func (nopTransport) Unsubscribe(context.Context, string) error { return nil }

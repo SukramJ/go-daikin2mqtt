@@ -537,42 +537,53 @@ func TestDataSource(t *testing.T) {
 	}
 }
 
-func TestClearOrphanConfigs(t *testing.T) {
-	m := newStubMQTT()
-	c := New(Deps{
-		Cfg: testConfig(), Client: &stubCloud{}, MQTT: m, Catalog: loadTestCatalog(t),
-		HASS:   hass.New("homeassistant", "daikin", "de", m),
-		Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
-	})
+// TestTheArmedSweepClearsOnlyItsOwnOrphans drives the real armed sweep over the
+// four classes a shared discovery tree actually carries.
+//
+// It replaces TestClearOrphanConfigs, which drove the hand-rolled reconcile
+// this step removes. The classes and the verdicts are unchanged — what changed
+// is that the window, the ownership predicate and the retraction are now one
+// path instead of two.
+func TestTheArmedSweepClearsOnlyItsOwnOrphans(t *testing.T) {
+	br := newRetainedBroker()
+	c, _ := sweepCoordinator(t, br)
 	// What this instance polls. Without it nothing is claimed and nothing is
 	// cleared — see TestIsOwnConfigClaimsNothingBeforeTheFirstPoll.
 	c.deps.HASS.ClaimDevices([]string{"dev1"})
-	current := `{"unique_id":"daikin_dev1_room_temperature","state_topic":"daikin/dev1/climateControl/room_temperature/state"}`
-	orphan := `{"unique_id":"daikin_dev1_old_sensor","state_topic":"daikin/dev1/climateControl/old_sensor/state"}`
-	foreign := `{"unique_id":"zigbee2mqtt_x","state_topic":"zigbee2mqtt/x"}`
+
+	const (
+		currentTopic = "homeassistant/sensor/daikin_dev1_room_temperature/config"
+		orphanTopic  = "homeassistant/sensor/daikin_dev1_old_sensor/config"
+		foreignTopic = "homeassistant/sensor/zigbee2mqtt_x/config"
+		siblingTopic = "homeassistant/sensor/daikin_dev2_room_temperature/config"
+	)
+	br.retain(currentTopic,
+		`{"unique_id":"daikin_dev1_room_temperature","state_topic":"daikin/dev1/climateControl/room_temperature/state"}`)
+	br.retain(orphanTopic,
+		`{"unique_id":"daikin_dev1_old_sensor","state_topic":"daikin/dev1/climateControl/old_sensor/state"}`)
+	br.retain(foreignTopic, `{"unique_id":"zigbee2mqtt_x","state_topic":"zigbee2mqtt/x"}`)
 	// A second go-daikin2mqtt instance's config: same namespace, same MQTT
 	// root, same topic form, a device this instance does not poll (F14).
-	sibling := `{"unique_id":"daikin_dev2_room_temperature","state_topic":"daikin/dev2/climateControl/room_temperature/state"}`
-	retained := map[string][]byte{
-		"homeassistant/sensor/daikin_dev1_room_temperature/config": []byte(current),
-		"homeassistant/sensor/daikin_dev1_old_sensor/config":       []byte(orphan),
-		"homeassistant/sensor/zigbee2mqtt_x/config":                []byte(foreign),
-		"homeassistant/sensor/daikin_dev2_room_temperature/config": []byte(sibling),
-	}
-	published := map[string]bool{"homeassistant/sensor/daikin_dev1_room_temperature/config": true}
+	br.retain(siblingTopic,
+		`{"unique_id":"daikin_dev2_room_temperature","state_topic":"daikin/dev2/climateControl/room_temperature/state"}`)
 
-	if n := c.clearOrphanConfigs(context.Background(), retained, published); n != 1 {
-		t.Fatalf("cleared %d, want 1 (only the orphaned daikin config)", n)
+	// The still-current config is claimed on the runtime rather than handed in
+	// as a published document, because that is what it is: a per-entity topic
+	// this process wrote. The claim set the sweep subtracts is `published` plus
+	// publisher.Runtime.Declared(), and this exercises the second half.
+	if _, err := c.ha().Publish(context.Background(), currentTopic,
+		[]byte(`{"unique_id":"daikin_dev1_room_temperature","state_topic":"daikin/dev1/climateControl/room_temperature/state"}`)); err != nil {
+		t.Fatalf("seed the claim: %v", err)
 	}
-	// The orphan was cleared with an empty retained payload.
-	if msg, ok := m.get("homeassistant/sensor/daikin_dev1_old_sensor/config"); !ok || msg.payload != "" || !msg.retain {
-		t.Errorf("orphan clear = %+v, want empty retained payload", msg)
+
+	runArmedSweep(t, c, aClaimedDocument())
+
+	if got, _ := br.retained(orphanTopic); got != "" {
+		t.Errorf("the orphan was not cleared: %q", got)
 	}
-	// The current and foreign configs are untouched.
-	if _, ok := m.get("homeassistant/sensor/zigbee2mqtt_x/config"); ok {
-		t.Error("foreign config must never be cleared")
-	}
-	if _, ok := m.get("homeassistant/sensor/daikin_dev2_room_temperature/config"); ok {
-		t.Error("another instance's config must never be cleared")
+	for _, topic := range []string{currentTopic, foreignTopic, siblingTopic} {
+		if got, ok := br.retained(topic); !ok || got == "" {
+			t.Errorf("%s was cleared and must never be", topic)
+		}
 	}
 }

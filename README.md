@@ -160,6 +160,50 @@ DAIKIN_MQTT_PASSWORD='change-me' ./bin/daikin2mqtt
 
 Bool / int / float values are coerced; everything else stays a string.
 
+## Home Assistant discovery
+
+Entities are created through MQTT discovery. Since 0.12 the daemon
+publishes **one retained document per Home Assistant device** —
+device-based discovery — instead of one retained config per entity:
+
+```
+homeassistant/device/<node id>/config
+```
+
+`<node id>` is derived from the device's identifier and is **not** the
+raw ONECTA device id. Do not compose it by hand. The daemon logs each
+document's exact topic at startup, one line per device:
+
+```
+INFO coordinator.discovery_bundle_published topic=homeassistant/device/daikin_809d41d9-.../config components=16
+```
+
+Upgrading from an earlier release needs no action: the old per-entity
+configs are retracted automatically before the documents are published,
+and every entity keeps its `unique_id`, so its entity id, name, icon,
+area and history are unaffected.
+
+### Rolling back
+
+Home Assistant refuses a per-entity config while a device document
+carrying the same `unique_id` is retained, and vice versa. So rolling
+back to **0.11.x or earlier** needs one manual step first: clear the
+retained device documents, once per device, using the topics from the
+log lines above.
+
+```bash
+mosquitto_pub -h <broker host> -p 1883 -u <user> -P <password> \
+  -t 'homeassistant/device/<node id>/config' -r -n
+```
+
+`-r -n` publishes an empty **retained** payload, which is how MQTT
+clears a retained topic; without `-r` it clears nothing. Omit `-u`/`-P`
+only if your broker is genuinely open — the Home Assistant add-on runs
+against the Supervisor's **authenticated** broker, so add-on users need
+them. Then start the older release; it republishes the per-entity
+configs and the entities return, with their history, because nothing
+was re-keyed.
+
 ## Documentation
 
 - [`docs/design.md`](./docs/design.md) — local-first (Faikin) control and

@@ -59,6 +59,37 @@ add-on updates), and the web UI binds to `0.0.0.0:8080` for Ingress.
 The OAuth callback is served on that same port; the externally registered
 address is the `redirect_uri` option above.
 
+## Home Assistant discovery and rolling back
+
+The add-on publishes **one retained discovery document per Home
+Assistant device** (`homeassistant/device/<node id>/config`). Upgrading
+needs no action — the previous per-entity configs are retracted
+automatically and every entity keeps its identity, so entity ids,
+names, icons, areas and history are unaffected.
+
+Downgrading to **0.11.x or earlier** does need one step: Home Assistant
+refuses the old per-entity configs while a device document for the same
+entities is still retained. Clear the documents first, once per device.
+Take each topic **verbatim** from the add-on log — the node id is
+derived from the device identifier, not the raw ONECTA device id:
+
+```
+INFO coordinator.discovery_bundle_published topic=homeassistant/device/daikin_809d41d9-.../config components=16
+```
+
+Then, from a machine that can reach the broker:
+
+```bash
+mosquitto_pub -h <broker host> -p 1883 -u <user> -P <password> \
+  -t 'homeassistant/device/<node id>/config' -r -n
+```
+
+The Supervisor's Mosquitto broker **requires credentials**; use the
+same user and password the add-on's `mqtt_*` options use (or the
+Mosquitto add-on's configured login). `-r -n` publishes an empty
+retained payload, which is what clears a retained topic — without `-r`
+nothing is cleared.
+
 ## Weekly schedules (optional)
 
 Turn on `schedule_enable` and a **Schedules** section appears in the add-on UI: a
