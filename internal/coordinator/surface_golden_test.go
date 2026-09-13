@@ -79,7 +79,6 @@ var goldenDigests = map[string]string{
 	"multisplit.de":                 "1a8f2e63d3ae2fe1a73b79f5c8faa904b2dd33452a534baba8f1a2d2b1ec4c1a",
 	"multisplit.local.en":           "3808b86a5f27262d46c2210f69c71acd159510ccf9ea2b275609c37bb6b81f17",
 	"multisplit.scheduler.en":       "8b26fd8fef9a3ec0dc0caaaeb7e96d9edb70bf4d6bcfb746a8c4f8d7ea31cf1b",
-	"air-to-air-dx4.scheduler.en":   "4d1ad09e820aa501b871a053e9df2e1be36de993e1006b7637c2d389d929a933",
 }
 
 // --- recording broker ------------------------------------------------------
@@ -321,6 +320,14 @@ func buildSurface(t *testing.T, sc surfaceScenario) []recordedMsg {
 //nolint:tparallel // the subtests append to `printed` and the parent reports it
 func TestPublishedSurfaceGolden(t *testing.T) {
 	var printed []string
+	// A digest with no scenario pins nothing: it is never looked up, so it can
+	// survive a scenario being renamed or dropped and read as coverage that is
+	// not there. (One did — "air-to-air-dx4.scheduler.en", removed in step 1.)
+	for name := range goldenDigests {
+		if !slices.ContainsFunc(surfaceScenarios(), func(sc surfaceScenario) bool { return sc.name == name }) {
+			t.Errorf("goldenDigests has %q, which is no scenario — a digest that pins nothing", name)
+		}
+	}
 	for _, sc := range surfaceScenarios() {
 		t.Run(sc.name, func(t *testing.T) {
 			got := surfaceDoc{Scenario: sc.name, Messages: buildSurface(t, sc)}
