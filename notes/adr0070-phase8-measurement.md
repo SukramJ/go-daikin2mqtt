@@ -1,8 +1,18 @@
 # ADR 0070 phase 8 — measurement for go-daikin2mqtt
 
-- Status: measurement (step 0), plus the step 1+2 outcome and the F4, F8, F9,
-  F11, F12 and F14 decisions — see
+- Status: measurement (step 0), plus the step 1+2, 4, 5 and 6 outcomes and the
+  F4, F8, F9, F11, F12 and F14 decisions — see
   [Step 2 outcome](#step-2-outcome--what-was-fixed-what-was-decided-what-stays)
+- **Convention: sections 1-5 and findings F1-F14 are a frozen snapshot**, true
+  on 2026-09-13 against `origin/main` `9deee36` and `go-hamqtt` v0.32.0, and
+  never edited to match what is true now — that is what makes them a usable
+  baseline for the byte-equality proofs. Each numbered *Step N outcome* records
+  what that step changed, and **a later outcome supersedes an earlier one
+  wherever they disagree.** The closing
+  [Corrections](#corrections--the-cross-repository-audit) section is the
+  authority over all of them: it is where a claim that has since been settled
+  elsewhere gets said out loud, so that no passage here reads as an open gate
+  that is in fact closed.
 - Date: 2026-09-13
 - Subject: [ADR 0070](https://github.com/SukramJ/openccu-loom/blob/main/docs/adr/0070-shared-ha-discovery-model-module.md)
   and its rollout table, row *"8 | `go-daikin2mqtt` (846) | Proves composite
@@ -412,6 +422,14 @@ homeconnect's F10, because the device registry is not at risk — only the entit
   reading another component's topic inside one bundle is unmeasured.
   ***Settled by:*** one throwaway bundle against HA 2026.9 at step 3b, the same
   half-day mtec spent on its duplicate-`unique_id` question.
+
+  > **Corrected — the comparator is wrong, and it never cost mtec a half-day.**
+  > go-mtec2mqtt's duplicate-`unique_id` question was settled by a version
+  > bump, not by a live session: `go-hamqtt` v0.32.0 narrowed
+  > `discovery.Validate`'s duplicate check to key on `(platform, unique_id)`,
+  > mirroring Home Assistant's own entity-registry index, and phase 6's step 3b
+  > was cancelled. Phase 6 completed with zero live-HA sessions. See
+  > [Corrections](#corrections--the-cross-repository-audit).
 
 ---
 
@@ -1273,6 +1291,16 @@ reading it.
 resolving the question. §3.4's third (whether HA accepts a bundled `climate`
 component reading a sibling component's state topic) is untouched and still
 gates step 6 at step 3b.
+
+> **Corrected by the later outcomes, which is which.** "Untouched" was true
+> when step 2 wrote it and stopped being true at step 4:
+> `TestHamqttBundledClimateReadsASiblingComponentsTopic` **narrowed** the
+> question to runtime behaviour on a bundle proved buildable — see
+> [Step 4 outcome](#step-4-outcome--go-hamqtt-reproduces-the-published-surface-byte-for-byte),
+> which says "narrowed but not closed" and is the authority over this
+> paragraph. And step 6 has since **shipped without step 3b being run at all**,
+> so the word "gates" no longer describes anything. See
+> [Corrections](#corrections--the-cross-repository-audit).
 
 ---
 
@@ -2545,6 +2573,137 @@ pushing** (`internal/coordinator` 280 s, `internal/hass` 2.3 s, both clean) —
 
 ---
 
+## Corrections — the cross-repository audit
+
+Added after a cross-repository audit of the finished ADR 0070 programme found
+claims in this document that had been settled elsewhere, and two places where
+the document contradicts itself. **Nothing above was rewritten** — the
+measurements and each step's outcome stay as they were written, per the
+convention in the header. This section is the authority wherever they and it
+disagree.
+
+### 1. This document contradicted itself about §3.4's third unknown
+
+`Step 2 outcome` says the bundled-`climate`-reads-a-sibling's-topic question is
+*"untouched and still gates step 6 at step 3b"*. `Step 4 outcome`, later in the
+same file, says it is *"narrowed but not closed"*. Both were true when written;
+only the second is true now, and a reader who stopped at the first would
+believe a gate is open in a shape it no longer has.
+
+**The state of it, once:** step 4's
+`TestHamqttBundledClimateReadsASiblingComponentsTopic` proved the shape is real
+rather than hypothetical — in a rendered bundle the composite's
+`current_temperature_topic` is byte-equal to the `state_topic` of the
+`room_temperature` component *of the same bundle*, on both indoor units of the
+multi-split — and that the library renders it and Home Assistant's discovery
+schemas do not refuse it. What was left was runtime behaviour alone.
+
+**And step 6 shipped anyway** (PR #80, `532909d`), with the bundle live and the
+264 per-entity configs retracted. Step 3b was never run. So it did not gate
+step 6; it remains an observation worth making against a live installation, and
+it is not a gate and never became one. The sequencing table's 3b row is struck
+through accordingly.
+
+### 2. §3.4 cites mtec's question as a comparator, and mtec's question was settled without a live session
+
+§3.4's *"Settled by: … the same half-day mtec spent on its duplicate-`unique_id`
+question"* was written when go-mtec2mqtt's phase 6 still budgeted a live-HA
+session for it. It never spent it. `go-hamqtt` v0.32.0 narrowed
+`discovery.Validate`'s duplicate check to key on `(platform, unique_id)` —
+Home Assistant's own `(domain, platform, unique_id)` entity-registry index —
+after phase 6's step 3 pinned v0.31.0's refusal and the bump turned that pin
+red. Phase 6's step 3b was cancelled and phase 6 completed with **zero** live-HA
+sessions. The comparator therefore measures nothing; if anything it is evidence
+for the opposite reading, that a question of this class has so far been settled
+by reading and bumping the library rather than by a session.
+
+### 3. §4's availability finding became a library guard
+
+§4 records this bridge's availability model — one level, the bridge LWT, the
+singular `availability_topic` spelling — and F8 records why the library's
+default is the wrong answer here: the zero `model.Availability` resolves to
+`{LevelBridge, LevelDevice}` under mode `all`, `LevelDevice` names a per-device
+topic this bridge never publishes, and under `all` Home Assistant requires
+every listed source to say `online`. Taking the default would leave all **264**
+entities permanently unavailable, with nothing on the wire and nothing in any
+log.
+
+The document has no way to know what happened next: **that finding is now a
+library feature.** `go-hamqtt` v0.34.0 added
+`discovery.CheckAvailability` / `CheckBundleAvailability` / `AvailabilityTopics`,
+and its CHANGELOG quotes this repository's `singularAvailability` doc comment
+verbatim as the thing it generalised — *"refuses anything that is not one plain
+bridge-level source … so dropping `model.BridgeOnly` produces two entries and
+**fails the render** instead of silently publishing a second, never-written
+topic that would grey out all 264 entities."* The same entry records that
+go-mtec2mqtt's 100 entities and this bridge's 264 were the two measured
+instances of the trap.
+
+**This repository does not adopt the guard**, and the reason is that the check
+would compare a function against itself. `CheckAvailability` takes a
+`publishes func(topic string) bool` predicate supplied by the consumer; here
+that predicate can only be *"is this `layout.Root.BridgeStatus()`?"*, which is
+the exact function the `availability_topic` in every payload was rendered from.
+`RuntimeConfig` states `Layout` rather than `StatusTopic` precisely so the
+runtime derives the status topic from `Layout.Bridge()` and **panics** on a
+disagreement — the published topic and the named topic are one function, not
+two spellings. A check between them cannot fail.
+
+What it would duplicate, concretely:
+
+- `TestAvailabilityModelIsBridgeOnly` (`internal/coordinator`) already asserts,
+  over all twelve pinned scenarios, that `daikin/bridge/status` **is
+  published**, that every config's `availability_topic` equals it, and that no
+  `availability` / `availability_mode` / `availability_template` key survives.
+  That is `CheckAvailability`'s property computed over real captured surfaces
+  rather than over a predicate the test hands in.
+- `TestHamqttAvailabilityIsBridgeOnlyAndSingular` (`internal/hass`) asserts the
+  resolved level is exactly `{LevelBridge}`, that the entry names
+  `BridgeStatusTopic()`, and that the library's default is **refused at render**
+  with an error naming `model.BridgeOnly`.
+- `singularAvailability` refuses `len(comp.Availability) != 1` in production,
+  not only in tests.
+
+A sibling repository reached the same place by the longer route: it wrote the
+call, mutation-tested it, found the property already caught by five existing
+assertions, and removed it again. Recorded here so the next reader does not
+have to repeat that.
+
+### 4. `StateConfig.PulseQoS` was unstated, and is now stated
+
+`internal/coordinator/plane.go` exists to state this daemon's delivery
+guarantees, and its own comment says an omitted QoS field is *"not 'keep what
+we had'"*. It stated `StateConfig.QoS` and omitted `StateConfig.PulseQoS` —
+the one field in the `publisher` package whose unset default is **QoS 0** and
+not QoS 1. That omission was correct only by the coincidence that this bridge's
+chosen level and the library's pulse default are the same number, in the very
+file that contemplates changing `StateQoS` in its own step.
+
+Now stated as `StatePulseQoS = publisher.QoSAtMostOnce`.
+`go-homeconnect2mqtt`'s `internal/haplane/plane.go` is the model — it is the
+only repository in the programme that stated both.
+
+### 5. `go-hamqtt` v0.32.0 → v0.34.0, and what that bought
+
+Bumped in the same PR, for exactly one thing this repository could not
+otherwise have: v0.34.0 warns `publisher.state.pulse_qos_unstated` at
+construction when one state level is stated and the other is not. That turns
+correction 4 from a claim into a **checkable property** —
+`TestStatePlaneDoesNotWarnAboutAnUnstatedPulseQoS` asserts the warning's
+absence from this daemon's own construction path, and it is the only assertion
+that fails today, at today's QoS 0, without the fix.
+
+**No published byte moved.** The v0.34.0 entry states that nothing it adds
+changes what is rendered or published, and it holds here: all twelve SHA-256
+literals in `goldenDigests` are unchanged, `-update-surface-golden` and
+`-update-bundle-golden` were never passed, and `git diff origin/main --
+internal/coordinator/testdata` is empty.
+
+The audit also proposed **v0.34.1**. That version does not exist; v0.34.0 is
+the latest published tag.
+
+---
+
 ## Sequencing — the rest of phase 8
 
 Ordered so each step de-risks the next, following the shape phases 5, 6 and 7
@@ -2556,7 +2715,7 @@ converged on.
 | 1 | **Done.** Housekeeping the bump enables: `mqtt.SplitClient` replaces the hand-rolled `mqttSession`; `ConnectWithRetry` deliberately declined. Payloads untouched, goldens unmoved. | Small, mechanical, and a free check that the pins do not fire on a non-payload change. |
 | **2** | **Done** — see [Step 2 outcome](#step-2-outcome--what-was-fixed-what-was-decided-what-stays). F1, F3, F5, F10, F13 first (no bytes move), then F2, F7, F6 (41 keys changed, 2 topics added, 5 of 12 scenarios, 5 digests updated by hand). F4, F8, F9, F11, F12 and F14 decided in writing. | The byte-equality proof in step 5 must compare against *corrected* bytes, not against bugs. F1 was first because it is the only finding that takes a live installation down. |
 | 3 | (a) and (b) are **decided above** — F4 keeps this bridge's three normalisers, F8 takes `model.BridgeOnly()`. What is left is (c) F14: whether an `INSTANCE_ID` lands before the bundle, plus the `availability_topic`-vs-`availability`-list spelling question F8's decision raises. | All are irreversible for an installed base. Phase 6 hit (a) at step 3 and paid for it; this phase settled it at step 2 instead. |
-| 3b | **Settle §3.4's third unknown against a live Home Assistant.** One throwaway bundle carrying a `climate` component whose `current_temperature_topic` is another component's state topic, HA 2026.9, watch the log. | Half a day, and it gates step 6 for the one bridge whose composite entity is the point of the phase. |
+| 3b | ~~**Settle §3.4's third unknown against a live Home Assistant.** One throwaway bundle carrying a `climate` component whose `current_temperature_topic` is another component's state topic, HA 2026.9, watch the log.~~ **Overtaken: step 6 shipped without it** (PR #80). Narrowed at step 4 to runtime behaviour on a bundle proved buildable; still open as an observation to make against a live installation, but it gated nothing in the end. | ~~Half a day, and it gates step 6 for the one bridge whose composite entity is the point of the phase.~~ |
 | **4** | **Done** — see [Step 4 outcome](#step-4-outcome--go-hamqtt-reproduces-the-published-surface-byte-for-byte). **Model the catalogue as `model.Entity` and render, publishing nothing.** The composite climate as `Bindings` + `Suppressor` + `Builder`; the shared outdoor unit as `Identity.Equal` merging two indoor units' outdoor identifiers; the cloud/Faikin fusion as `Origin` + `Precedence("local", "cloud")`. Compare the rendered per-component output **against the golden files, not against the builder it replaces**. Neither pin regenerated. | This is where a `Layout`, `Context`, `Slot` or composite mismatch surfaces, at zero risk — and it is the part ADR 0070 §3.5 nominates daikin to prove. |
 | **5** | **Done** — see [Step 5 outcome](#step-5-outcome--the-state-command-and-availability-planes-now-publish-through-go-hamqtt). State, command, birth/LWT and a report-only sweep on the library; `publisher.QoSAtMostOnce` in all three fields that exist (F9); F14's claim predicate tightened to the payload. Twelve goldens and twelve digests unmoved. | The state plane has no registry keys to orphan; it is the cheap half. |
 | **6** | **Done** — see [Step 6 outcome](#step-6-outcome--the-discovery-plane-is-the-device-bundle). **Switch discovery to the device bundle.** `PublishBundle` + `SupersededTopics(prefix, bundle, publisher.LegacyTopicByUniqueID)` (F5), retracting all per-entity configs before the bundle lands, and teach `IsOwnConfig` to recognise a bundle in both directions. Verify against a live HA that no `Received a conflicting MQTT discovery message` warning appears. | The one step no unit test can prove. Everything above exists to make it a small diff. |
