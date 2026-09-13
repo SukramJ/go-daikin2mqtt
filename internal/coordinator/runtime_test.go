@@ -4,6 +4,7 @@
 package coordinator
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -53,6 +54,7 @@ func TestQoSIsStatedNotDefaulted(t *testing.T) {
 		got  publisher.QoS
 	}{
 		{"StateQoS", StateQoS},
+		{"StatePulseQoS", StatePulseQoS},
 		{"CommandQoS", CommandQoS},
 		{"DiscoveryQoS", DiscoveryQoS},
 	} {
@@ -759,6 +761,124 @@ func (r *qosRecorder) Subscribe(
 func (r *qosRecorder) Unsubscribe(context.Context, string) error { return nil }
 
 func (r *qosRecorder) snapshot() []recordedPublish {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]recordedPublish(nil), r.msgs...)
+}
+
+// TestStatePlaneStatesBothStateLevels is the assertion that PulseQoS is
+// STATED rather than inherited, and it is deliberately written so that it
+// cannot pass by the coincidence that makes the omission invisible today.
+//
+// publisher.StateConfig.PulseQoS is the one field in that package whose unset
+// default is QoS 0 rather than QoS 1. This bridge publishes at QoS 0, so a
+// StateConfig that omits the field reaches the same wire byte as one that
+// states it, and any test that simply asserts "pulses go out at QoS 0" passes
+// either way. That is the trap: the omission is correct by arithmetic
+// accident, not by choice, and StateQoS is explicitly contemplated as
+// changeable in its own step.
+//
+// So the assertion is RELATIVE: the level a pulse actually reaches the
+// transport at must equal the level this package states for it. Mutate
+// StateQoS and StatePulseQoS to QoSAtLeastOnce and the test still passes;
+// mutate them and delete `PulseQoS: StatePulseQoS` from NewStatePlane and the
+// pulse stays at 0 while the stated level is 1, and this fails. A test that
+// pinned the literal 0 would not.
+func TestStatePlaneStatesBothStateLevels(t *testing.T) {
+	t.Parallel()
+	rec := &pulseRecorderTransport{}
+	plane := NewStatePlane(rec, layout.New("daikin"), slog.New(slog.DiscardHandler))
+
+	wantState, ok := StateQoS.Wire()
+	if !ok {
+		t.Fatalf("StateQoS does not resolve to a wire level")
+	}
+	wantPulse, ok := StatePulseQoS.Wire()
+	if !ok {
+		t.Fatalf("StatePulseQoS does not resolve to a wire level")
+	}
+
+	if _, err := plane.Publish(context.Background(), "daikin/dev1/mp/x/state", []byte("21.5")); err != nil {
+		t.Fatalf("Publish: %v", err)
+	}
+	if err := plane.Pulse(context.Background(), "daikin/dev1/mp/x/state", []byte("21.5")); err != nil {
+		t.Fatalf("Pulse: %v", err)
+	}
+
+	got := rec.snapshot()
+	if len(got) != 2 {
+		t.Fatalf("recorded %d publishes, want 2 (one Publish, one Pulse): %+v", len(got), got)
+	}
+	if got[0].qos != wantState {
+		t.Errorf("Publish reached the transport at QoS %d, want StateQoS's %d", got[0].qos, wantState)
+	}
+	if got[1].qos != wantPulse {
+		t.Errorf(
+			"Pulse reached the transport at QoS %d, want StatePulseQoS's %d — "+
+				"publisher.StateConfig.PulseQoS does not inherit QoS and defaults to 0, "+
+				"so NewStatePlane has to state it",
+			got[1].qos, wantPulse,
+		)
+	}
+}
+
+// TestStatePlaneDoesNotWarnAboutAnUnstatedPulseQoS is the assertion that
+// actually fails today, and it is the reason the go-hamqtt bump rides in this
+// PR rather than waiting.
+//
+// TestStatePlaneStatesBothStateLevels above is relative and therefore only
+// bites once StateQoS moves. At today's QoS 0 no behavioural test can see the
+// omission at all, because publisher.StateConfig.PulseQoS's unset default and
+// this bridge's chosen level are the same number. go-hamqtt v0.34.0 closes
+// exactly that blind spot: NewStatePublisher warns
+// `publisher.state.pulse_qos_unstated` when one state level is stated and the
+// other is not, whatever the levels are. So the checkable property is the
+// absence of that warning from this daemon's own construction path — and on
+// v0.32.0 it was not available at all, which is the whole cost of the version
+// gap this repository was carrying.
+func TestStatePlaneDoesNotWarnAboutAnUnstatedPulseQoS(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+
+	NewStatePlane(&pulseRecorderTransport{}, layout.New("daikin"), logger)
+
+	if strings.Contains(buf.String(), "publisher.state.pulse_qos_unstated") {
+		t.Errorf(
+			"NewStatePlane logged publisher.state.pulse_qos_unstated at construction:\n%s\n"+
+				"state publisher.StateConfig.PulseQoS explicitly — it does not inherit "+
+				"StateConfig.QoS and is the one field in the package defaulting to QoS 0",
+			buf.String(),
+		)
+	}
+}
+
+// pulseRecorderTransport is a publisher.Transport that records what it was
+// handed, for the assertions that have to read a level off the wire rather
+// than off a constant.
+type pulseRecorderTransport struct {
+	mu   sync.Mutex
+	msgs []recordedPublish
+}
+
+func (r *pulseRecorderTransport) Publish(
+	_ context.Context, topic string, payload []byte, qos byte, retain bool,
+) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.msgs = append(r.msgs, recordedPublish{
+		topic: topic, payload: append([]byte(nil), payload...), qos: qos, retain: retain,
+	})
+	return nil
+}
+
+func (r *pulseRecorderTransport) Subscribe(context.Context, string, byte, publisher.Handler) error {
+	return nil
+}
+
+func (r *pulseRecorderTransport) Unsubscribe(context.Context, string) error { return nil }
+
+func (r *pulseRecorderTransport) snapshot() []recordedPublish {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return append([]recordedPublish(nil), r.msgs...)

@@ -25,10 +25,10 @@ import (
 // here, once, so that main and the tests configure the same daemon. The three
 // QoS constants below are the reason this file exists at all.
 
-// StateQoS, CommandQoS and DiscoveryQoS are the delivery guarantees this bridge
-// has always had, stated in the library's vocabulary.
+// StateQoS, StatePulseQoS, CommandQoS and DiscoveryQoS are the delivery
+// guarantees this bridge has always had, stated in the library's vocabulary.
 //
-// All three are publisher.QoSAtMostOnce — MQTT QoS 0 — because that is what all
+// All four are publisher.QoSAtMostOnce — MQTT QoS 0 — because that is what all
 // fifteen of this daemon's transport calls pass today, measured over 1 083
 // recorded publishes by TestPublishQoSAndRetain and unchanged by this step.
 //
@@ -48,6 +48,23 @@ import (
 const (
 	// StateQoS is publisher.StateConfig.QoS — the entity state and attributes plane.
 	StateQoS = publisher.QoSAtMostOnce
+	// StatePulseQoS is publisher.StateConfig.PulseQoS — StatePublisher.Pulse's
+	// own level, which does NOT inherit StateConfig.QoS.
+	//
+	// It is stated separately from StateQoS because it is the ONE field in the
+	// publisher package whose unset default is QoS 0 rather than QoS 1, and
+	// stating it is therefore load-bearing in the opposite direction from every
+	// other field here: leaving it out is correct today only by the coincidence
+	// that this bridge's chosen level and the library's pulse default are the
+	// same number. The paragraph above contemplates changing StateQoS in its
+	// own step; on the day that happens, an unstated PulseQoS would silently
+	// stay at 0 while everything around it moved, and nothing in this file
+	// would say so. go-hamqtt v0.34.0 warns about exactly this shape at
+	// construction (publisher.state.pulse_qos_unstated) — this daemon does not
+	// publish pulses today, so the warning would be advisory rather than a
+	// live defect, and the field is stated regardless because "not reached" is
+	// not the same claim as "chosen".
+	StatePulseQoS = publisher.QoSAtMostOnce
 	// CommandQoS is publisher.CommandConfig.QoS — the `<root>/+/+/+/set` subscription.
 	CommandQoS = publisher.QoSAtMostOnce
 	// DiscoveryQoS is publisher.Config.QoS — the bridge availability marker, the
@@ -96,8 +113,8 @@ func RuntimeConfig(cfg *config.Config, logger *slog.Logger) publisher.Config {
 }
 
 // NewStatePlane builds the state publisher: retained entity state and the
-// attributes siblings, at QoS 0, guarded against this daemon's own command
-// subscription.
+// attributes siblings, at QoS 0 on both state levels, guarded against this
+// daemon's own command subscription.
 //
 // Encoding is stated even though this daemon renders its own payload bytes
 // (formatValue's output is the installed base's, and the library's raw renderer
@@ -105,7 +122,12 @@ func RuntimeConfig(cfg *config.Config, logger *slog.Logger) publisher.Config {
 // EnvelopeEncoding — the shape a `value_template` would have to read.
 func NewStatePlane(tr publisher.Transport, root layout.Root, logger *slog.Logger) *publisher.StatePublisher {
 	return publisher.NewStatePublisher(tr, publisher.StateConfig{
+		// Both levels are stated. PulseQoS does not inherit QoS and is the one
+		// field in the package that defaults to QoS 0 rather than QoS 1, so a
+		// struct setting only the first states one level and inherits the
+		// other — see StatePulseQoS.
 		QoS:      StateQoS,
+		PulseQoS: StatePulseQoS,
 		Encoding: discovery.RawEncoding,
 		// The library's own echo guard: a state publish that would land inside
 		// this process's own command subscription is refused with
