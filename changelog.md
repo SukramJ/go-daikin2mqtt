@@ -52,6 +52,34 @@
 
 ### Fixed
 
+- **A second go-daikin2mqtt on the same broker could delete the
+  first's weekly-schedule switches.** The schedule switches live under
+  a reserved topic segment (`<MQTT_TOPIC>/scheduler/…`) and on a Home
+  Assistant device whose node id is the same string in every
+  installation, so two daemons write the same discovery document and
+  the same state topics — even with completely different schedules on
+  different ONECTA accounts. Each instance treated the other's live
+  switches as its own removed ones: they were marked deleted in the
+  shared document and their retained configs were cleared, so Home
+  Assistant **removed them from the entity registry** — gone from
+  dashboards and automations, with the area, rename and icon lost. The
+  other instance restored them on its next discovery change and did the
+  same back, indefinitely.
+
+  Schedule switches are no longer claimed by any instance's ownership
+  check, so neither instance can remove the other's. **One consequence
+  for a single instance:** a weekly schedule deleted while the daemon
+  is **stopped** leaves its switch behind as an entity to remove by
+  hand. Deleting a schedule in the daemon's own web UI, which is how
+  schedules are deleted, still removes the switch as before.
+
+  **Still true, and now written down: run one daemon per ONECTA
+  account per `MQTT_TOPIC`.** Two instances on the *same* ONECTA
+  account with different `LOCAL_MODE` or `characteristics.yaml` settings
+  see the same devices and cannot be told apart by anything on the
+  wire; the one with fewer entities will keep removing the other's.
+  Separate accounts, or separate `MQTT_TOPIC` values, are unaffected.
+
 - **A broker restarted without its retained store got its entities
   back.** Discovery was only republished when the entity set changed,
   and that gate survived a reconnect — so a broker that came back empty

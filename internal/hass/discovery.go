@@ -444,8 +444,14 @@ func lessPoint(a, b process.Point) bool {
 const UniqueIDPrefix = "daikin_"
 
 // ClaimDevices states which device segments of the state plane this instance
-// actually writes: the ONECTA device ids of the last resolved poll, plus
-// [layout.SchedulerDeviceID] when the weekly scheduler is running.
+// actually writes: the ONECTA device ids of the last resolved poll.
+//
+// [layout.SchedulerDeviceID] is deliberately NOT among them, although this
+// instance does write under it. It is a compile-time literal shared by every
+// installation, so claiming it made a sibling's schedule switches resolve as
+// this instance's own — see coordinator.claimedDeviceSegments (F-A). The cost
+// is that a deleted schedule's retained config is no longer swept; the benefit
+// is that a sibling's live ones are no longer deleted.
 //
 // It is what makes [Discovery.IsOwnConfig] an answer about THIS instance rather
 // than about the `daikin_` namespace, and it is deliberately push-based: the

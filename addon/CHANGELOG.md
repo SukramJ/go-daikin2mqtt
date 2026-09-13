@@ -18,6 +18,14 @@ top-level changelog.md. Newest version first.
 - A broker restarted without its retained store now gets the discovery
   documents back on the next connect, instead of staying empty until
   the entity set happened to change.
+- **Two daemons on one broker no longer delete each other's weekly
+  schedule switches.** The switches sat on a topic and a Home Assistant
+  device that every installation shares, so each instance removed the
+  other's from the entity registry and put its own back, indefinitely.
+  Side effect for a single instance: a schedule deleted while the
+  add-on is stopped leaves its switch behind to remove by hand;
+  deleting a schedule in the web UI works as before. Run one instance
+  per ONECTA account per MQTT topic.
 - **Downgrading to 0.11.x or earlier requires clearing the retained
   device documents first** — see "Home Assistant discovery and rolling
   back" in the documentation tab.

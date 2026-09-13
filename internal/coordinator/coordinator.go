@@ -625,22 +625,45 @@ func (c *Coordinator) checkCommandDisjoint() error {
 }
 
 // claimedDeviceSegments is the set of state-plane device segments this instance
-// writes: the ONECTA device ids this poll resolved, plus the scheduler's
-// reserved segment when the weekly scheduler is attached.
+// writes, and therefore the set [hass.Discovery.IsOwnConfig] and
+// [hass.Discovery.BundleIsOwnConfig] take ownership from: the ONECTA device ids
+// this poll resolved, and nothing else.
 //
-// The scheduler segment is the one residual ambiguity of F14 and it is named
-// rather than hidden: two instances that both run a schedule with the same id
-// write the same switch topic, so each would claim the other's — exactly what
-// they do today for everything. Nothing about that gets worse here, and only an
-// instance identifier (the open step-3 decision) can close it. Every other
-// segment is a device id, which an instance that does not poll it never writes.
+// The scheduler's reserved segment is deliberately NOT in it, and that omission
+// is the whole of F-A.
+//
+// [layout.SchedulerDeviceID] is a compile-time literal ("scheduler"), and the
+// scheduler's Home Assistant device node id is likewise a constant
+// ("daikin_scheduler"). So two instances that both run a scheduler — with
+// entirely DISJOINT schedule ids, on disjoint ONECTA accounts — publish their
+// schedule switches to the same device-document topic and under the same
+// `<root>/scheduler/…` state segment. Claiming that segment made every one of
+// those topics resolve as "ours", so a sibling's live schedule switches passed
+// both payload predicates: its document became this instance's tombstone
+// prior state, its switches were marked removed, and its per-entity configs
+// were retracted. That is the hole F18 closed for the other 262 configs, and it
+// stayed open for these two until it was closed here.
+//
+// Not claiming it is byte-neutral — the set is read by the two ownership
+// predicates and by nothing that publishes — and it costs exactly one thing:
+// the sweep no longer retracts a DELETED schedule's retained per-entity config,
+// and the broker read-back no longer tombstones a schedule component. The
+// in-process memo still does (see [Coordinator.recordPublished]), which covers
+// deleting a schedule through the daemon's own web UI — the way schedules are
+// actually deleted. A schedule removed while the daemon is stopped leaves a
+// phantom switch. Leaving an orphan is recoverable; deleting a sibling's live
+// entities is not.
+//
+// What remains open is F14 proper: two instances on the SAME ONECTA account
+// with different LOCAL_MODE or characteristics.yaml claim the same device ids
+// legitimately, and no predicate can separate them — a shrunken component set
+// is indistinguishable from this instance's own configuration change. That
+// needs an instance identifier (step 3(c)) and is pinned rather than fixed; see
+// TestTwoInstancesOnOneAccountStillOverwriteEachOther.
 func (c *Coordinator) claimedDeviceSegments(devices []model.Device) []string {
-	out := make([]string, 0, len(devices)+1)
+	out := make([]string, 0, len(devices))
 	for i := range devices {
 		out = append(out, devices[i].ID)
-	}
-	if c.scheduleEngine() != nil {
-		out = append(out, layout.SchedulerDeviceID)
 	}
 	return out
 }

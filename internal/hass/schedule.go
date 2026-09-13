@@ -24,6 +24,22 @@ const SchedulerDeviceID = layout.SchedulerDeviceID
 // under. It is the daemon's own device, not a Daikin one.
 const schedulerIdentifier = "daikin_scheduler"
 
+// SchedulerNodeID is the device-document node id the scheduler's switches are
+// published under, i.e. the last variable segment of
+// "<prefix>/device/<node id>/config".
+//
+// It is a COMPILE-TIME LITERAL, identical in every installation, which is
+// exactly why it is exported: two instances write this one document topic, so
+// nothing may take a retained document found there to be its own prior state
+// (F-A). [Discovery.BundleIsOwnConfig] already declines it, because the
+// scheduler's reserved topic segment is not a claimed device segment; the
+// coordinator's read-back names it a second time, so that closing the hole
+// does not depend on one predicate alone.
+//
+// Pinned against what the renderer actually produces by
+// TestTheSchedulerNodeIDIsTheOneTheRendererProduces.
+const SchedulerNodeID = schedulerIdentifier
+
 // ScheduleInfo is one schedule as Home Assistant needs to see it. Name is the
 // operator's own text and is published verbatim in every language — a schedule
 // is user data, so there is nothing to localize.
