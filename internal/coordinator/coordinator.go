@@ -245,6 +245,23 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 		infos := deviceInfos(devices)
 		c.applyFaikinConfigURLs(infos)
 		c.maybePublishDiscovery(ctx, points, infos, climateInfos(devices, c.deps.Cfg.Language))
+		// Each entity's data_source (cloud vs local Faikin), published every
+		// poll rather than only when the discovery signature moves.
+		//
+		// It used to run inside maybePublishDiscovery, after the `changed`
+		// gate. But data_source is a function of which PATH serves a device,
+		// and switching paths does not change the point set — so it does not
+		// change the signature, so the attribute was never republished. It
+		// could be stale for as long as the point set was stable, which is
+		// normally forever. That is F13 of the ADR 0070 phase 8 measurement.
+		//
+		// Latent rather than live today, because localActiveFor is a function
+		// of the static LOCAL_DEVICE_MAP; it goes live the moment a
+		// fall-back-to-Faikin-on-timeout behaviour is added. The documents are
+		// retained and byte-identical between polls, so republishing them
+		// costs one retained write per entity per poll and moves no byte a
+		// subscriber sees.
+		c.publishDataSources(ctx, points)
 	}
 
 	published := 0
@@ -409,9 +426,6 @@ func (c *Coordinator) maybePublishDiscovery(ctx context.Context, points []proces
 	c.lastDiscSig = sig
 	c.mu.Unlock()
 	c.deps.Logger.Info("coordinator.discovery_published", slog.Int("entities", len(points)))
-	// Publish each entity's data_source (cloud vs local Faikin) alongside the
-	// (retained) discovery, so it shows as an entity attribute.
-	c.publishDataSources(ctx, points)
 	// Clear any of our own retained discovery configs that we no longer publish
 	// (entities removed or moved/renamed across versions), so they don't linger
 	// as unavailable entities in Home Assistant.
