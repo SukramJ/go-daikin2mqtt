@@ -318,9 +318,8 @@ func buildSurface(t *testing.T, sc surfaceScenario) []recordedMsg {
 
 // --- the pin ---------------------------------------------------------------
 
+//nolint:tparallel // the subtests append to `printed` and the parent reports it
 func TestPublishedSurfaceGolden(t *testing.T) {
-	t.Parallel()
-
 	var printed []string
 	for _, sc := range surfaceScenarios() {
 		t.Run(sc.name, func(t *testing.T) {

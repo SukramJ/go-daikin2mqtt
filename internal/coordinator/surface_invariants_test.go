@@ -110,6 +110,7 @@ func TestStateTopicBuildersAgree(t *testing.T) {
 	t.Parallel()
 	for _, sc := range surfaceScenarios() {
 		t.Run(sc.name, func(t *testing.T) {
+			t.Parallel()
 			msgs := buildSurface(t, sc)
 			published := topicsOf(msgs)
 			allowed := map[string]bool{}
@@ -240,6 +241,7 @@ func TestNoDuplicateEntityRegistryKeys(t *testing.T) {
 	t.Parallel()
 	for _, sc := range surfaceScenarios() {
 		t.Run(sc.name, func(t *testing.T) {
+			t.Parallel()
 			byPair := map[string]string{}
 			byUID := map[string]string{}
 			byEntityID := map[string]string{}
