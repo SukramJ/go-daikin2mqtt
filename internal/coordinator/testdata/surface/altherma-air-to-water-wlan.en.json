@@ -1,0 +1,950 @@
+{
+  "scenario": "altherma-air-to-water-wlan.en",
+  "messages": [
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily/state",
+      "qos": 0,
+      "retain": true,
+      "text": "26.000"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.000"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "260.000"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily/state",
+      "qos": 0,
+      "retain": true,
+      "text": "26.000"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.000"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly/state",
+      "qos": 0,
+      "retain": true,
+      "text": "260.000"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "true"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/hvac_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "heat"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/state",
+      "qos": 0,
+      "retain": true,
+      "text": "0.0"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint/state",
+      "qos": 0,
+      "retain": true,
+      "text": "21.0"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/operation_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/operation_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "Heating"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "25.0"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "on"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "on"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/preset_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "boost"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "20.0"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state/state",
+      "qos": 0,
+      "retain": true,
+      "text": "false"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/state",
+      "qos": 0,
+      "retain": true,
+      "text": "off"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "off"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "fixed"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature/state",
+      "qos": 0,
+      "retain": true,
+      "text": "53.0"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/state",
+      "qos": 0,
+      "retain": true,
+      "text": "45.0"
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/refresh/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "data_source": "cloud"
+      }
+    },
+    {
+      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address/state",
+      "qos": 0,
+      "retain": true,
+      "text": "192.168.0.2"
+    },
+    {
+      "topic": "daikin/bridge/status",
+      "qos": 0,
+      "retain": true,
+      "text": "online"
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_error_state/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.my_mock_a2w_hp_dhw_error_state",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "problem",
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state/attributes",
+        "name": "Domestic hot water error",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_error_state"
+      }
+    },
+    {
+      "topic": "homeassistant/binary_sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_holiday_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "binary_sensor.my_mock_a2w_hp_holiday_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode/attributes",
+        "name": "Holiday mode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "false",
+        "payload_on": "true",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_holiday_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/button/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_refresh/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/refresh/set",
+        "default_entity_id": "button.my_mock_a2w_hp_refresh",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "icon": "mdi:cloud-refresh",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/refresh/attributes",
+        "name": "Refresh from cloud",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_press": "PRESS",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_refresh"
+      }
+    },
+    {
+      "topic": "homeassistant/climate/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_climate/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "current_temperature_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/state",
+        "default_entity_id": "climate.my_mock_a2w_hp_thermostat",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/climate/attributes",
+        "max_temp": 30,
+        "min_temp": 20,
+        "mode_command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/hvac_mode/set",
+        "mode_state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/hvac_mode/state",
+        "modes": [
+          "off",
+          "heat",
+          "cool",
+          "heat_cool",
+          "dry",
+          "fan_only"
+        ],
+        "name": "Thermostat",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "preset_mode_command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/preset_mode/set",
+        "preset_mode_state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/preset_mode/state",
+        "preset_modes": [
+          "boost"
+        ],
+        "temperature_command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint/set",
+        "temperature_state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_climate"
+      }
+    },
+    {
+      "topic": "homeassistant/number/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_temperature_setpoint/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/set",
+        "default_entity_id": "number.my_mock_a2w_hp_dhw_temperature_setpoint",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/attributes",
+        "max": 60,
+        "min": 30,
+        "name": "Domestic hot water setpoint",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/state",
+        "step": 1,
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_temperature_setpoint",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/number/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_leaving_water_offset/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/set",
+        "default_entity_id": "number.my_mock_a2w_hp_leaving_water_offset",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/attributes",
+        "max": 10,
+        "min": -10,
+        "name": "Leaving water offset",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_leaving_water_offset",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_daily/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_daily",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily/attributes",
+        "name": "Cooling energy today",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_daily",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_monthly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_monthly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly/attributes",
+        "name": "Cooling energy this month",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_monthly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_weekly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_weekly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly/attributes",
+        "name": "Cooling energy this week",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_weekly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_setpoint_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_a2w_hp_dhw_setpoint_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode/attributes",
+        "name": "Domestic hot water setpoint mode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_setpoint_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_tank_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_a2w_hp_dhw_tank_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature/attributes",
+        "name": "Tank temperature",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_tank_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_daily/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_daily",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily/attributes",
+        "name": "Heating energy today",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_daily",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_monthly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_monthly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly/attributes",
+        "name": "Heating energy this month",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_monthly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_weekly/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_weekly",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "energy",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly/attributes",
+        "name": "Heating energy this week",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "total_increasing",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_weekly",
+        "unit_of_measurement": "kWh"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_outdoor_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_a2w_hp_outdoor_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature/attributes",
+        "name": "Outdoor temperature",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_outdoor_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_room_temperature/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.my_mock_a2w_hp_room_temperature",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "device_class": "temperature",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/attributes",
+        "name": "Room temperature",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_class": "measurement",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_room_temperature",
+        "unit_of_measurement": "°C"
+      }
+    },
+    {
+      "topic": "homeassistant/sensor/daikin_gateway_ABCDEF0123456789_gateway_ip_address/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "default_entity_id": "sensor.gateway_my_mock_a2w_hp_gateway_ip_address",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "connections": [
+            [
+              "mac",
+              "00:23:7e:f8:26:4e"
+            ]
+          ],
+          "identifiers": [
+            "daikin_gateway_ABCDEF0123456789"
+          ],
+          "manufacturer": "Daikin",
+          "model": "BRP069A71",
+          "name": "Gateway My mock A2W HP",
+          "serial_number": "ABCDEF0123456789",
+          "sw_version": "3.2.5",
+          "via_device": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+        },
+        "entity_category": "diagnostic",
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address/attributes",
+        "name": "Gateway IP address",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address/state",
+        "unique_id": "daikin_gateway_ABCDEF0123456789_gateway_ip_address"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_power/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/set",
+        "default_entity_id": "switch.my_mock_a2w_hp_dhw_power",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/attributes",
+        "name": "Domestic hot water",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_power"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_powerful_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/set",
+        "default_entity_id": "switch.my_mock_a2w_hp_dhw_powerful_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/attributes",
+        "name": "Domestic hot water powerful mode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_powerful_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/switch/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_powerful_mode/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/set",
+        "default_entity_id": "switch.my_mock_a2w_hp_powerful_mode",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+          ],
+          "manufacturer": "Daikin",
+          "model": "EHVH08S18CB3V",
+          "model_id": "Altherma",
+          "name": "My mock A2W HP",
+          "sw_version": "ID66F2"
+        },
+        "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/attributes",
+        "name": "Powerful mode",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_off": "off",
+        "payload_on": "on",
+        "state_off": "off",
+        "state_on": "on",
+        "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/state",
+        "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_powerful_mode"
+      }
+    }
+  ]
+}
