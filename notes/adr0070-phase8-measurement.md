@@ -2513,7 +2513,7 @@ nothing re-registers, no entity id changes, no history is lost.
 
 ### Mutation proof
 
-**10 applied, 10 caught, 0 survivors.** Each applied to a `cp -a` copy of a
+**11 applied, 11 caught, 0 survivors.** Each applied to a `cp -a` copy of a
 **committed** tree, one at a time, and each run **three times** in three fresh
 processes (`go test -count=1 ./internal/coordinator/ ./internal/hass/`) — the
 review found a survivor a single run missed, and a review elsewhere found a pin
@@ -2532,6 +2532,7 @@ were 3/3.
 | 8 | both gates always pass | F-C/F-E | the three oversize/gate tests |
 | 9 | withhold only the offending device, publish the rest | F-E | `TestAnOversizedDocumentWithholdsTheWholeBatch` |
 | 10 | the tombstone step is skipped entirely (control) | the capability itself | `TestARemovedComponentIsTombstonedRatherThanOmitted` + 3 |
+| 11 | the in-process memo skips the scheduler document | what F-A's fix must NOT give up | `TestADeletedScheduleIsStillRemovedWithinOneProcess` |
 
 Mutation 3 is the important one: it restores `532909d` exactly and the driven
 end-to-end test fails, which is what says the fix is a fix rather than a
