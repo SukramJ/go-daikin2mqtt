@@ -881,3 +881,186 @@ func TestTheReconcileRunsTheReportOnlySweepAfterItsOwnWindow(t *testing.T) {
 		t.Errorf("subscription sequence %v, want %v — the two overlapping discovery windows must not be open together", got, want)
 	}
 }
+
+// TestASiblingsStatelessEntitiesAreNeverSwept is the regression test for a
+// defect that was LIVE before this PR, not a hazard step 6 would have created.
+//
+// The predicate this bridge shipped was
+//
+//	strings.HasPrefix(uid, "daikin_") &&
+//		(stateTopic == "" || strings.HasPrefix(stateTopic, root+"/"))
+//
+// and the escape hatch is the whole defect: when a config carries no
+// `state_topic` the rule collapses to the `daikin_` namespace, which EVERY
+// instance of this bridge shares. 24 of the 264 pinned configs carry no
+// `state_topic` — the 14 composite climate entities, which name
+// mode_state_topic / temperature_state_topic / current_temperature_topic and
+// never a plain one, and the 10 refresh buttons, which are stateless by
+// definition. Those 24 are exactly this bridge's flagship entity and its one
+// daemon action.
+//
+// So a second instance — a second ONECTA account, a holiday home, a staging
+// daemon — had its climate cards and refresh buttons retracted from Home
+// Assistant's entity registry by the first instance's orphan reconcile, on
+// every discovery-signature change, silently. The reconcile is live today: it
+// subscribes the SHARED `homeassistant/+/+/config` and gates on this payload
+// predicate alone.
+//
+// The fixtures here are RENDERED by the real builders, not hand-written: the
+// hand-written ones are what let the hole be encoded as intended behaviour in
+// the first place (discovery_test.go asserted `want: true` for a climate
+// payload with no state_topic). The sibling is another scenario of this same
+// bridge on the SAME MQTT root and the SAME discovery prefix — not another
+// integration, which is the case the one pre-existing sweep test covered.
+func TestASiblingsStatelessEntitiesAreNeverSwept(t *testing.T) {
+	t.Parallel()
+
+	// Across all twelve pinned scenarios, which configs the old rule could not
+	// key on. Held as literals, because the number IS the exposed surface.
+	stateless := map[string]int{}
+	total := 0
+	for _, sc := range surfaceScenarios() {
+		for topic, cfg := range configsOf(buildSurface(t, sc)) {
+			total++
+			if str(cfg, "state_topic") == "" {
+				stateless[strings.Split(topic, "/")[1]]++
+			}
+		}
+	}
+	if total != 264 {
+		t.Errorf("rendered %d configs, want the pinned 264", total)
+	}
+	if want := (map[string]int{"climate": 14, "button": 10}); !equalCounts(stateless, want) {
+		t.Errorf("configs with no state_topic = %v, want %v — the class the old predicate could not key on", stateless, want)
+	}
+
+	// One instance polls the multi-split; a sibling polls a different device on
+	// the same broker, same root, same prefix.
+	own := surfaceOf(t, "multisplit.en")
+	sibling := configsOf(surfaceOf(t, "altherma-air-to-water-wlan.en"))
+
+	br := newRetainedBroker()
+	c, _ := sweepCoordinator(t, br)
+	c.deps.HASS.ClaimDevices([]string{
+		"809d41d9-4d42-45fa-af6a-84b512143672",
+		"11112222-3333-4444-5555-666677778888",
+	})
+
+	retained := map[string][]byte{}
+	statelessSibling := 0
+	for topic, cfg := range sibling {
+		b, err := json.Marshal(cfg)
+		if err != nil {
+			t.Fatalf("re-encode %s: %v", topic, err)
+		}
+		retained[topic] = b
+		if str(cfg, "state_topic") == "" {
+			statelessSibling++
+		}
+	}
+	if statelessSibling < 2 {
+		t.Fatalf("the sibling fixture carries %d stateless configs; it must carry the climate and the button "+
+			"or this test exercises nothing", statelessSibling)
+	}
+	// Not vacuous the other way either: this instance's own configs must still
+	// be claimable, or "nothing was swept" would be true for the wrong reason.
+	ownClaimed := 0
+	for _, cfg := range configsOf(own) {
+		b, err := json.Marshal(cfg)
+		if err != nil {
+			t.Fatalf("re-encode: %v", err)
+		}
+		if c.deps.HASS.IsOwnConfig(b) {
+			ownClaimed++
+		}
+	}
+	if ownClaimed != len(configsOf(own)) {
+		t.Errorf("this instance claims %d of its own %d configs", ownClaimed, len(configsOf(own)))
+	}
+
+	// The real acting path, with an empty published set — the worst case, and
+	// the one an instance is in on its first reconcile after a restart.
+	if n := c.clearOrphanConfigs(context.Background(), retained, map[string]bool{}); n != 0 {
+		t.Errorf("the orphan reconcile cleared %d of a sibling instance's %d configs", n, len(retained))
+	}
+	if n := br.publishes(); n != 0 {
+		t.Errorf("%d retractions went to the broker", n)
+	}
+
+	// A sibling on a DIFFERENT MQTT root: the same fleet with every topic
+	// re-rooted, which is the two-ONECTA-accounts case the notes contemplate.
+	otherRoot := map[string][]byte{}
+	for topic, cfg := range sibling {
+		moved := map[string]any{}
+		for k, v := range cfg {
+			if sv, ok := v.(string); ok && strings.HasPrefix(sv, config.TopicRoot+"/") {
+				v = "klima/" + strings.TrimPrefix(sv, config.TopicRoot+"/")
+			}
+			moved[k] = v
+		}
+		b, err := json.Marshal(moved)
+		if err != nil {
+			t.Fatalf("re-encode %s: %v", topic, err)
+		}
+		otherRoot[topic] = b
+	}
+	if n := c.clearOrphanConfigs(context.Background(), otherRoot, map[string]bool{}); n != 0 {
+		t.Errorf("the orphan reconcile cleared %d configs of a sibling on another root", n)
+	}
+
+	// And what the shipped predicate would have done with both inputs, so the
+	// defect's size is recorded rather than described.
+	sameRootCleared, otherRootCleared := 0, 0
+	for _, body := range retained {
+		if shippedIsOwnConfig(body, config.TopicRoot) {
+			sameRootCleared++
+		}
+	}
+	for _, body := range otherRoot {
+		if shippedIsOwnConfig(body, config.TopicRoot) {
+			otherRootCleared++
+		}
+	}
+	// On a shared root the shipped rule claimed the sibling's WHOLE fleet.
+	if sameRootCleared != len(retained) {
+		t.Errorf("the shipped predicate would have cleared %d of the sibling's %d configs on a shared root, want all",
+			sameRootCleared, len(retained))
+	}
+	// On a different root it still claimed the stateless ones, because the rule
+	// collapses to the `daikin_` namespace when there is no state_topic to key
+	// on. That is the half no configuration could avoid.
+	if otherRootCleared != statelessSibling {
+		t.Errorf("the shipped predicate would have cleared %d of the sibling's configs across roots, want its %d stateless ones",
+			otherRootCleared, statelessSibling)
+	}
+	t.Logf("the shipped predicate would have retracted %d of a sibling's %d configs on a shared root and %d "+
+		"(the climate and the button) across roots; the current one retracts 0 either way",
+		sameRootCleared, len(retained), otherRootCleared)
+}
+
+// shippedIsOwnConfig is the predicate go-daikin2mqtt shipped up to and
+// including 0.11.0, transcribed so the regression above can state what it would
+// have done. It is unreachable from any production path.
+func shippedIsOwnConfig(payload []byte, root string) bool {
+	var cfg struct {
+		UniqueID   string `json:"unique_id"`
+		StateTopic string `json:"state_topic"`
+	}
+	if json.Unmarshal(payload, &cfg) != nil {
+		return false
+	}
+	return strings.HasPrefix(cfg.UniqueID, hass.UniqueIDPrefix) &&
+		(cfg.StateTopic == "" || strings.HasPrefix(cfg.StateTopic, root+"/"))
+}
+
+func equalCounts(a, b map[string]int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
+}

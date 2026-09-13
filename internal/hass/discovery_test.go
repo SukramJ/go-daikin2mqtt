@@ -300,6 +300,15 @@ func TestIsOwnConfig(t *testing.T) {
 		{"our sensor", `{"unique_id":"daikin_dev1_room_temperature","state_topic":"daikin/dev1/climateControl/room_temperature/state"}`, true},
 		{"our climate (no state_topic)", `{"unique_id":"daikin_dev1_climate","mode_state_topic":"daikin/dev1/climateControl/hvac_mode/state"}`, true},
 		{"our schedule switch", `{"unique_id":"daikin_schedule_werktag","state_topic":"daikin/scheduler/werktag/enabled/state"}`, true},
+		// The two stateless classes, which is where the rule this replaces had
+		// its hole: 24 of the 264 pinned configs carry no `state_topic` — the
+		// 14 composite climates (they name mode_state_topic and friends, never
+		// a plain one) and the 10 refresh buttons (stateless by definition) —
+		// and the old rule, finding no state topic to key on, collapsed to the
+		// `daikin_` namespace, which every instance of this bridge shares.
+		{"our button", `{"unique_id":"daikin_outdoor_ODU1_refresh","command_topic":"daikin/dev1/climateControl/refresh/set"}`, true},
+		{"a sibling's button", `{"unique_id":"daikin_outdoor_ODU2_refresh","command_topic":"daikin/dev2/climateControl/refresh/set"}`, false},
+		{"a sibling's button on another root", `{"unique_id":"daikin_outdoor_ODU2_refresh","command_topic":"klima/dev2/climateControl/refresh/set"}`, false},
 		{"foreign integration", `{"unique_id":"zigbee2mqtt_0x123","state_topic":"zigbee2mqtt/x"}`, false},
 		{"daikin uid but foreign state topic", `{"unique_id":"daikin_dev1_x","state_topic":"other/x"}`, false},
 		{"garbage", `not json`, false},
