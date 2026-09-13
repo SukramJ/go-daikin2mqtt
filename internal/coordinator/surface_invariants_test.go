@@ -426,17 +426,16 @@ func TestIdentityIsLanguageIndependent(t *testing.T) {
 					t.Errorf("%s: %s moves with LANGUAGE: %q vs %q", topic, key, str(e, key), str(d, key))
 				}
 			}
-			// F2: default_entity_id is seeded from the DEVICE BLOCK's name,
-			// and the shared gateway / outdoor sub-devices are named with a
-			// localized label ("Outdoor unit" / "Außengerät"), so their
-			// entity-id seed does move with LANGUAGE — in direct contradiction
-			// of the invariant CLAUDE.md states. Every entity on a main device
-			// is unaffected, because the main device's name is the operator's.
+			// F2, now FIXED. default_entity_id used to be seeded from the
+			// DEVICE BLOCK's name, and the shared gateway / outdoor
+			// sub-devices are named with a localized label ("Outdoor unit" /
+			// "Außengerät"), so their entity-id seed moved with LANGUAGE — in
+			// direct contradiction of the invariant CLAUDE.md states in bold.
+			// entityIdentity now returns an English-label seed separately from
+			// the display name, so NO config's entity id may move any more.
 			if str(e, "default_entity_id") != str(d, "default_entity_id") {
-				if !knownLocalizedEntityIDSeed[topic] {
-					t.Errorf("%s: default_entity_id moves with LANGUAGE: %q vs %q (F2)",
-						topic, str(e, "default_entity_id"), str(d, "default_entity_id"))
-				}
+				t.Errorf("%s: default_entity_id moves with LANGUAGE: %q vs %q (F2 has regressed)",
+					topic, str(e, "default_entity_id"), str(d, "default_entity_id"))
 				localizedSeeds++
 			}
 			eb, _ := json.Marshal(e["device"].(map[string]any)["identifiers"])
@@ -446,18 +445,29 @@ func TestIdentityIsLanguageIndependent(t *testing.T) {
 			}
 		}
 	}
-	if localizedSeeds != 2 {
-		t.Errorf("configs whose default_entity_id moves with LANGUAGE = %d, want 2 (F2)", localizedSeeds)
+	if localizedSeeds != 0 {
+		t.Errorf("configs whose default_entity_id moves with LANGUAGE = %d, want 0 (F2)", localizedSeeds)
 	}
-}
 
-// knownLocalizedEntityIDSeed lists every config whose default_entity_id is
-// built from a localized device name (F2). All of them hang off a shared
-// gateway / outdoor sub-device, whose HA name this bridge composes from a
-// translated label rather than from operator text.
-var knownLocalizedEntityIDSeed = map[string]bool{
-	"homeassistant/sensor/daikin_outdoor_ODU0000000001_outdoor_temperature/config": true,
-	"homeassistant/button/daikin_outdoor_ODU0000000001_refresh/config":             true,
+	// The two configs F2 was measured on, asserted as literals in BOTH
+	// languages. The count above would still pass if the fix made both
+	// languages wrong in the same way; these say what the right answer is.
+	for _, lang := range []string{"multisplit.en", "multisplit.de"} {
+		cfgs := configsOf(surfaceOf(t, lang))
+		for topic, want := range map[string]string{
+			"homeassistant/sensor/daikin_outdoor_ODU0000000001_outdoor_temperature/config": "sensor.daikin_outdoor_unit_outdoor_temperature",
+			"homeassistant/button/daikin_outdoor_ODU0000000001_refresh/config":             "button.daikin_outdoor_unit_refresh",
+		} {
+			cfg, ok := cfgs[topic]
+			if !ok {
+				t.Errorf("%s: %s not published", lang, topic)
+				continue
+			}
+			if got := str(cfg, "default_entity_id"); got != want {
+				t.Errorf("%s: %s default_entity_id = %q, want %q (F2)", lang, topic, got, want)
+			}
+		}
+	}
 }
 
 // --- slug agreement --------------------------------------------------------

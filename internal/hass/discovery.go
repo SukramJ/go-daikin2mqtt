@@ -113,14 +113,17 @@ func (d *Discovery) deviceBlock(deviceID string, info DeviceInfo) device {
 // subDeviceBlock builds a nested HA device (gateway / outdoor unit) linked to
 // the main device via via_device. suffix disambiguates the identifier;
 // labelEN/labelDE are appended to the base name.
-func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName string, sub *SubDevice) device {
+func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName string, sub *SubDevice) (device, string) {
 	label := labelEN
 	if d.lang == "de" && labelDE != "" {
 		label = labelDE
 	}
+	base := orDefault(baseName, "Daikin "+deviceID)
+	// seed is the same name with the ENGLISH label, always. See [entityObjectID].
+	seed := base + " " + labelEN
 	dev := device{
 		Identifiers:      []string{mainIdentifier(deviceID) + "_" + suffix},
-		Name:             orDefault(baseName, "Daikin "+deviceID) + " " + label,
+		Name:             base + " " + label,
 		Manufacturer:     "Daikin",
 		ViaDevice:        mainIdentifier(deviceID),
 		ConfigurationURL: configurationURL,
@@ -134,7 +137,7 @@ func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName 
 			dev.Connections = [][2]string{{"mac", sub.MAC}}
 		}
 	}
-	return dev
+	return dev, seed
 }
 
 // sharedSubDevice builds an HA device for an auxiliary component (gateway /
@@ -143,7 +146,7 @@ func (d *Discovery) subDeviceBlock(deviceID, suffix, labelEN, labelDE, baseName 
 // links it under a parent device when it belongs to one (per-unit gateways
 // nest under their indoor unit); pass "" for genuinely shared components with
 // no single parent (e.g. one outdoor unit serving several indoor units).
-func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, baseName string, sub *SubDevice) device {
+func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, baseName string, sub *SubDevice) (device, string) {
 	label := labelEN
 	if d.lang == "de" && labelDE != "" {
 		label = labelDE
@@ -151,10 +154,15 @@ func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, bas
 	// Name the device after its associated unit when known (e.g. "Gateway
 	// Wohnzimmer") so multiple gateways are distinguishable; fall back to a
 	// generic name for truly shared components (e.g. one outdoor unit).
-	name := "Daikin " + label
-	if baseName != "" {
-		name = label + " " + baseName
+	compose := func(l string) string {
+		if baseName != "" {
+			return l + " " + baseName
+		}
+		return "Daikin " + l
 	}
+	name := compose(label)
+	// seed is the same name with the ENGLISH label, always. See [entityObjectID].
+	seed := compose(labelEN)
 	dev := device{
 		Identifiers:      []string{identifier},
 		Name:             name,
@@ -171,10 +179,11 @@ func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, bas
 			dev.Connections = [][2]string{{"mac", sub.MAC}}
 		}
 	}
-	return dev
+	return dev, seed
 }
 
-// entityIdentity returns the HA unique_id and device block for a point.
+// entityIdentity returns the HA unique_id, the device block, and the
+// LANGUAGE-INDEPENDENT name the entity id is seeded from, for a point.
 //
 // Gateways have per-unit serials (one per indoor unit), so they are keyed by
 // serial and nested under their indoor unit (via_device → main). Outdoor units
@@ -182,15 +191,20 @@ func (d *Discovery) sharedSubDevice(identifier, viaDevice, labelEN, labelDE, bas
 // (identical serials), so when a serial is known they deduplicate to a single
 // standalone HA device with no parent; without a serial they fall back to a
 // per-device nested sub-device (via_device → main).
-func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string, dev device) {
+//
+// seed is returned separately from dev.Name because the two auxiliary device
+// kinds compose their display name from a TRANSLATED label, and seeding an
+// entity id from that makes the entity id move with LANGUAGE (F2). For a main
+// device the two are the same string: its name is the operator's own text.
+func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string, dev device, seed string) {
 	// Outdoor-shared settings (scope: outdoor, e.g. outdoor silent) are a single
 	// knob on the outdoor unit exposed per indoor unit. Key them by the outdoor
 	// serial and attach them to the outdoor device so all the indoor units'
 	// points collapse to one entity (deduplicated by the shared uid).
 	if p.Entry.Scope == "outdoor" && info.Outdoor != nil && info.Outdoor.SerialNumber != "" {
 		base := "daikin_outdoor_" + info.Outdoor.SerialNumber
-		return sanitize(base + "_" + p.Topic),
-			d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
+		dev, seed := d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
+		return sanitize(base + "_" + p.Topic), dev, seed
 	}
 	switch p.MPType {
 	case "gateway":
@@ -198,24 +212,27 @@ func (d *Discovery) entityIdentity(p process.Point, info DeviceInfo) (uid string
 			// Per-unit gateway: name it after its unit and nest it under the
 			// indoor unit so it appears as a sub-device rather than standalone.
 			base := "daikin_gateway_" + info.Gateway.SerialNumber
-			return sanitize(base + "_" + p.Topic),
-				d.sharedSubDevice(base, mainIdentifier(p.DeviceID), "Gateway", "Gateway", info.Name, info.Gateway)
+			dev, seed := d.sharedSubDevice(base, mainIdentifier(p.DeviceID), "Gateway", "Gateway", info.Name, info.Gateway)
+			return sanitize(base + "_" + p.Topic), dev, seed
 		}
 		// No gateway serial (e.g. a Home Hub that is itself the gateway):
 		// attach the entity to the main device so it appears as one device
 		// rather than an empty main plus a gateway sub-device.
-		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), d.deviceBlock(p.DeviceID, info)
+		dev := d.deviceBlock(p.DeviceID, info)
+		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), dev, dev.Name
 	case "outdoorUnit":
 		if info.Outdoor != nil && info.Outdoor.SerialNumber != "" {
 			// Outdoor units are commonly shared across indoor units; keep a
 			// generic name so it is not tied to one room.
 			base := "daikin_outdoor_" + info.Outdoor.SerialNumber
-			return sanitize(base + "_" + p.Topic), d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
+			dev, seed := d.sharedSubDevice(base, "", "Outdoor unit", "Außengerät", "", info.Outdoor)
+			return sanitize(base + "_" + p.Topic), dev, seed
 		}
-		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic),
-			d.subDeviceBlock(p.DeviceID, "outdoor", "Outdoor unit", "Außengerät", info.Name, info.Outdoor)
+		dev, seed := d.subDeviceBlock(p.DeviceID, "outdoor", "Outdoor unit", "Außengerät", info.Name, info.Outdoor)
+		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), dev, seed
 	default:
-		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), d.deviceBlock(p.DeviceID, info)
+		dev := d.deviceBlock(p.DeviceID, info)
+		return sanitize("daikin_" + p.DeviceID + "_" + p.Topic), dev, dev.Name
 	}
 }
 
@@ -319,12 +336,12 @@ func (d *Discovery) Publish(ctx context.Context, points []process.Point, infos m
 		if consumed[p.DeviceID+"|"+p.EmbeddedID+"|"+p.Topic] {
 			continue
 		}
-		uid, dev := d.entityIdentity(p, infos[p.DeviceID])
+		uid, dev, seed := d.entityIdentity(p, infos[p.DeviceID])
 		if seen[uid] {
 			continue
 		}
 		seen[uid] = true
-		topic, payload, ok := d.buildConfig(p, uid, dev)
+		topic, payload, ok := d.buildConfig(p, uid, dev, seed)
 		if !ok {
 			continue
 		}
@@ -394,11 +411,12 @@ func (d *Discovery) ConfigTopic(platform, uid string) string {
 const LegacyConfigTopicForm = "publisher.LegacyTopicByUniqueID"
 
 // buildConfig renders the discovery topic and JSON payload for a point, using
-// the precomputed unique id and device block (see [Discovery.entityIdentity]).
-func (d *Discovery) buildConfig(p process.Point, uid string, dev device) (topic string, payload []byte, ok bool) {
+// the precomputed unique id, device block and entity-id seed (see
+// [Discovery.entityIdentity]).
+func (d *Discovery) buildConfig(p process.Point, uid string, dev device, seed string) (topic string, payload []byte, ok bool) {
 	cfg := configPayload{
 		Name:                p.Entry.LocalizedName(d.lang),
-		DefaultEntityID:     p.Entry.Platform + "." + entityObjectID(dev.Name, p.Topic),
+		DefaultEntityID:     p.Entry.Platform + "." + entityObjectID(seed, p.Topic),
 		UniqueID:            uid,
 		EntityCategory:      p.Entry.Category,
 		Icon:                p.Entry.Icon,
@@ -499,11 +517,28 @@ func collapseTokens(s string) string {
 }
 
 // entityObjectID builds a clean, English, language-independent object id from
-// the device name (a stable room/label prefix) and the English topic (the
+// a device-name SEED (a stable room/label prefix) and the English topic (the
 // measurement), e.g. "galerie_room_temperature". It seeds default_entity_id so
 // HA entity_ids stay English while the display name is localized.
-func entityObjectID(deviceName, topic string) string {
-	return collapseTokens(slugify(deviceName + "_" + topic))
+//
+// The seed is not always the device block's Name. For a main device it is —
+// that name is the operator's own text and does not move with LANGUAGE. But a
+// shared gateway or outdoor sub-device has no operator text to use, so this
+// bridge composes its display name from a TRANSLATED label ("Outdoor unit" /
+// "Außengerät"), and seeding an entity id from that made the entity id move
+// with LANGUAGE: an operator switching to German got a SECOND set of entities
+// for everything on the outdoor unit, with the first set left behind as
+// orphans, because Home Assistant never renames a registered entity. On a real
+// multi-split that is up to thirteen entities per outdoor unit (twelve
+// scope: outdoor catalogue entries plus the refresh button).
+//
+// [Discovery.entityIdentity] therefore returns the English-label form of the
+// name as a separate seed. This is F2 of the ADR 0070 phase 8 measurement, and
+// it is a direct violation of the invariant this repository's own CLAUDE.md
+// states in bold: "unique_id and default_entity_id are English and
+// language-independent."
+func entityObjectID(seed, topic string) string {
+	return collapseTokens(slugify(seed + "_" + topic))
 }
 
 // sanitize keeps only characters valid in HA object/unique ids.

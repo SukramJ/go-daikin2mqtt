@@ -382,3 +382,68 @@ func TestConfigTopicIsTheOneFormAllThreeBuildersUse(t *testing.T) {
 		t.Errorf("ConfigFilter = %q, want %q", f, "homeassistant/+/+/config")
 	}
 }
+
+// TestEntityIDSeedIsLanguageIndependentOnEverySubDevicePath pins F2 on all
+// four paths entityIdentity can take, not just the two a shipped fixture
+// reaches.
+//
+// Mutation testing found the gap: making subDeviceBlock (an outdoorUnit
+// management point WITHOUT a serial) seed from the localized name again
+// survived the whole suite, because no ONECTA fixture in this repository has
+// that shape. It is reachable in the field — an outdoor unit whose serial the
+// cloud does not report — and the consequence there is the same one F2
+// describes: an operator switching LANGUAGE gets a second set of entities and
+// the first set is stranded, because Home Assistant never renames a registered
+// entity.
+func TestEntityIDSeedIsLanguageIndependentOnEverySubDevicePath(t *testing.T) {
+	t.Parallel()
+
+	info := DeviceInfo{
+		Name:    "Wohnzimmer",
+		Gateway: &SubDevice{SerialNumber: "GW1"},
+		Outdoor: &SubDevice{SerialNumber: "ODU1"},
+		ModelID: "dx4",
+	}
+	noSerial := DeviceInfo{Name: "Wohnzimmer", ModelID: "dx4"}
+
+	cases := []struct {
+		name string
+		p    process.Point
+		info DeviceInfo
+		want string // the expected entity-id seed slug, in BOTH languages
+	}{
+		{"scope:outdoor shared", pointFor("outdoor_silent", "climateControl", "outdoor"), info, "daikin_outdoor_unit_outdoor_silent"},
+		{"outdoorUnit shared", pointFor("outdoor_temperature", "outdoorUnit", ""), info, "daikin_outdoor_unit_outdoor_temperature"},
+		{"outdoorUnit, no serial", pointFor("outdoor_temperature", "outdoorUnit", ""), noSerial, "wohnzimmer_outdoor_unit_outdoor_temperature"},
+		{"gateway", pointFor("wifi_strength", "gateway", ""), info, "gateway_wohnzimmer_wifi_strength"},
+		{"main device", pointFor("room_temperature", "climateControl", ""), info, "wohnzimmer_room_temperature"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			var seeds []string
+			for _, lang := range []string{"en", "de"} {
+				d := New("homeassistant", "daikin", lang, nil)
+				_, _, seed := d.entityIdentity(c.p, c.info)
+				seeds = append(seeds, entityObjectID(seed, c.p.Topic))
+			}
+			if seeds[0] != seeds[1] {
+				t.Errorf("entity-id seed moves with LANGUAGE: en=%q de=%q (F2)", seeds[0], seeds[1])
+			}
+			if seeds[0] != c.want {
+				t.Errorf("entity-id seed = %q, want %q", seeds[0], c.want)
+			}
+		})
+	}
+}
+
+// pointFor builds the minimal process.Point entityIdentity reads.
+func pointFor(topic, mpType, scope string) process.Point {
+	return process.Point{
+		DeviceID:   "dev1",
+		EmbeddedID: mpType,
+		MPType:     mpType,
+		Topic:      topic,
+		Entry:      catalog.Entry{Platform: "sensor", Scope: scope},
+	}
+}

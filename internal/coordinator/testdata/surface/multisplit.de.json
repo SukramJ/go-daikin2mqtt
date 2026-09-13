@@ -704,7 +704,7 @@
       "json": {
         "availability_topic": "daikin/bridge/status",
         "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/set",
-        "default_entity_id": "button.daikin_aussengerat_refresh",
+        "default_entity_id": "button.daikin_outdoor_unit_refresh",
         "device": {
           "configuration_url": "https://onecta.daikineurope.com",
           "identifiers": [
@@ -1475,7 +1475,7 @@
       "retain": true,
       "json": {
         "availability_topic": "daikin/bridge/status",
-        "default_entity_id": "sensor.daikin_aussengerat_outdoor_temperature",
+        "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_temperature",
         "device": {
           "configuration_url": "https://onecta.daikineurope.com",
           "identifiers": [
