@@ -43,11 +43,48 @@ func cloudFanToFaikin(v string) (string, bool) {
 	return "", false
 }
 
-// faikinFanToCloud maps the Faikin state `fan` name back to the canonical cloud
-// fan value the climate fan_mode entity expects.
-var faikinFanToCloud = map[string]string{
-	"auto": "auto", "low": "1", "lowMedium": "2", "medium": "3",
-	"mediumHigh": "4", "high": "5", "night": "quiet", "quiet": "quiet",
+// faikinFanToCloud maps the Faikin state document's `fan` word back to the
+// canonical cloud fan value the climate fan_mode entity expects. ok is false
+// for a word this bridge cannot place, so the caller publishes nothing rather
+// than a value that is not one of the entity's advertised fan_modes.
+//
+// It is very nearly the identity, because both vocabularies are the same:
+// auto, quiet, and the numbered speeds 1..5.
+//
+// It did not used to be. It was a map keyed on
+// auto|low|lowMedium|medium|mediumHigh|high|night|quiet — a vocabulary that
+// exists on NEITHER side. Four independent sources in this repository say so:
+//
+//   - docs/api/onecta-cloud-api-openapi.json gives fanSpeed.currentMode.values
+//     as ["quiet","auto","fixed"], with `fixed` an integer 1..5. `low`,
+//     `medium` and `high` appear in that document as the HUMIDIFICATION
+//     vocabulary, which is what the old map was evidently written against.
+//   - parseFanSpeed builds the entity's advertised fan_modes from exactly
+//     those values, expanding `fixed` into "1".."5" — so the old map's OUTPUTS
+//     were right and its KEYS were not.
+//   - cloudFanToFaikin, this file's own write path, maps cloud auto|quiet|1..5
+//     to the Faikin command characters A|Q|1..5, which only makes sense if the
+//     cloud side is auto|quiet|1..5.
+//   - faikin.State.Fan documents the firmware as reporting auto|1..5|quiet.
+//
+// The consequence of the mismatch was silent: in local mode the Faikin read
+// path OWNS fan_mode (the cloud poll is deliberately suppressed for a mapped
+// device — see localFanSwing in publishClimateAux), and every numbered speed
+// missed the map, so nothing was published and the climate entity's fan
+// dropdown sat at `unknown` for the whole time the unit was not on `auto`.
+// That is F6 of the ADR 0070 phase 8 measurement, stated there as a candidate
+// because the measurement did not find these four sources.
+//
+// Unknown words still publish nothing. The firmware's `fan` field is
+// documented as open-ended, and this bridge deliberately does NOT guess: the
+// command characters A and Q are not accepted here, because nothing
+// establishes that the firmware echoes them in its state document.
+func faikinFanToCloud(v string) (string, bool) {
+	switch v {
+	case "auto", "quiet", "1", "2", "3", "4", "5":
+		return v, true
+	}
+	return "", false
 }
 
 // faikinSwingAxes derives the (vertical, horizontal) cloud swing states from

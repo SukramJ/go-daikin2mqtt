@@ -252,10 +252,38 @@ func TestCloudFanFaikinMapping(t *testing.T) {
 	if _, ok := cloudFanToFaikin("windnice"); ok {
 		t.Error("unmappable fan value should return ok=false (cloud fallback)")
 	}
-	rev := map[string]string{"auto": "auto", "low": "1", "medium": "3", "high": "5", "night": "quiet"}
+	// The reverse map is keyed on what the Faikin firmware actually reports
+	// (auto|quiet|1..5), which is also what ONECTA's fanSpeed.currentMode
+	// yields once `fixed` is expanded — so it is the identity on every value
+	// the entity advertises. It used to be keyed on low|medium|high|night, the
+	// HUMIDIFICATION vocabulary, and every numbered speed fell through (F6).
+	rev := map[string]string{"auto": "auto", "quiet": "quiet", "1": "1", "3": "3", "5": "5"}
 	for fa, want := range rev {
-		if got := faikinFanToCloud[fa]; got != want {
-			t.Errorf("faikinFanToCloud[%q] = %q want %q", fa, got, want)
+		got, ok := faikinFanToCloud(fa)
+		if !ok || got != want {
+			t.Errorf("faikinFanToCloud(%q) = %q,%v want %q", fa, got, ok, want)
+		}
+	}
+	// Every value the fan dropdown can advertise must round-trip through both
+	// directions, or Home Assistant shows an option it can never display as
+	// selected.
+	for _, v := range []string{"auto", "quiet", "1", "2", "3", "4", "5"} {
+		fa, ok := cloudFanToFaikin(v)
+		if !ok {
+			t.Errorf("cloudFanToFaikin(%q) is unmappable, but the entity advertises it", v)
+			continue
+		}
+		_ = fa
+		back, ok := faikinFanToCloud(v)
+		if !ok || back != v {
+			t.Errorf("faikinFanToCloud(%q) = %q,%v — the fan dropdown would sit at unknown (F6)", v, back, ok)
+		}
+	}
+	// The vocabulary the old map was written against belongs to
+	// humidification, not fanSpeed, and must not be accepted here.
+	for _, v := range []string{"low", "lowMedium", "medium", "mediumHigh", "high", "night"} {
+		if got, ok := faikinFanToCloud(v); ok {
+			t.Errorf("faikinFanToCloud(%q) = %q — that is the humidification vocabulary, not fanSpeed", v, got)
 		}
 	}
 }

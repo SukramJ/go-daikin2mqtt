@@ -168,6 +168,12 @@
       "text": "false"
     },
     {
+      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "3"
+    },
+    {
       "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_speed/attributes",
       "qos": 0,
       "retain": true,
@@ -732,6 +738,12 @@
       "qos": 0,
       "retain": true,
       "text": "false"
+    },
+    {
+      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_mode/state",
+      "qos": 0,
+      "retain": true,
+      "text": "3"
     },
     {
       "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_speed/attributes",

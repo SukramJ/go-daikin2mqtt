@@ -86,19 +86,18 @@ var commandTopicKeys = []string{
 // knownAdvertisedButUnpublished is the exhaustive list of topics a discovery
 // config advertises that the publish path never writes to, keyed by scenario.
 //
-// F6: in local mode the Faikin read path owns fan_mode, and it only publishes
-// it when the module's `fan` word is a key of faikinFanToCloud — whose keys are
-// the cloud vocabulary (`low`, `medium`, …) while faikin.State documents the
-// firmware as sending `auto|1..5|quiet`. The pinned state uses `"3"`, which
-// maps to nothing, so the climate entity's fan dropdown stays unknown.
+// It is EMPTY, and it stays as an empty declaration rather than being deleted,
+// because "there are no dead advertised topics" is the claim worth stating.
 //
-// Anything not in this map is a builder divergence and fails the test.
-var knownAdvertisedButUnpublished = map[string][]string{
-	"multisplit.local.en": {
-		"daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_mode/state",
-		"daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_mode/state",
-	},
-}
+// It used to hold two, both F6: in local mode the Faikin read path owns
+// fan_mode, and it only published when the module's `fan` word was a key of
+// faikinFanToCloud — whose keys were the HUMIDIFICATION vocabulary (`low`,
+// `medium`, …) rather than the fanSpeed one. The pinned local state uses
+// `"3"`, which mapped to nothing, so the climate entity's fan dropdown sat at
+// `unknown`. Fixed; both topics are now published, which is what emptied this.
+//
+// Anything appearing here again is a builder divergence and fails the test.
+var knownAdvertisedButUnpublished = map[string][]string{}
 
 // TestStateTopicBuildersAgree is the builder-against-builder pin.
 //
@@ -648,7 +647,7 @@ func TestSurfaceCensus(t *testing.T) {
 		"d2cnd-gas-boiler.de":           {13, 46, "binary_sensor=5 button=1 climate=1 sensor=5 switch=1"},
 		"multisplit.en":                 {30, 113, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
 		"multisplit.de":                 {30, 113, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
-		"multisplit.local.en":           {52, 219, "binary_sensor=4 button=1 climate=2 number=1 sensor=38 switch=6"},
+		"multisplit.local.en":           {52, 221, "binary_sensor=4 button=1 climate=2 number=1 sensor=38 switch=6"},
 		"multisplit.scheduler.en":       {38, 142, "binary_sensor=4 button=1 climate=2 sensor=27 switch=4"},
 	}
 	for _, sc := range surfaceScenarios() {

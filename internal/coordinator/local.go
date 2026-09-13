@@ -575,7 +575,7 @@ func (c *Coordinator) localStateMessages(deviceID string, st *faikin.State) map[
 	// Synthetic climate fan/swing topics (localized labels, like publishClimateAux),
 	// translated from Faikin's vocabulary to the cloud values HA's lists use.
 	lang := c.deps.Cfg.Language
-	if cloud, ok := faikinFanToCloud[st.Fan]; ok {
+	if cloud, ok := faikinFanToCloud(st.Fan); ok {
 		out[hass.FanModeTopic] = localizeAux(cloud, lang, fanModeDE)
 	}
 	v, h := faikinSwingAxes(st.Swing)
