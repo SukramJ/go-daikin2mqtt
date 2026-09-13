@@ -45,12 +45,9 @@ func TestMQTTSessionPublishIsCircuitGated(t *testing.T) {
 	t.Parallel()
 
 	pub := &failingPublisher{}
-	session := &mqttSession{
-		Breaker: mqtt.NewBreaker(pub, mqtt.BreakerConfig{
-			FailureThreshold: 1,
-		}),
-		Subscriber: &recordingSubscriber{},
-	}
+	session := mqtt.SplitClient(mqtt.NewBreaker(pub, mqtt.BreakerConfig{
+		FailureThreshold: 1,
+	}), &recordingSubscriber{})
 
 	err := session.Publish(t.Context(), "t", nil, mqtt.QoS0, false)
 	if !errors.Is(err, mqtt.ErrNotConnected) {
@@ -71,10 +68,8 @@ func TestMQTTSessionSubscribeBypassesBreaker(t *testing.T) {
 	t.Parallel()
 
 	sub := &recordingSubscriber{}
-	session := &mqttSession{
-		Breaker:    mqtt.NewBreaker(&failingPublisher{}, mqtt.BreakerConfig{FailureThreshold: 1}),
-		Subscriber: sub,
-	}
+	session := mqtt.SplitClient(
+		mqtt.NewBreaker(&failingPublisher{}, mqtt.BreakerConfig{FailureThreshold: 1}), sub)
 
 	// Trip the circuit open on the publish side.
 	_ = session.Publish(t.Context(), "t", nil, mqtt.QoS0, false)

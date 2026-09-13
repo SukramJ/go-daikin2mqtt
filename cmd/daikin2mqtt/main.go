@@ -137,7 +137,13 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 				slog.String("to", to.String()))
 		},
 	})
-	session := &mqttSession{Breaker: breaker, Subscriber: mqttClient}
+	// The MQTT surface handed to the coordinator and HA discovery: Publish is
+	// gated by the circuit breaker, while Subscribe/Unsubscribe go straight to
+	// the client — the write-command subscription is a startup-path call with
+	// its own SUBACK-bounded wait and must not be rejected during a
+	// publish-side broker brownout. go-mqtt v1.4.0 extracted this pairing from
+	// the five bridges that each carried their own copy of it.
+	session := mqtt.SplitClient(breaker, mqttClient)
 	defer func() {
 		stopCtx, stop := context.WithTimeout(context.Background(), 3*time.Second)
 		defer stop()
@@ -256,20 +262,6 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 
 	return g.Wait()
 }
-
-// mqttSession is the MQTT surface handed to the coordinator and HA
-// discovery: Publish is gated by the circuit breaker, while
-// Subscribe/Unsubscribe go straight to the client — the write-command
-// subscription is a startup-path call with its own SUBACK-bounded wait
-// and must not be rejected during a publish-side broker brownout.
-type mqttSession struct {
-	*mqtt.Breaker
-	mqtt.Subscriber
-}
-
-// Compile-time contract: the session satisfies the combined client role
-// the coordinator depends on.
-var _ mqtt.Client = (*mqttSession)(nil)
 
 // loadConfig resolves the config path (explicit flag or standard search) and
 // loads it with environment overrides applied.
