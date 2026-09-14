@@ -1,5 +1,77 @@
 # Unreleased
 
+# Version 0.12.0 (2026-09-14)
+
+## Before you upgrade
+
+This release moves Home Assistant discovery onto the **device bundle**:
+the 264 per-entity configs a measured twelve-scenario fleet used to
+publish are retracted, and 31 retained **device documents** are
+published in their place. The upgrade itself needs no action — every
+`unique_id` is unchanged, so entity ids, renames, icons, areas and
+recorded history all survive.
+
+**What a rollback costs.** The bundle stays retained. Home Assistant
+refuses a per-entity config while a device document carrying the same
+`unique_id` is retained, and it says so exactly once, as a single
+`WARNING [mqtt.entity] Received a conflicting MQTT discovery message`
+in its own log — there is no other symptom, and the entities simply do
+not come back. So a rollback to 0.11.x or earlier needs the retained
+device documents cleared by hand first, once per device:
+
+```bash
+mosquitto_pub -h <broker host> -p 1883 -u <user> -P <password> \
+  -t 'homeassistant/device/<node id>/config' -r -n
+```
+
+**Copy the topic verbatim from the `coordinator.discovery_bundle_published`
+log line** — one line per device, emitted on every discovery publish.
+Do not compose the topic yourself: the node id is a slug, not a device
+name or a ONECTA id. `-r -n` publishes an empty **retained** payload,
+which is how MQTT clears a retained topic; without `-r` it clears
+nothing. See "Rolling back" in the README.
+
+**Two instances on one broker.** Two go-daikin2mqtt daemons on the same
+ONECTA account still publish byte-identical configs under byte-identical
+identities and overwrite each other — nothing on the wire can tell them
+apart. A device bundle raises the stakes: what used to be a per-entity
+collision is now a whole-entity-set replacement. Run **one daemon per
+ONECTA account per `MQTT_TOPIC`**; separate accounts or separate
+`MQTT_TOPIC` values are unaffected.
+
+The scheduler device was deliberately **excluded** from the tombstone
+read-back for exactly this reason: two instances share its node id, and
+each was deleting the other's live schedule switches. The residual is
+documented and accepted — a schedule deleted while the daemon is
+**stopped** leaves a phantom switch behind to remove by hand. Deleting a
+schedule in the daemon's own web UI, which is how schedules are deleted,
+still removes the switch as before.
+
+**The defects this release fixes**, in the order an operator will care:
+
+- A sibling instance's entities were being swept. The ownership rule
+  keyed on the MQTT root of a config's `state_topic`, and **24 of the
+  264 payloads carry no `state_topic` at all** — 14 `climate` (which
+  name one topic per function instead) and 10 `button` (command-only by
+  schema). For those the rule fell back to the shared `daikin_`
+  namespace prefix, which every installation has, so a second instance
+  had its thermostats and refresh buttons removed from Home Assistant.
+- The local-mode fan-speed vocabulary was mapped against the
+  **humidification** values. ONECTA documents `fanSpeed.currentMode` as
+  `quiet`/`auto`/`fixed` (with `fixed` an integer 1..5, which this
+  bridge advertises as `1`..`5`); the translation map was keyed on
+  `low`/`medium`/`high`, which is the humidification vocabulary. Every
+  numbered speed fell through it, so in local mode the climate fan
+  dropdown read `unknown` whenever the unit was not on `auto`. The
+  dropdown now shows the running speed. Cloud-only installations were
+  never affected.
+- `scope: outdoor` state topics depended on the order the cloud
+  returned devices in. A shared outdoor entity reads one member's
+  topic, and which member that was is now chosen deterministically
+  rather than by ONECTA's list order.
+
+Everything below is the detailed record.
+
 ## What's Changed
 
 ### Changed

@@ -6,6 +6,22 @@ top-level changelog.md. Newest version first.
 
 # Unreleased
 
+# 0.12.0 (2026-09-14)
+
+- **New option `mqtt_client_id`.** The MQTT client identifier used to be
+  a compile-time constant, so two daemons on one broker disconnected
+  each other in a loop. Existing installations are unaffected: the
+  option defaults to the value used before it existed.
+- **A second instance no longer removed the first's thermostats and
+  refresh buttons.** Those 24 discovery payloads carry no state topic,
+  so the "is this mine?" rule fell back to a prefix every installation
+  shares.
+- **The climate fan dropdown no longer reads `unknown` in local mode.**
+  The Faikin fan speed was translated through Daikin's *humidification*
+  vocabulary instead of its fan-speed one, so every numbered speed was
+  dropped. Cloud-only installations were unaffected.
+- Shared outdoor-unit entities no longer depend on the order the cloud
+  returns devices in.
 - Home Assistant discovery now publishes **one retained document per
   device** instead of one config per entity. Upgrading needs no action:
   entities keep their ids, names, icons, areas and history. If the
