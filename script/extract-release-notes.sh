@@ -62,12 +62,34 @@ fi
 # anything is emitted.
 payload=$(printf '%s\n' "$body")
 
+# Changelog headers carry a bare version ("# Version 0.12.0"); the tags
+# they correspond to are v-prefixed ("v0.12.0"). Comparing the bare form
+# 404s, which is what every release this repo has published so far
+# shipped. Resolve each side to a ref that actually exists, preferring
+# the v-prefixed tag — this repo's very first tag (0.1.0) is bare, so a
+# blanket "v" prefix would merely move the 404 rather than remove it.
+tag_ref() {
+	if git rev-parse -q --verify "refs/tags/v$1" >/dev/null 2>&1; then
+		printf 'v%s' "$1"
+	elif git rev-parse -q --verify "refs/tags/$1" >/dev/null 2>&1; then
+		printf '%s' "$1"
+	else
+		# Not fetched (shallow clone), or — the normal case for the
+		# release being cut — the tag is created by the very push that
+		# triggers the workflow. Assume the convention every tag in
+		# this repo but the first one follows.
+		printf 'v%s' "$1"
+	fi
+}
+
 # Emit the body, then optionally the compare link. The first release
 # has no predecessor — that's fine, just skip the link.
 if [ -n "$prev_version" ]; then
 	repo="${GITHUB_REPOSITORY:-SukramJ/go-daikin2mqtt}"
+	from_ref=$(tag_ref "$prev_version")
+	to_ref=$(tag_ref "$VERSION")
 	link=$(printf '\n\n**Full Changelog**: https://github.com/%s/compare/%s...%s' \
-		"$repo" "$prev_version" "$VERSION")
+		"$repo" "$from_ref" "$to_ref")
 	payload="${payload}${link}"
 fi
 
