@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -695,9 +696,7 @@ func (b *retainedBroker) Subscribe(
 	b.mu.Lock()
 	b.events = append(b.events, "sub "+filter)
 	msgs := make(map[string]string, len(b.messages))
-	for k, v := range b.messages {
-		msgs[k] = v
-	}
+	maps.Copy(msgs, b.messages)
 	b.mu.Unlock()
 	topics := make([]string, 0, len(msgs))
 	for topic := range msgs {
@@ -995,6 +994,10 @@ func TestAPollClaimsTheDevicesItResolved(t *testing.T) {
 		HASS:    hass.New(cfg.HASSBaseTopic, cfg.MQTTTopic, cfg.Language, m),
 		Logger:  slog.New(slog.DiscardHandler), Clock: fixedClock(),
 	})
+	// The default window is 2s of listening for retained documents the stub
+	// broker never delivers; shrink it on this coordinator, as the other
+	// coordinator tests do.
+	c.collectWindow = 20 * time.Millisecond
 	if got := c.deps.HASS.ClaimedDevices(); len(got) != 0 {
 		t.Errorf("before any poll the instance claimed %v", got)
 	}

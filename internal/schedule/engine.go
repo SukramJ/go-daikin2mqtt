@@ -57,8 +57,6 @@ type DeviceState struct {
 type Options struct {
 	Store  *Store
 	Logger *slog.Logger
-	// Clock defaults to time.Now; tests inject a controllable one.
-	Clock func() time.Time
 	// Timezone is the IANA zone the wall-clock times are read in. Empty uses
 	// the document's zone, then the system zone.
 	Timezone string
@@ -90,7 +88,6 @@ const heartbeat = time.Hour
 type Engine struct {
 	store   *Store
 	log     *slog.Logger
-	clock   func() time.Time
 	catchup time.Duration
 	applier Applier
 	states  StatePublisher
@@ -115,10 +112,6 @@ func NewEngine(o Options) (*Engine, error) {
 	if log == nil {
 		log = slog.Default()
 	}
-	clock := o.Clock
-	if clock == nil {
-		clock = time.Now
-	}
 	catchup := o.Catchup
 	if catchup <= 0 {
 		catchup = DefaultCatchup
@@ -131,7 +124,6 @@ func NewEngine(o Options) (*Engine, error) {
 	e := &Engine{
 		store:   o.Store,
 		log:     log,
-		clock:   clock,
 		catchup: catchup,
 		applier: o.Applier,
 		states:  o.States,
@@ -312,7 +304,7 @@ func (e *Engine) Evaluate(ctx context.Context) {
 		e.states.PublishScheduleSwitches(ctx, doc.Clone())
 	}
 
-	now := e.clock().In(loc)
+	now := time.Now().In(loc)
 	cur := SlotAt(now)
 	for _, key := range doc.TargetKeys() {
 		week := Resolve(doc, key)
@@ -413,7 +405,7 @@ func (e *Engine) untilNext() time.Duration {
 	loc := e.loc
 	e.mu.RUnlock()
 
-	now := e.clock().In(loc)
+	now := time.Now().In(loc)
 	cur := SlotAt(now)
 	var best time.Time
 	for _, key := range doc.TargetKeys() {
@@ -429,13 +421,9 @@ func (e *Engine) untilNext() time.Duration {
 	if best.IsZero() {
 		return heartbeat
 	}
-	d := best.Sub(now)
-	if d < time.Second {
-		// Never spin: a switch point at or just before "now" has been handled
-		// by the evaluation that preceded this call.
-		d = time.Second
-	}
-	return d
+	// Never spin: a switch point at or just before "now" has been handled
+	// by the evaluation that preceded this call.
+	return max(best.Sub(now), time.Second)
 }
 
 func (e *Engine) lastSignature(deviceID string) string {

@@ -581,7 +581,7 @@ func TestStylesheetDefinesUsedClasses(t *testing.T) {
 
 	used := map[string]bool{}
 	for _, v := range attrValues(string(html), "class=") {
-		for _, cls := range strings.Fields(v) {
+		for cls := range strings.FieldsSeq(v) {
 			used[cls] = true
 		}
 	}

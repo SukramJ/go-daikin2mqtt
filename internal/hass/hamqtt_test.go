@@ -166,7 +166,7 @@ func TestHamqttContextUsesThisBridgesNormalisers(t *testing.T) {
 	// decision F4.
 	kitchen := hamqttDevice(device{Identifiers: []string{"daikin_809d41d9-4d42-45fa-af6a-84b512143672"}, Name: "Küche"})
 	sensor := &renderEntity{
-		Basic:  hamodel.Basic{EntityKey: "room_temperature", EntityPlatform: hacatalog.Platform("sensor")},
+		EntityKey: "room_temperature", EntityPlatform: hacatalog.Platform("sensor"),
 		idBase: "daikin_809d41d9-4d42-45fa-af6a-84b512143672",
 		seed:   "Küche",
 	}
@@ -186,7 +186,7 @@ func TestHamqttContextUsesThisBridgesNormalisers(t *testing.T) {
 	// topic.Slug lower-cases. Fifteen of the 264 pinned unique ids carry one.
 	outdoor := hamqttDevice(device{Identifiers: []string{"daikin_outdoor_ODU0000000001"}, Name: "Daikin Outdoor unit"})
 	silent := &renderEntity{
-		Basic:  hamodel.Basic{EntityKey: "outdoor_silent", EntityPlatform: hacatalog.Platform("switch")},
+		EntityKey: "outdoor_silent", EntityPlatform: hacatalog.Platform("switch"),
 		idBase: "daikin_outdoor_ODU0000000001",
 		seed:   "Daikin Outdoor unit",
 	}
@@ -214,7 +214,7 @@ func TestHamqttContextUsesThisBridgesNormalisers(t *testing.T) {
 	// and topic.Slug agree, so 249 of the 264 unique ids would survive the
 	// swap unchanged. The proof rests on the other fifteen.
 	main := &renderEntity{
-		Basic:  hamodel.Basic{EntityKey: "room_temperature", EntityPlatform: hacatalog.Platform("sensor")},
+		EntityKey: "room_temperature", EntityPlatform: hacatalog.Platform("sensor"),
 		idBase: "daikin_809d41d9-4d42-45fa-af6a-84b512143672",
 	}
 	if ctx.UniqueID(kitchen, main) != discovery.UniqueID("", kitchen, main) {

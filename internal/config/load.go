@@ -172,11 +172,11 @@ func configCandidates(env Env, name string) []string {
 //  4. fallback → string
 func applyEnvOverrides(raw map[string]any, env Env) {
 	for _, kv := range env.Environ() {
-		eq := strings.IndexByte(kv, '=')
-		if eq < 0 {
+		before, after, ok := strings.Cut(kv, "=")
+		if !ok {
 			continue
 		}
-		key, val := kv[:eq], kv[eq+1:]
+		key, val := before, after
 		if !strings.HasPrefix(key, EnvPrefix) {
 			continue
 		}

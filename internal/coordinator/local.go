@@ -6,6 +6,8 @@ package coordinator
 import (
 	"context"
 	"log/slog"
+	"maps"
+	"slices"
 	"strconv"
 	"time"
 
@@ -79,12 +81,7 @@ func localOwnedTopic(topic string) bool {
 	case hass.HVACModeTopic, hass.FanModeTopic, hass.SwingModeTopic, hass.SwingHModeTopic, hass.PresetModeTopic:
 		return true
 	}
-	for _, t := range localOnlyTopics {
-		if t == topic {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(localOnlyTopics, topic)
 }
 
 // dataSource reports where an entity's value comes from: the local Faikin
@@ -512,9 +509,7 @@ func aggregateEnergy(vals []int64) int64 {
 func (c *Coordinator) flushLocalStates(ctx context.Context) {
 	c.mu.Lock()
 	pending := make(map[string]*faikin.State, len(c.lastLocal))
-	for dev, st := range c.lastLocal {
-		pending[dev] = st
-	}
+	maps.Copy(pending, c.lastLocal)
 	c.mu.Unlock()
 	for deviceID, st := range pending {
 		c.publishLocalState(ctx, deviceID, st)

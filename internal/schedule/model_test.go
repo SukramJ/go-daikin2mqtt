@@ -9,8 +9,6 @@ import (
 	"testing"
 )
 
-func ptr(f float64) *float64 { return &f }
-
 // block builds a minimal valid block for tests.
 func block(id, start, end string, days ...string) Block {
 	return Block{
@@ -18,7 +16,7 @@ func block(id, start, end string, days ...string) Block {
 		Days:   days,
 		Start:  start,
 		End:    end,
-		Action: Action{Power: PowerOn, HVACMode: ModeHeat, Setpoint: ptr(21)},
+		Action: Action{Power: PowerOn, HVACMode: ModeHeat, Setpoint: new(float64(21))},
 	}
 }
 
@@ -153,9 +151,9 @@ func TestActionSignature(t *testing.T) {
 		{Action{Power: PowerOff}, "off"},
 		// An "off" block ignores mode and setpoint, so they must not enter the
 		// signature — otherwise two identical off-blocks would look different.
-		{Action{Power: PowerOff, HVACMode: ModeHeat, Setpoint: ptr(21)}, "off"},
+		{Action{Power: PowerOff, HVACMode: ModeHeat, Setpoint: new(float64(21))}, "off"},
 		{Action{Power: PowerOn, HVACMode: ModeHeat}, "on/heat"},
-		{Action{Power: PowerOn, HVACMode: ModeHeat, Setpoint: ptr(21.5)}, "on/heat/21.5"},
+		{Action{Power: PowerOn, HVACMode: ModeHeat, Setpoint: new(21.5)}, "on/heat/21.5"},
 	}
 	for _, c := range cases {
 		if got := c.a.Signature(); got != c.want {
@@ -165,7 +163,7 @@ func TestActionSignature(t *testing.T) {
 }
 
 func TestActionPayloads(t *testing.T) {
-	on := Action{Power: PowerOn, HVACMode: ModeCool, Setpoint: ptr(24)}
+	on := Action{Power: PowerOn, HVACMode: ModeCool, Setpoint: new(float64(24))}
 	if got := on.HVACPayload(); got != "cool" {
 		t.Errorf("HVACPayload = %q, want cool", got)
 	}
@@ -231,8 +229,7 @@ func TestValidate(t *testing.T) {
 			if err == nil {
 				t.Fatalf("Validate: want error containing %q, got nil", c.issue)
 			}
-			var ve *ValidationError
-			if !errors.As(err, &ve) {
+			if _, ok := errors.AsType[*ValidationError](err); !ok {
 				t.Fatalf("Validate: want *ValidationError, got %T", err)
 			}
 			if !strings.Contains(err.Error(), c.issue) {
@@ -270,7 +267,7 @@ func TestValidateSchedule(t *testing.T) {
 		},
 		{
 			name:  "setpoint out of range",
-			mut:   func(d *Document) { d.Schedules[0].Blocks[0].Action.Setpoint = ptr(215) },
+			mut:   func(d *Document) { d.Schedules[0].Blocks[0].Action.Setpoint = new(float64(215)) },
 			issue: "setpoint must be",
 		},
 		{
@@ -396,8 +393,6 @@ func TestApplies(t *testing.T) {
 	}
 }
 
-func boolPtr(b bool) *bool { return &b }
-
 // outdoorDoc builds a valid outdoor schedule around one block.
 func outdoorDoc(blocks ...Block) *Document {
 	return &Document{
@@ -468,12 +463,12 @@ func TestOutdoorActionSignature(t *testing.T) {
 		a    Action
 		want string
 	}{
-		{"silent on", Action{OutdoorSilent: boolPtr(true)}, "silent=on"},
-		{"silent off", Action{OutdoorSilent: boolPtr(false)}, "silent=off"},
-		{"econo and demand", Action{Econo: boolPtr(true), Demand: ptr(70)}, "econo=on;demand=70"},
+		{"silent on", Action{OutdoorSilent: new(true)}, "silent=on"},
+		{"silent off", Action{OutdoorSilent: new(false)}, "silent=off"},
+		{"econo and demand", Action{Econo: new(true), Demand: new(float64(70))}, "econo=on;demand=70"},
 		{
 			"all three",
-			Action{OutdoorSilent: boolPtr(true), Econo: boolPtr(false), Demand: ptr(100)},
+			Action{OutdoorSilent: new(true), Econo: new(false), Demand: new(float64(100))},
 			"silent=on;econo=off;demand=100",
 		},
 		{"nothing set", Action{}, ""},
@@ -489,7 +484,7 @@ func TestOutdoorActionSignature(t *testing.T) {
 	// An indoor and an outdoor action must never share a signature, or the
 	// idempotence cache would suppress a legitimate write.
 	indoor := Action{Power: PowerOn, HVACMode: ModeHeat}
-	outdoor := Action{OutdoorSilent: boolPtr(true)}
+	outdoor := Action{OutdoorSilent: new(true)}
 	if indoor.Signature() == outdoor.Signature() {
 		t.Error("indoor and outdoor signatures must differ")
 	}
@@ -520,7 +515,7 @@ func TestValidateOutdoorSchedule(t *testing.T) {
 		},
 		{
 			name:  "demand out of range",
-			mut:   func(d *Document) { d.Schedules[0].Blocks[0].Action.Demand = ptr(140) },
+			mut:   func(d *Document) { d.Schedules[0].Blocks[0].Action.Demand = new(float64(140)) },
 			issue: "demand must be",
 		},
 		{
@@ -544,7 +539,7 @@ func TestValidateOutdoorSchedule(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			d := outdoorDoc(outdoorBlock("b1", "22:00", "06:00",
-				Action{OutdoorSilent: boolPtr(true), Demand: ptr(70)}, "mon"))
+				Action{OutdoorSilent: new(true), Demand: new(float64(70))}, "mon"))
 			if c.mut != nil {
 				c.mut(d)
 			}
@@ -564,7 +559,7 @@ func TestValidateOutdoorSchedule(t *testing.T) {
 
 func TestValidateIndoorRejectsOutdoorFields(t *testing.T) {
 	d := doc(block("b1", "05:30", "08:00", "mon"))
-	d.Schedules[0].Blocks[0].Action.OutdoorSilent = boolPtr(true)
+	d.Schedules[0].Blocks[0].Action.OutdoorSilent = new(true)
 	err := d.Validate()
 	if err == nil || !strings.Contains(err.Error(), "belong to an outdoor schedule") {
 		t.Fatalf("Validate: want a type mismatch error, got %v", err)
@@ -579,7 +574,7 @@ func TestValidateIndoorRejectsOutdoorFields(t *testing.T) {
 
 func TestCloneCopiesOutdoorPointers(t *testing.T) {
 	orig := outdoorDoc(outdoorBlock("b1", "22:00", "06:00",
-		Action{OutdoorSilent: boolPtr(true), Econo: boolPtr(false), Demand: ptr(70)}, "mon"))
+		Action{OutdoorSilent: new(true), Econo: new(false), Demand: new(float64(70))}, "mon"))
 	c := orig.Clone()
 
 	*c.Schedules[0].Blocks[0].Action.OutdoorSilent = false

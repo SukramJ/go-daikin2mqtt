@@ -226,11 +226,9 @@ func TestEconoConcurrentEdge(t *testing.T) {
 	// read-modify-write must yield exactly one suspend (run with -race).
 	var wg sync.WaitGroup
 	for range 2 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			c.reconcileEconoSuspend(context.Background(), "solo", true, true)
-		}()
+		})
 	}
 	wg.Wait()
 	if cloud.patchCount() != 1 {

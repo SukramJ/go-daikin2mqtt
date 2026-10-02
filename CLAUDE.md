@@ -30,7 +30,7 @@ go test ./internal/coordinator/
 go run ./cmd/daikin2mqtt-util devices --mock altherma-air-to-water-wlan
 ```
 
-Go ≥ 1.26, `CGO_ENABLED=0`. Minimal deps (`golang.org/x/sync`, `yaml.v3`) — keep it that way.
+Go ≥ 1.27, `CGO_ENABLED=0`. Minimal deps (`golang.org/x/sync`, `yaml.v3`) — keep it that way.
 
 ## Workflow gotchas
 

@@ -6,6 +6,15 @@ top-level changelog.md. Newest version first.
 
 # Unreleased
 
+# 0.13.0 (2026-10-02)
+
+- **Built with Go 1.27.1** (Docker image, add-on image and CI). Nothing
+  changes at runtime.
+- **Library updates:** go-mqtt 1.6.0, go-ha-catalog 0.3.0 and go-hamqtt
+  0.35.0, the releases built on Go 1.27.
+- Otherwise internal clean-ups only: no entities, topics, payloads or
+  options change.
+
 # 0.12.0 (2026-09-14)
 
 - **New option `mqtt_client_id`.** The MQTT client identifier used to be

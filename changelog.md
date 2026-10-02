@@ -1,5 +1,18 @@
 # Unreleased
 
+# Version 0.13.0 (2026-10-02)
+
+## Changed
+
+- The build toolchain moves to Go 1.27.1 (Docker image, add-on image and CI).
+  Nothing changes at runtime; building from source now requires Go 1.27.
+- The shared libraries move to their Go 1.27 releases: go-mqtt 1.6.0,
+  go-ha-catalog 0.3.0 and go-hamqtt 0.35.0; the discovery golden files do
+  not change with them.
+- Otherwise internal clean-ups only (the Go 1.27 modernizers, test-only
+  clock seams removed, timer tests on `testing/synctest`): no entities,
+  topics, payloads or options change.
+
 # Version 0.12.0 (2026-09-14)
 
 ## Before you upgrade

@@ -22,7 +22,6 @@ type TokenSource struct {
 	cfg   Config
 	store *Store
 	hc    *http.Client
-	clock func() time.Time
 
 	mu      sync.Mutex
 	current *Token
@@ -36,7 +35,7 @@ func NewTokenSource(cfg Config, store *Store, hc *http.Client) *TokenSource {
 	if hc == nil {
 		hc = &http.Client{Timeout: 60 * time.Second}
 	}
-	return &TokenSource{cfg: cfg, store: store, hc: hc, clock: time.Now}
+	return &TokenSource{cfg: cfg, store: store, hc: hc}
 }
 
 // Invalidate forces the next [TokenSource.Token] call to refresh, even if
@@ -53,7 +52,7 @@ func (ts *TokenSource) Invalidate() {
 	}
 	if ts.current != nil {
 		// Mark expired so Token() refreshes via the refresh token.
-		ts.current.ExpiresAt = ts.clock().Add(-time.Hour)
+		ts.current.ExpiresAt = time.Now().Add(-time.Hour)
 	}
 }
 
@@ -84,7 +83,7 @@ func (ts *TokenSource) Token(ctx context.Context) (string, error) {
 		ts.current = t
 	}
 
-	now := ts.clock().Add(refreshSkew)
+	now := time.Now().Add(refreshSkew)
 	if ts.current.Valid(now) {
 		return ts.current.AccessToken, nil
 	}

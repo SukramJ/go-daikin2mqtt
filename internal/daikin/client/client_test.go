@@ -117,11 +117,11 @@ func TestGetDevicesRateLimited(t *testing.T) {
 }
 
 func TestScanIgnore(t *testing.T) {
-	var patchCalls int32
+	var patchCalls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPatch:
-			atomic.AddInt32(&patchCalls, 1)
+			patchCalls.Add(1)
 			w.WriteHeader(http.StatusNoContent)
 		case http.MethodGet:
 			_, _ = io.WriteString(w, `[]`)
@@ -243,9 +243,9 @@ func TestPatchEscapesPathSegments(t *testing.T) {
 func TestGetDevicesRetryThenSuccess(t *testing.T) {
 	withFakeSleep(t)
 
-	var calls int32
+	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		if atomic.AddInt32(&calls, 1) == 1 {
+		if calls.Add(1) == 1 {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -267,7 +267,7 @@ func TestGetDevicesRetryThenSuccess(t *testing.T) {
 	if string(body) != `[{"ok":true}]` {
 		t.Errorf("body = %q", body)
 	}
-	if got := atomic.LoadInt32(&calls); got != 2 {
+	if got := calls.Load(); got != 2 {
 		t.Errorf("server calls = %d, want 2", got)
 	}
 }

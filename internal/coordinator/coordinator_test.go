@@ -611,6 +611,10 @@ func TestDiscoveryRetriedAfterPublishFailure(t *testing.T) {
 		Logger:  slog.New(slog.DiscardHandler),
 		Clock:   fixedClock(),
 	})
+	// The default window is 2s of listening for retained documents the stub
+	// broker never delivers; shrink it on this coordinator, as the other
+	// coordinator tests do.
+	c.collectWindow = 20 * time.Millisecond
 
 	c.pollOnce(context.Background())
 	c.mu.Lock()
@@ -681,6 +685,10 @@ func TestDataSourceAttributesAreRepublishedEveryPoll(t *testing.T) {
 		Logger:  slog.New(slog.DiscardHandler),
 		Clock:   fixedClock(),
 	})
+	// The default window is 2s of listening for retained documents the stub
+	// broker never delivers; shrink it on this coordinator, as the other
+	// coordinator tests do.
+	c.collectWindow = 20 * time.Millisecond
 
 	const attrs = "daikin/dev1/climateControl/power/attributes"
 
