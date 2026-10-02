@@ -1,5 +1,10 @@
 # Unreleased
 
+## Changed
+
+- The build toolchain moves to Go 1.27.1 (Docker image, add-on image and CI).
+  Nothing changes at runtime; building from source now requires Go 1.27.
+
 # Version 0.12.0 (2026-09-14)
 
 ## Before you upgrade
