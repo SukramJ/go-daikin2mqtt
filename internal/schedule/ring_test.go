@@ -31,7 +31,7 @@ func sched(id string, prio int, devices []string, blocks ...Block) Schedule {
 func onBlock(id, start, end string, temp float64, days ...string) Block {
 	return Block{
 		ID: id, Days: days, Start: start, End: end,
-		Action: Action{Power: PowerOn, HVACMode: ModeHeat, Setpoint: ptr(temp)},
+		Action: Action{Power: PowerOn, HVACMode: ModeHeat, Setpoint: new(temp)},
 	}
 }
 
@@ -350,7 +350,7 @@ func TestConflicts(t *testing.T) {
 		sched("heat", 0, []string{"living"}, onBlock("night", "22:00", "06:00", 17.5, "mon")),
 		sched("cool", 0, []string{"bed"}, Block{
 			ID: "cool", Days: []string{"mon"}, Start: "23:00", End: "04:00",
-			Action: Action{Power: PowerOn, HVACMode: ModeCool, Setpoint: ptr(25)},
+			Action: Action{Power: PowerOn, HVACMode: ModeCool, Setpoint: new(float64(25))},
 		}),
 	}}
 
@@ -373,12 +373,12 @@ func TestConflictsIgnoresOffAndNeutralModes(t *testing.T) {
 		bed  Action
 		want int
 	}{
-		{"cooling conflicts", Action{Power: PowerOn, HVACMode: ModeCool, Setpoint: ptr(25)}, 1},
+		{"cooling conflicts", Action{Power: PowerOn, HVACMode: ModeCool, Setpoint: new(float64(25))}, 1},
 		{"dry conflicts too", Action{Power: PowerOn, HVACMode: ModeDry}, 1},
 		{"off takes no side", Action{Power: PowerOff}, 0},
 		{"fan_only takes no side", Action{Power: PowerOn, HVACMode: ModeFanOnly}, 0},
 		{"auto takes no side", Action{Power: PowerOn, HVACMode: ModeAuto}, 0},
-		{"heating agrees", Action{Power: PowerOn, HVACMode: ModeHeat, Setpoint: ptr(21)}, 0},
+		{"heating agrees", Action{Power: PowerOn, HVACMode: ModeHeat, Setpoint: new(float64(21))}, 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

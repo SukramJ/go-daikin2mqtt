@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
@@ -422,10 +423,11 @@ func (c *Coordinator) scheduleSignature() string {
 		return ""
 	}
 	doc := eng.Document()
-	sig := "sched:"
+	var sig strings.Builder
+	sig.WriteString("sched:")
 	for i := range doc.Schedules {
 		s := &doc.Schedules[i]
-		sig += s.ID + "=" + s.Name + ";"
+		sig.WriteString(s.ID + "=" + s.Name + ";")
 	}
-	return sig
+	return sig.String()
 }

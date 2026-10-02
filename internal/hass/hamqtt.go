@@ -251,12 +251,12 @@ var _ discovery.Context = hamqttContext{}
 
 // newHamqttContext builds the context for one language.
 func newHamqttContext(lay hamqttLayout, lang string) hamqttContext {
-	return hamqttContext{StdContext: discovery.StdContext{
+	return hamqttContext{
 		Layout: lay,
 		Lang:   lang,
 		// Bare scalars on every state topic; see the file comment.
 		Enc: discovery.RawEncoding,
-	}}
+	}
 }
 
 // UniqueID implements [discovery.Context]: sanitize(idBase + "_" + key).
@@ -559,16 +559,14 @@ func (d *Discovery) pointEntity(lay hamqttLayout, p process.Point, idBase, seed 
 	}
 
 	e := &renderEntity{
-		Basic: model.Basic{
-			EntityKey:      p.Topic,
-			EntityPlatform: hacatalog.Platform(p.Entry.Platform),
-			Description:    desc,
-			Binds:          binds,
-		},
-		idBase:     idBase,
-		seed:       seed,
-		attributes: lay.Attributes(slot),
-		fields:     fields,
+		EntityKey:      p.Topic,
+		EntityPlatform: hacatalog.Platform(p.Entry.Platform),
+		Description:    desc,
+		Binds:          binds,
+		idBase:         idBase,
+		seed:           seed,
+		attributes:     lay.Attributes(slot),
+		fields:         fields,
 	}
 	return e, true
 }
@@ -643,15 +641,13 @@ func (d *Discovery) climateEntity(lay hamqttLayout, g *climateGroup, info Device
 	}
 
 	e := &renderEntity{
-		Basic: model.Basic{
-			EntityKey:      layout.ClimateTopic,
-			EntityPlatform: hacatalog.Platform("climate"),
-			Description: model.Description{
-				Name:         model.L("Thermostat"),
-				Availability: model.BridgeOnly(),
-			},
-			Binds: binds,
+		EntityKey:      layout.ClimateTopic,
+		EntityPlatform: hacatalog.Platform("climate"),
+		Description: model.Description{
+			Name:         model.L("Thermostat"),
+			Availability: model.BridgeOnly(),
 		},
+		Binds:  binds,
 		idBase: mainIdentifier(g.deviceID),
 		seed:   info.Name,
 		// The suppression key is "climate"; the entity id reads "thermostat".
@@ -714,21 +710,19 @@ const (
 func (d *Discovery) scheduleEntity(s ScheduleInfo) *renderEntity {
 	slot := hamqttSlot(layout.SchedulerDeviceID, s.ID, layout.EnabledTopic)
 	return &renderEntity{
-		Basic: model.Basic{
-			EntityKey:      s.ID,
-			EntityPlatform: hacatalog.Platform("switch"),
-			Description: model.Description{
-				// A schedule name is the operator's own text, published
-				// verbatim in every language.
-				Name:         model.L(s.Name),
-				Icon:         "mdi:calendar-check",
-				Category:     hacatalog.EntityCategory("config"),
-				Availability: model.BridgeOnly(),
-			},
-			Binds: []model.Binding{
-				{Role: model.RoleState, Slot: slot, Mode: model.Read},
-				{Role: model.RoleCommand, Slot: slot, Mode: model.Write},
-			},
+		EntityKey:      s.ID,
+		EntityPlatform: hacatalog.Platform("switch"),
+		Description: model.Description{
+			// A schedule name is the operator's own text, published
+			// verbatim in every language.
+			Name:         model.L(s.Name),
+			Icon:         "mdi:calendar-check",
+			Category:     hacatalog.EntityCategory("config"),
+			Availability: model.BridgeOnly(),
+		},
+		Binds: []model.Binding{
+			{Role: model.RoleState, Slot: slot, Mode: model.Read},
+			{Role: model.RoleCommand, Slot: slot, Mode: model.Write},
 		},
 		idBase: "daikin_schedule",
 		// The entity id is the unique id verbatim, seeded from the slug frozen

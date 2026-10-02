@@ -411,8 +411,6 @@ func TestNormalizeBlockIDs(t *testing.T) {
 	}
 }
 
-func boolPtr(b bool) *bool { return &b }
-
 // newOutdoorSchedule builds a valid outdoor schedule payload.
 func newOutdoorSchedule(name, serial string) schedule.Schedule {
 	demand := 70.0
@@ -423,7 +421,7 @@ func newOutdoorSchedule(name, serial string) schedule.Schedule {
 		Targets: []schedule.Target{{OutdoorSerial: serial}},
 		Blocks: []schedule.Block{{
 			Days: []string{"mon", "tue"}, Start: "22:00", End: "06:00",
-			Action: schedule.Action{OutdoorSilent: boolPtr(true), Demand: &demand},
+			Action: schedule.Action{OutdoorSilent: new(true), Demand: &demand},
 		}},
 	}
 }

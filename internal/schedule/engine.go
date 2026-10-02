@@ -429,13 +429,9 @@ func (e *Engine) untilNext() time.Duration {
 	if best.IsZero() {
 		return heartbeat
 	}
-	d := best.Sub(now)
-	if d < time.Second {
-		// Never spin: a switch point at or just before "now" has been handled
-		// by the evaluation that preceded this call.
-		d = time.Second
-	}
-	return d
+	// Never spin: a switch point at or just before "now" has been handled
+	// by the evaluation that preceded this call.
+	return max(best.Sub(now), time.Second)
 }
 
 func (e *Engine) lastSignature(deviceID string) string {

@@ -410,7 +410,7 @@ func TestATombstoneIsNotRepeatedForever(t *testing.T) {
 func catalogWithout(t *testing.T, topics ...string) *catalog.Catalog {
 	t.Helper()
 	var kept []string
-	for _, line := range strings.Split(testCatalogYAML, "\n- ") {
+	for line := range strings.SplitSeq(testCatalogYAML, "\n- ") {
 		drop := false
 		for _, topic := range topics {
 			if strings.Contains(line, "topic: "+topic+"\n") || strings.Contains(line, "topic: "+topic+",") {

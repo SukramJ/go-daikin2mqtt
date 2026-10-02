@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -468,12 +469,7 @@ func (s *Server) conflictsFor(doc *schedule.Document, deviceID string) []conflic
 }
 
 func contains(haystack []string, needle string) bool {
-	for _, h := range haystack {
-		if h == needle {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(haystack, needle)
 }
 
 // normalizeBlockIDs fills in missing block ids so the UI can post a new block

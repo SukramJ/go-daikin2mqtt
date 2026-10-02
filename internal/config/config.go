@@ -52,12 +52,12 @@ func (m *DeviceMap) UnmarshalYAML(node *yaml.Node) error {
 func parseDeviceMapString(s string) DeviceMap {
 	m := DeviceMap{}
 	for _, pair := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == ';' }) {
-		eq := strings.IndexByte(pair, '=')
-		if eq < 0 {
+		before, after, ok := strings.Cut(pair, "=")
+		if !ok {
 			continue
 		}
-		k := strings.TrimSpace(pair[:eq])
-		v := strings.TrimSpace(pair[eq+1:])
+		k := strings.TrimSpace(before)
+		v := strings.TrimSpace(after)
 		if k != "" && v != "" {
 			m[k] = v
 		}

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -695,9 +696,7 @@ func (b *retainedBroker) Subscribe(
 	b.mu.Lock()
 	b.events = append(b.events, "sub "+filter)
 	msgs := make(map[string]string, len(b.messages))
-	for k, v := range b.messages {
-		msgs[k] = v
-	}
+	maps.Copy(msgs, b.messages)
 	b.mu.Unlock()
 	topics := make([]string, 0, len(msgs))
 	for topic := range msgs {

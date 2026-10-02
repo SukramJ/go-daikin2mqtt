@@ -35,8 +35,6 @@ func TestHVACMode(t *testing.T) {
 	}
 }
 
-func f64(v float64) *float64 { return &v }
-
 func climatePoints() []process.Point {
 	mk := func(topic, platform string, e catalog.Entry, val any) process.Point {
 		e.Topic, e.Platform = topic, platform
@@ -47,7 +45,7 @@ func climatePoints() []process.Point {
 		{Value: "heating", Label: "Heating"}, {Value: "cooling", Label: "Cooling"},
 	}}, "cooling")
 	setp := mk("temperature_setpoint", "number", catalog.Entry{Settable: true}, 22.5)
-	setp.Min, setp.Max, setp.Step = f64(16), f64(32), f64(0.5)
+	setp.Min, setp.Max, setp.Step = new(float64(16)), new(float64(32)), new(0.5)
 	room := mk("room_temperature", "sensor", catalog.Entry{}, 21.0)
 	return []process.Point{power, mode, setp, room}
 }

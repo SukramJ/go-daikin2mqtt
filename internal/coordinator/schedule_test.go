@@ -45,8 +45,6 @@ func (s *stubScheduler) Document() *schedule.Document {
 
 func (s *stubScheduler) Wake() { s.woken++ }
 
-func ptr(f float64) *float64 { return &f }
-
 // drainOne pulls a single queued write request, failing if none is pending.
 func drainOne(t *testing.T, c *Coordinator) writeReq {
 	t.Helper()
@@ -67,7 +65,7 @@ func TestApplyScheduleQueuesModeBeforeSetpoint(t *testing.T) {
 	c.pollOnce(context.Background())
 
 	err := c.ApplySchedule(context.Background(), schedule.Target{DeviceID: dev}, schedule.Action{
-		Power: schedule.PowerOn, HVACMode: schedule.ModeHeat, Setpoint: ptr(21.5),
+		Power: schedule.PowerOn, HVACMode: schedule.ModeHeat, Setpoint: new(21.5),
 	})
 	if err != nil {
 		t.Fatalf("ApplySchedule: %v", err)
@@ -96,7 +94,7 @@ func TestApplyScheduleOffSkipsSetpoint(t *testing.T) {
 	// A setpoint alongside "off" is meaningless and must not be written: the
 	// mode-scoped path could not be resolved for a unit being switched off.
 	err := c.ApplySchedule(context.Background(), schedule.Target{DeviceID: dev}, schedule.Action{
-		Power: schedule.PowerOff, Setpoint: ptr(21.5),
+		Power: schedule.PowerOff, Setpoint: new(21.5),
 	})
 	if err != nil {
 		t.Fatalf("ApplySchedule: %v", err)
@@ -386,8 +384,6 @@ func TestPollWakesScheduler(t *testing.T) {
 	}
 }
 
-func boolPtr(b bool) *bool { return &b }
-
 // outdoorDevicesJSON builds two indoor devices sharing one outdoor unit, which
 // is what an outdoor schedule addresses.
 func outdoorDevicesJSON(serial string, deviceIDs ...string) json.RawMessage {
@@ -428,7 +424,7 @@ func TestApplyOutdoorScheduleWritesOnceAndFansOut(t *testing.T) {
 	c, _ := outdoorCoordinator(t, "0J723746", "dev-a", "dev-b")
 
 	err := c.ApplySchedule(context.Background(), schedule.Target{OutdoorSerial: "0J723746"},
-		schedule.Action{OutdoorSilent: boolPtr(true), Econo: boolPtr(false), Demand: ptr(70)})
+		schedule.Action{OutdoorSilent: new(true), Econo: new(false), Demand: new(float64(70))})
 	if err != nil {
 		t.Fatalf("ApplySchedule: %v", err)
 	}
@@ -482,7 +478,7 @@ func TestApplyOutdoorScheduleSkipsUnsetFields(t *testing.T) {
 	// Only the silent mode is set: a nil field means "leave this alone", so
 	// the night block must not also reset the demand limit.
 	err := c.ApplySchedule(context.Background(), schedule.Target{OutdoorSerial: "0J723746"},
-		schedule.Action{OutdoorSilent: boolPtr(true)})
+		schedule.Action{OutdoorSilent: new(true)})
 	if err != nil {
 		t.Fatalf("ApplySchedule: %v", err)
 	}
@@ -501,7 +497,7 @@ func TestApplyOutdoorScheduleUnknownGroup(t *testing.T) {
 	// No poll has resolved any outdoor serial yet.
 	c := newCoordinator(t, &stubCloud{}, newStubMQTT())
 	err := c.ApplySchedule(context.Background(), schedule.Target{OutdoorSerial: "nope"},
-		schedule.Action{OutdoorSilent: boolPtr(true)})
+		schedule.Action{OutdoorSilent: new(true)})
 	if !errors.Is(err, schedule.ErrDeviceUnknown) {
 		t.Fatalf("ApplySchedule = %v, want ErrDeviceUnknown", err)
 	}
