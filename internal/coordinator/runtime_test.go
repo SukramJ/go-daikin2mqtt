@@ -994,6 +994,10 @@ func TestAPollClaimsTheDevicesItResolved(t *testing.T) {
 		HASS:    hass.New(cfg.HASSBaseTopic, cfg.MQTTTopic, cfg.Language, m),
 		Logger:  slog.New(slog.DiscardHandler), Clock: fixedClock(),
 	})
+	// The default window is 2s of listening for retained documents the stub
+	// broker never delivers; shrink it on this coordinator, as the other
+	// coordinator tests do.
+	c.collectWindow = 20 * time.Millisecond
 	if got := c.deps.HASS.ClaimedDevices(); len(got) != 0 {
 		t.Errorf("before any poll the instance claimed %v", got)
 	}
