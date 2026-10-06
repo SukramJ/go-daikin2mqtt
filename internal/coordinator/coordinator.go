@@ -23,6 +23,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/SukramJ/go-hamqtt/discovery"
+	hamodel "github.com/SukramJ/go-hamqtt/model"
 	"github.com/SukramJ/go-hamqtt/publisher"
 	hagomqtt "github.com/SukramJ/go-hamqtt/publisher/gomqtt"
 
@@ -73,10 +74,20 @@ type Deps struct {
 	// because it lives on the concrete *mqtt.TCPClient — which this package
 	// deliberately does not name.
 	BrokerMaxPacketSize func() (uint32, bool)
-	// StatePlane is the go-hamqtt state publisher every retained state and
-	// attributes topic goes out through. Optional; nil builds one over MQTT
-	// with [NewStatePlane], so the QoS is stated in one place either way.
+	// StatePlane is the go-hamqtt state publisher every retained status item
+	// goes out through. Optional; nil builds one over MQTT with
+	// [NewStatePlane], so the QoS and the encoding are stated in one place
+	// either way.
 	StatePlane *publisher.StatePublisher
+	// Instance is the mqtt-smarthome instance plane: the retained
+	// `<name>/info`, the maintenance commands it registers on the command
+	// router, and the periodic `<name>/maintenance/stats`. Optional; nil
+	// publishes none of them.
+	Instance *publisher.Instance
+	// FaikinConnected reports whether the connection the Faikin modules are
+	// reached over is up. Optional; nil counts it as up. It is half of what
+	// `<name>/connected` says in local mode — see [Coordinator.upstreamLevel].
+	FaikinConnected func() bool
 }
 
 // Coordinator owns the poll/publish/write loops.
@@ -119,7 +130,8 @@ type Coordinator struct {
 	// only ever read through ha() — never stored across a call that can block
 	// on the broker, because the connection it belongs to may be gone by then.
 	haRuntime atomic.Pointer[publisher.Runtime]
-	// commands is the go-hamqtt router for "<root>/+/+/+/set".
+	// commands is the go-hamqtt router for "<name>/set/+/+/+" and the
+	// instance's "<name>/maintenance/set/#".
 	commands *publisher.CommandRouter
 	// collectWindow is how long each retained-config snapshot listens. Written
 	// once, by New, before anything can read it.
@@ -130,7 +142,29 @@ type Coordinator struct {
 	// that has since been replaced must not suppress the republish the new
 	// connection is owed.
 	discoveryGen atomic.Uint64
+
+	// connMu serialises every write of `<name>/connected` with the runtime
+	// swap of a reconnect, so a level change cannot land on a runtime that is
+	// being replaced and then be lost. connLevel is the level the daemon has
+	// decided on (0 until the first decision, which announces as 1).
+	connMu    sync.Mutex
+	connLevel int
+	// cloudOK is whether the last cloud poll succeeded, and devicesKnown
+	// whether any ever did since start; both guarded by mu. See
+	// [Coordinator.upstreamLevel].
+	cloudOK, devicesKnown bool
+	// bounds holds each number point's live min/max/step from the last poll,
+	// keyed deviceID|embeddedID|topic, for the clamping spec §5.3 asks of a
+	// set. Guarded by mu.
+	bounds map[string]numberBounds
+	// lastDevices is the device ids the last successful poll resolved, guarded
+	// by mu; swept is set once the start-up sweep of the 0.13 layout has run.
+	lastDevices []string
+	swept       atomic.Bool
 }
+
+// numberBounds is one number point's live range.
+type numberBounds struct{ min, max, step *float64 }
 
 // econoSuspendState tracks the powerful<->econo save/restore per outdoor group.
 // econo limits the shared outdoor compressor, so a powerful (boost) on any member
@@ -187,7 +221,7 @@ func New(d Deps) *Coordinator {
 	if d.MQTT != nil {
 		tr := hagomqtt.Split(d.MQTT, d.MQTT)
 		if d.StatePlane == nil {
-			d.StatePlane = NewStatePlane(tr, root, d.Logger)
+			d.StatePlane = NewStatePlane(tr, root, d.Clock, d.Logger)
 		}
 		if d.NewHARuntime == nil {
 			cfg := RuntimeConfig(d.Cfg, d.Logger)
@@ -210,6 +244,7 @@ func New(d Deps) *Coordinator {
 		pendingOutdoor:  map[string]outdoorHold{},
 		econoSuspend:    map[string]econoSuspendState{},
 		econoLatch:      map[string]bool{},
+		bounds:          map[string]numberBounds{},
 	}
 	if d.NewHARuntime != nil {
 		rt := d.NewHARuntime()
@@ -252,45 +287,56 @@ func (c *Coordinator) Run(ctx context.Context) error {
 	g.Go(func() error { return c.pollLoop(gctx) })
 	g.Go(func() error { return c.drainWrites(gctx) })
 	g.Go(func() error { return c.drainLocalStates(gctx) })
+	if c.deps.Cfg.LocalEnabled() {
+		g.Go(func() error { return c.watchUpstream(gctx) })
+	}
+	if c.deps.Instance != nil {
+		g.Go(func() error {
+			// Off (MQTT_STATS_INTERVAL: 0, or maintenance disabled) is not a
+			// failure; neither is the shutdown that ends the loop.
+			_ = c.deps.Instance.RunStats(gctx)
+			return nil
+		})
+	}
 	return g.Wait()
 }
 
-// PublishOnline marks the bridge available (retained). Wire this to the MQTT
-// lifecycle OnConnect to re-announce after a reconnect.
+// PublishOnline announces the instance on a broker connection. Wire this to
+// the MQTT lifecycle OnConnect to re-announce after a reconnect.
 //
-// Three things happen here and the order matters. The state plane's dedup gate
-// is re-opened first, because a broker that came back without its retained
-// store holds nothing and the cache would otherwise answer "already published"
-// for every value until each one happened to change. The discovery runtime is
-// then rebuilt for the new connection (see [Coordinator.resetHAPlane]), so no
-// bookkeeping survives a connection it was made on. Only then is the marker
-// announced.
+// The order matters. The state plane re-sends every status item it holds
+// first, byte for byte with its original `ts` (spec §3.2: published again after
+// every broker reconnect, so a broker that came back without its retained
+// store is complete again without waiting for each value to change). The
+// discovery runtime is then rebuilt for the new connection (see
+// [Coordinator.resetHAPlane]), so no bookkeeping survives a connection it was
+// made on, and `<name>/connected` is announced at the level the daemon last
+// decided — the fresh runtime starts at 1, so a daemon whose upstream is usable
+// raises it to 2 at once. `<name>/info` follows (spec §6: on every connect).
 //
 // The discovery plane's own gate is re-opened with the runtime, and that is
-// F16 of the phase 8 measurement, left explicitly for step 6. lastDiscSig is a
-// statement about what a BROKER holds, and a broker restarted without its
-// retained store holds nothing — so a gate that outlived the connection it was
-// computed on meant the 264 configs (now 31 documents) never came back until
-// the entity set happened to change. Step 5 could not fix it, because fixing it
-// puts traffic on the wire on every reconnect and step 5's whole claim was that
-// nothing did. Clearing it here is safe precisely because the library has a
-// second, byte-level gate underneath: an unchanged fleet re-renders and writes
-// nothing.
+// F16 of the phase 8 measurement. lastDiscSig is a statement about what a
+// BROKER holds, and a broker restarted without its retained store holds nothing
+// — so a gate that outlived the connection it was computed on meant the device
+// documents never came back until the entity set happened to change. Clearing
+// it here is safe precisely because the library has a second, byte-level gate
+// underneath: an unchanged fleet re-renders and writes nothing.
 //
 // priorLoaded is cleared for the same reason in the other direction: the
 // component sets the tombstone diff is taken against were read from the broker
 // this connection replaced.
 //
-// The marker itself is publisher.Runtime.AnnounceOnline: the same retained
-// "online" on the same topic as before, now spelled by the same object that
-// produced the Last Will the broker publishes when this daemon dies
-// ([RuntimeConfig]'s Layout). That pairing used to be three independent
-// literals in three packages, which is how a sibling bridge ended up with a
-// will no entity references.
+// The level itself is publisher.Runtime's: the same object produced the Last
+// Will the broker publishes when this daemon dies ([RuntimeConfig]'s Layout).
+// That pairing used to be three independent literals in three packages, which
+// is how a sibling bridge ended up with a will no entity references.
 func (c *Coordinator) PublishOnline(ctx context.Context) {
 	if c.deps.StatePlane != nil {
-		c.deps.StatePlane.Reset()
+		if _, err := c.deps.StatePlane.Republish(ctx); err != nil {
+			c.deps.Logger.Warn("coordinator.state_republish_failed", slog.String("err", err.Error()))
+		}
 	}
+	c.connMu.Lock()
 	c.resetHAPlane()
 	c.discoveryGen.Add(1)
 	c.mu.Lock()
@@ -298,18 +344,45 @@ func (c *Coordinator) PublishOnline(ctx context.Context) {
 	c.priorLoaded = false
 	c.priorComponents = nil
 	c.mu.Unlock()
+	if rt := c.ha(); rt != nil {
+		var err error
+		if c.connLevel == discovery.ConnectedOperational {
+			_, err = rt.SetConnected(ctx, discovery.ConnectedOperational)
+		} else {
+			err = rt.AnnounceOnline(ctx)
+		}
+		if err != nil {
+			c.deps.Logger.Warn("coordinator.publish_online_failed", slog.String("err", err.Error()))
+		}
+	}
+	c.connMu.Unlock()
+	if c.deps.Instance != nil {
+		if err := c.deps.Instance.AnnounceInfo(ctx); err != nil {
+			c.deps.Logger.Warn("coordinator.publish_info_failed", slog.String("err", err.Error()))
+		}
+	}
+}
+
+// PublishOffline writes `<name>/connected` = 0, the graceful-shutdown half of
+// what the Last Will does on a crash (spec §3.1). A normal DISCONNECT discards
+// the will, so without this a stopped daemon would leave its last level
+// retained and every entity available.
+func (c *Coordinator) PublishOffline(ctx context.Context) {
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
 	rt := c.ha()
 	if rt == nil {
 		return
 	}
-	if err := rt.AnnounceOnline(ctx); err != nil {
-		c.deps.Logger.Warn("coordinator.publish_online_failed", slog.String("err", err.Error()))
+	if err := rt.AnnounceOffline(ctx); err != nil {
+		c.deps.Logger.Warn("coordinator.publish_offline_failed", slog.String("err", err.Error()))
 	}
 }
 
 func (c *Coordinator) pollLoop(ctx context.Context) error {
 	for {
 		c.pollOnce(ctx)
+		c.maybeSweepLegacy(ctx)
 		interval := c.deps.Cfg.PollInterval(c.deps.Clock().Hour())
 		c.deps.Logger.Debug("coordinator.poll_sleep", slog.Duration("interval", interval))
 		select {
@@ -332,7 +405,10 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, client.ErrScanIgnore):
+			// A deliberate skip after a write, not a statement about the
+			// cloud: the level stays where the last real answer put it.
 			c.deps.Logger.Debug("coordinator.scan_ignored")
+			return
 		case errors.Is(err, client.ErrRateLimited):
 			c.deps.Logger.Warn("coordinator.rate_limited")
 		case errors.Is(err, auth.ErrReauthRequired):
@@ -341,14 +417,17 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 		default:
 			c.deps.Logger.Warn("coordinator.poll_failed", slog.String("err", err.Error()))
 		}
+		c.noteCloud(ctx, false)
 		return
 	}
 
 	devices, err := model.ParseDevices(data)
 	if err != nil {
 		c.deps.Logger.Warn("coordinator.parse_failed", slog.String("err", err.Error()))
+		c.noteCloud(ctx, false)
 		return
 	}
+	c.noteCloud(ctx, true)
 
 	c.updateModeCache(devices)
 	c.updateOutdoorGroups(devices)
@@ -361,6 +440,7 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 		c.flushLocalStates(ctx)
 	}
 	points := process.ResolveAt(devices, c.deps.Catalog, c.deps.Clock())
+	c.noteBounds(points)
 
 	// In local mode, surface settings Faikin provides but the cloud does not
 	// expose (their live state arrives via the Faikin read path).
@@ -381,7 +461,7 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 		c.deps.HASS.ClaimDevices(c.claimedDeviceSegments(devices))
 		infos := deviceInfos(devices)
 		c.applyFaikinConfigURLs(infos)
-		c.maybePublishDiscovery(ctx, points, infos, climateInfos(devices, c.deps.Cfg.Language))
+		c.maybePublishDiscovery(ctx, points, infos, climateInfos(devices))
 		// Each entity's data_source (cloud vs local Faikin), published every
 		// poll rather than only when the discovery signature moves.
 		//
@@ -414,7 +494,7 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 			continue
 		}
 		topic := c.topicRoot.Slot(p.DeviceID, p.EmbeddedID, p.Topic).State()
-		w, ok := c.publishState(ctx, topic, c.formatValue(p))
+		w, ok := c.publishState(ctx, topic, c.statusValue(p.Topic, p.Value))
 		if !ok {
 			continue
 		}
@@ -425,6 +505,7 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	}
 	c.publishHVACModes(ctx, points)
 	c.publishClimateAux(ctx, devices)
+	c.publishCloudOnline(ctx, devices)
 	// points is what this poll had to say; written is what actually reached the
 	// broker. The gap is the state plane's dedup gate, and a steady-state
 	// installation should show written far below points — a value that has not
@@ -439,6 +520,10 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	if eng := c.scheduleEngine(); eng != nil {
 		eng.Wake()
 	}
+
+	c.mu.Lock()
+	c.lastDevices = c.claimedDeviceSegments(devices)
+	c.mu.Unlock()
 }
 
 // climateState accumulates the inputs to the combined HA hvac mode.
@@ -488,17 +573,57 @@ func (c *Coordinator) publishHVACModes(ctx context.Context, points []process.Poi
 	}
 }
 
-// formatValue renders a point's MQTT state payload. For select entities the
-// raw API code is mapped to the localized label so the HA dropdown (whose
-// options are localized labels) shows the current selection; the write path
-// maps the label back to the code.
-func (c *Coordinator) formatValue(p process.Point) string {
-	if p.Entry.Platform == "select" {
-		if s, ok := p.Value.(string); ok {
-			return p.Entry.LocalizedLabel(s, c.deps.Cfg.Language)
+// statusValue is the `val` of a status item: the value as mqtt-smarthome 2.0
+// §5.1 would publish it plain, typed as JSON.
+//
+// The internal vocabulary stays what the API and Faikin speak — "on"/"off",
+// operationMode codes, held strings for the outdoor optimistic hold — and is
+// converted here, once, by the catalogue entry of the leaf:
+//
+//   - a switch or binary sensor becomes a JSON boolean (ADR 0083: power on/off
+//     and the binary sensors stop being words);
+//   - a number becomes a JSON number, rounded to the entry's precision — the
+//     same rounding the plain payload had, which stays a project concern;
+//   - an enum stays its token (the API code). The localized label is no longer
+//     published; Home Assistant gets it from discovery.
+//
+// A leaf no catalogue entry backs — the climate's hvac/fan/swing/preset
+// tokens, the attributes documents — passes through unchanged.
+func (c *Coordinator) statusValue(leaf string, v any) any {
+	var entry *catalog.Entry
+	if c.deps.Catalog != nil {
+		entry, _ = c.deps.Catalog.ByTopic(leaf)
+	}
+	if entry == nil {
+		return v
+	}
+	switch x := v.(type) {
+	case float64:
+		return roundTo(x, entry.Precision)
+	case string:
+		switch entry.Platform {
+		case "switch", "binary_sensor":
+			if b, err := (publisher.SetValue{Text: x}).Bool(); err == nil {
+				return b
+			}
+		case "number":
+			if f, err := strconv.ParseFloat(x, 64); err == nil {
+				return roundTo(f, entry.Precision)
+			}
 		}
 	}
-	return p.Format()
+	return v
+}
+
+// roundTo rounds v to prec decimals through the same formatting the plain
+// payload used, so a status object never carries a binary residue the plain
+// form did not show.
+func roundTo(v float64, prec int) float64 {
+	r, err := strconv.ParseFloat(strconv.FormatFloat(v, 'f', prec, 64), 64)
+	if err != nil {
+		return v
+	}
+	return r
 }
 
 // updateModeCache records each climate point's current operationMode (resolves
@@ -571,9 +696,11 @@ func (c *Coordinator) publishDataSources(ctx context.Context, points []process.P
 	}
 }
 
-// publishAttrs publishes a retained data_source attributes document.
+// publishAttrs publishes a retained data_source attributes item. The document
+// is the status object's `val`; discovery hands it to Home Assistant through
+// hass.AttributesTemplate.
 func (c *Coordinator) publishAttrs(ctx context.Context, topic, source string) {
-	c.publishState(ctx, topic, `{"data_source":"`+source+`"}`)
+	c.publishState(ctx, topic, map[string]string{"data_source": source})
 }
 
 func (c *Coordinator) subscribeWrites(ctx context.Context) error {
@@ -581,23 +708,40 @@ func (c *Coordinator) subscribeWrites(ctx context.Context) error {
 	if c.commands == nil {
 		return nil
 	}
-	// Registered before Start, and Handle is what makes the overlap question
-	// answerable rather than argued: the router refuses two routes that both
+	// Registered before Start, and the router refuses two routes that both
 	// match some topic, because a broker sends one copy per matching
 	// subscription and the handler would run twice per message. This bridge
-	// registers exactly one route.
-	if err := c.commands.Handle(filter, func(_ context.Context, cmd publisher.Command) {
-		req, ok := c.parseSetTopic(cmd.Topic, string(cmd.Payload))
+	// registers the set route and the instance's maintenance route, which are
+	// disjoint by their second level.
+	//
+	// HandleSet is mqtt-smarthome 2.0 §5.3's normaliser: `{"val": x}` arrives
+	// as x, an empty payload never arrives, malformed JSON is logged at warn
+	// with topic and payload. The router also drops retained sets.
+	if err := c.commands.HandleSet(filter, func(_ context.Context, cmd publisher.Command, v publisher.SetValue) {
+		req, ok := c.parseSetTopic(cmd)
 		if !ok {
 			return
 		}
+		if v.Structured() {
+			// No item of this bridge takes structured parameters.
+			c.deps.Logger.Warn("coordinator.write_bad_value",
+				slog.String("topic", cmd.Topic), slog.String("payload", string(cmd.Payload)))
+			return
+		}
+		req.payload = v.Text
 		select {
 		case c.writes <- req:
 		default:
-			c.deps.Logger.Warn("coordinator.write_queue_full", slog.String("topic", cmd.Topic))
+			c.deps.Logger.Warn("coordinator.write_queue_full",
+				slog.String("topic", cmd.Topic), slog.String("payload", string(cmd.Payload)))
 		}
 	}); err != nil && !errors.Is(err, publisher.ErrDuplicateRoute) {
 		return err
+	}
+	if c.deps.Instance != nil {
+		if err := c.deps.Instance.Register(c.commands); err != nil && !errors.Is(err, publisher.ErrDuplicateRoute) {
+			return err
+		}
 	}
 	return c.commands.Start(ctx)
 }
@@ -606,15 +750,16 @@ func (c *Coordinator) subscribeWrites(ctx context.Context) error {
 // its own command subscription.
 //
 // The topics are built from the same layout the publish path uses, over the
-// planes this daemon actually writes: the bridge availability marker, and the
-// state and attributes siblings of every slot it knows about. The router's own
-// CheckDisjoint does the matching, so the answer comes from the library's
-// filter semantics rather than from a string comparison written here.
+// planes this daemon actually writes: the connected level, the instance info,
+// and the status and attributes items of every slot it knows about plus the
+// devices' online items. The router's own CheckDisjoint does the matching, so
+// the answer comes from the library's filter semantics rather than from a
+// string comparison written here.
 func (c *Coordinator) checkCommandDisjoint() error {
 	if c.commands == nil || c.deps.Catalog == nil {
 		return nil
 	}
-	topics := []string{c.topicRoot.BridgeStatus()}
+	topics := []string{c.topicRoot.Connected(), c.topicRoot.Info(), c.topicRoot.Online("probe-device")}
 	for _, s := range c.knownSlots() {
 		topics = append(topics, s.State(), s.Attributes())
 	}
@@ -637,7 +782,7 @@ func (c *Coordinator) checkCommandDisjoint() error {
 // ("daikin_scheduler"). So two instances that both run a scheduler — with
 // entirely DISJOINT schedule ids, on disjoint ONECTA accounts — publish their
 // schedule switches to the same device-document topic and under the same
-// `<root>/scheduler/…` state segment. Claiming that segment made every one of
+// `<name>/status/scheduler/…` item. Claiming that segment made every one of
 // those topics resolve as "ours", so a sibling's live schedule switches passed
 // both payload predicates: its document became this instance's tombstone
 // prior state, its switches were marked removed, and its per-entity configs
@@ -705,14 +850,28 @@ func (c *Coordinator) knownSlots() []layout.Slot {
 	return out
 }
 
-// parseSetTopic extracts the device/embedded/topic from a /set topic.
-func (c *Coordinator) parseSetTopic(topic, payload string) (writeReq, bool) {
-	parts := strings.Split(topic, "/")
-	// <root>/<deviceId>/<embeddedId>/<topic>/set
-	if len(parts) != 5 || parts[0] != c.topicRoot.String() || parts[4] != "set" {
+// parseSetTopic extracts the device/embedded/topic from a set item: the three
+// `+` levels of "<name>/set/+/+/+", in order.
+func (c *Coordinator) parseSetTopic(cmd publisher.Command) (writeReq, bool) {
+	if len(cmd.Wildcards) != 3 {
 		return writeReq{}, false
 	}
-	return writeReq{deviceID: parts[1], embeddedID: parts[2], topic: parts[3], payload: payload}, true
+	return writeReq{deviceID: cmd.Wildcards[0], embeddedID: cmd.Wildcards[1], topic: cmd.Wildcards[2]}, true
+}
+
+// setTopic is the set item a request addresses, for the warn line spec §3.3
+// asks of a rejected or failed request. A scheduled write is logged under the
+// item it would have arrived on, so the two kinds read the same.
+func (c *Coordinator) setTopic(req writeReq) string {
+	return c.topicRoot.Slot(req.deviceID, req.embeddedID, req.topic).Command()
+}
+
+// rejectWrite logs a rejected or failed set at warn with its topic and payload
+// (spec §3.3), plus whatever the caller adds.
+func (c *Coordinator) rejectWrite(event string, req writeReq, attrs ...any) {
+	c.deps.Logger.Warn(event, append([]any{
+		slog.String("topic", c.setTopic(req)), slog.String("payload", req.payload),
+	}, attrs...)...)
 }
 
 func (c *Coordinator) drainWrites(ctx context.Context) error {
@@ -727,8 +886,8 @@ func (c *Coordinator) drainWrites(ctx context.Context) error {
 }
 
 func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
-	// The reserved "scheduler" device carries the daemon's own schedule
-	// switches, not a Daikin device. Its topics fit the same /set filter, so
+	// The reserved "scheduler" item carries the daemon's own schedule
+	// switches, not a Daikin device. Its topics fit the same set filter, so
 	// they arrive here and are branched off before any catalog lookup.
 	if req.deviceID == schedule.SchedulerDeviceID {
 		c.handleSchedulerWrite(req)
@@ -739,7 +898,8 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 	// powerfulMode rather than a single catalog characteristic.
 	switch req.topic {
 	case hass.RefreshTopic:
-		// The refresh button writes nothing to the device — it re-reads the cloud.
+		// An action item: any non-empty payload fires it. It writes nothing to
+		// the device — it re-reads the cloud.
 		c.requestRefresh()
 		return
 	case hass.HVACModeTopic:
@@ -761,18 +921,17 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 
 	entry, ok := c.deps.Catalog.ByTopic(req.topic)
 	if !ok {
-		c.deps.Logger.Warn("coordinator.write_unknown_topic", slog.String("topic", req.topic))
+		c.rejectWrite("coordinator.write_unknown_topic", req)
 		return
 	}
 	if !entry.Settable {
-		c.deps.Logger.Warn("coordinator.write_not_settable", slog.String("topic", req.topic))
+		c.rejectWrite("coordinator.write_not_settable", req)
 		return
 	}
 
-	value, ok := c.coerceWriteValue(entry, req.payload)
+	value, ok := c.coerceWriteValue(entry, req)
 	if !ok {
-		c.deps.Logger.Warn("coordinator.write_bad_value",
-			slog.String("topic", req.topic), slog.String("payload", req.payload))
+		c.rejectWrite("coordinator.write_bad_value", req)
 		return
 	}
 
@@ -780,15 +939,14 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 	if strings.Contains(path, "{mode}") {
 		mode, _ := c.cachedMode(req.deviceID, req.embeddedID)
 		if mode == "" {
-			c.deps.Logger.Warn("coordinator.write_no_mode", slog.String("topic", req.topic))
+			c.rejectWrite("coordinator.write_no_mode", req)
 			return
 		}
 		path = strings.ReplaceAll(path, "{mode}", mode)
 	}
 
 	if err := c.setCharacteristic(ctx, req.deviceID, req.embeddedID, entry.Match.Characteristic, value, path); err != nil {
-		c.deps.Logger.Warn("coordinator.patch_failed",
-			slog.String("topic", req.topic), slog.String("err", err.Error()))
+		c.rejectWrite("coordinator.patch_failed", req, slog.String("err", err.Error()))
 		return
 	}
 	c.deps.Logger.Info("coordinator.patched",
@@ -798,28 +956,44 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 	// Outdoor-shared settings apply to every indoor unit of the outdoor unit.
 	if entry.Scope == "outdoor" && c.deps.Cfg.OutdoorAggregateEnabled() {
 		c.fanOutToGroup(ctx, req.deviceID, entry.Match.Characteristic, value, path)
-		// Reflect the change on every member immediately (optimistic) and hold it
-		// until a Faikin status confirms it, so the sparse/lagging status from the
-		// idle indoor units cannot snap the toggle back before the active unit
-		// reports the new value.
+		// Reflect the change on every member and hold it until a Faikin status
+		// confirms it, so the sparse/lagging status from the idle indoor units
+		// cannot snap the toggle back before the active unit reports the new
+		// value. This runs only AFTER the write above succeeded — the Faikin
+		// command was accepted — which is spec §3.3's "the adapter's own state
+		// after the action succeeded", never an echo of the request.
 		if c.localActiveFor(req.deviceID) {
-			c.holdOutdoor(req.deviceID, req.topic, req.payload)
-			c.publishOptimistic(ctx, req.deviceID, req.topic, req.payload)
+			held := heldString(value)
+			c.holdOutdoor(req.deviceID, req.topic, held)
+			c.publishOptimistic(ctx, req.deviceID, req.topic, held)
 		}
 	}
 	// Mutually-exclusive partners (powerful ⇄ econo) are cleared on enable.
 	c.enforceMutualExclusive(ctx, req.deviceID, req.embeddedID, entry.Match.Characteristic, value)
 }
 
+// heldString is a written value in the vocabulary the outdoor hold compares
+// against the Faikin aggregate: "on"/"off" for a switch, the plain number for
+// a number.
+func heldString(v any) string {
+	switch x := v.(type) {
+	case float64:
+		return strconv.FormatFloat(x, 'f', -1, 64)
+	case string:
+		return x
+	}
+	return fmt.Sprint(v)
+}
+
 // handleHVACModeWrite applies an HA climate hvac-mode command: "off" turns
 // the unit off; any other mode turns it on and sets the mapped operationMode.
+// The token is matched without regard to case (spec §5.3).
 func (c *Coordinator) handleHVACModeWrite(ctx context.Context, req writeReq) {
-	ha := strings.TrimSpace(req.payload)
+	ha := strings.ToLower(strings.TrimSpace(req.payload))
 	patch := func(characteristic string, value any) bool {
 		if err := c.setCharacteristic(ctx, req.deviceID, req.embeddedID, characteristic, value, ""); err != nil {
-			c.deps.Logger.Warn("coordinator.patch_failed",
-				slog.String("topic", req.topic), slog.String("characteristic", characteristic),
-				slog.String("err", err.Error()))
+			c.rejectWrite("coordinator.patch_failed", req,
+				slog.String("characteristic", characteristic), slog.String("err", err.Error()))
 			return false
 		}
 		return true
@@ -835,8 +1009,7 @@ func (c *Coordinator) handleHVACModeWrite(ctx context.Context, req writeReq) {
 
 	daikinMode, ok := hass.DaikinModeForHA(ha)
 	if !ok {
-		c.deps.Logger.Warn("coordinator.write_bad_hvac_mode",
-			slog.String("topic", req.topic), slog.String("payload", req.payload))
+		c.rejectWrite("coordinator.write_bad_hvac_mode", req)
 		return
 	}
 	if !patch("onOffMode", "on") {
@@ -851,30 +1024,84 @@ func (c *Coordinator) handleHVACModeWrite(ctx context.Context, req writeReq) {
 	}
 }
 
-// coerceWriteValue maps an MQTT payload to the cloud value type. Selects
-// accept either the raw value or a localized label (mapped back via the
-// catalog); numbers parse to float; switches/strings pass through.
-func (c *Coordinator) coerceWriteValue(entry *catalog.Entry, payload string) (any, bool) {
+// coerceWriteValue maps a set value to the cloud value type, with the
+// conversions mqtt-smarthome 2.0 §5.3 asks for:
+//
+//   - a switch reads true/false, 1/0, on/off, yes/no in any case and becomes
+//     the API's "on"/"off";
+//   - a select reads its token (the API code) in any case, and keeps
+//     accepting a label in either language, which is what this bridge's
+//     selects carried on the wire before 0.14;
+//   - a number is rounded to the point's live step and clamped to its live
+//     range when the last poll reported one;
+//   - anything else passes through.
+//
+// ok is false for a value that does not convert; the caller logs it at warn.
+func (c *Coordinator) coerceWriteValue(entry *catalog.Entry, req writeReq) (any, bool) {
+	v := publisher.SetValue{Text: strings.TrimSpace(req.payload)}
 	switch entry.Platform {
 	case "number":
-		f, err := strconv.ParseFloat(strings.TrimSpace(payload), 64)
+		b := c.numberBounds(req)
+		f, err := v.Number(deref(b.min, math.Inf(-1)), deref(b.max, math.Inf(1)), deref(b.step, 0))
 		if err != nil {
 			return nil, false
 		}
-		// NaN/Inf parse fine but are not valid device values (and int(NaN)
-		// downstream is implementation-defined).
-		if math.IsNaN(f) || math.IsInf(f, 0) {
+		return f, true
+	case "switch":
+		on, err := v.Bool()
+		if err != nil {
 			return nil, false
 		}
-		return f, true
+		return onOff(on), true
 	case "select":
-		if v, ok := entry.CodeForLabel(payload); ok {
-			return v, true
+		code, err := v.Enum(entryEnum(entry), true)
+		if err != nil {
+			return nil, false
 		}
-		return payload, true
+		return code, true
 	default:
-		return payload, true
+		return v.Text, true
 	}
+}
+
+// entryEnum is a catalogue entry's values as a model.Enum, codes in declaration
+// order and both languages' labels, which is what SetValue.Enum matches.
+func entryEnum(entry *catalog.Entry) *hamodel.Enum {
+	e := &hamodel.Enum{Labels: make(map[string]hamodel.Localized, len(entry.Values))}
+	for _, v := range entry.Values {
+		e.Codes = append(e.Codes, v.Value)
+		e.Labels[v.Value] = hamodel.Localized{Default: v.Label, Lang: map[string]string{"de": v.LabelDE}}
+	}
+	return e
+}
+
+// numberBounds returns the live range the last poll reported for the
+// request's point, or none.
+func (c *Coordinator) numberBounds(req writeReq) numberBounds {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.bounds[req.deviceID+"|"+req.embeddedID+"|"+req.topic]
+}
+
+// noteBounds records the live min/max/step of every number point, for the
+// clamping in [Coordinator.coerceWriteValue].
+func (c *Coordinator) noteBounds(points []process.Point) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i := range points {
+		p := &points[i]
+		if p.Entry.Platform != "number" || (p.Min == nil && p.Max == nil && p.Step == nil) {
+			continue
+		}
+		c.bounds[p.DeviceID+"|"+p.EmbeddedID+"|"+p.Topic] = numberBounds{min: p.Min, max: p.Max, step: p.Step}
+	}
+}
+
+func deref(p *float64, def float64) float64 {
+	if p == nil {
+		return def
+	}
+	return *p
 }
 
 // deviceInfos builds rich HA device metadata per device from its management

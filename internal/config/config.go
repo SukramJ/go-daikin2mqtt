@@ -138,7 +138,13 @@ type Config struct {
 	MQTTPort     int    `yaml:"MQTT_PORT"`
 	MQTTLogin    string `yaml:"MQTT_LOGIN"`
 	MQTTPassword string `yaml:"MQTT_PASSWORD"`
-	MQTTTopic    string `yaml:"MQTT_TOPIC"`
+	// MQTTTopic is the instance name every topic starts with (mqtt-smarthome
+	// 2.0's `<name>`): `<name>/status/…`, `<name>/set/…`, `<name>/connected`.
+	// It is the ONLY thing that keeps two instances apart on one broker:
+	// two instances of this bridge with the same name write the same topics
+	// and overwrite each other's `connected` and `info`, and nothing checks
+	// it. Default [TopicRoot].
+	MQTTTopic string `yaml:"MQTT_TOPIC"`
 	// MQTTClientID is the client identifier presented in CONNECT. A broker
 	// MUST disconnect an existing session when a second client presents the
 	// same identifier (MQTT 3.1.1 §3.1.3.2 / 5.0 §3.1.4), so two daemons on
@@ -147,6 +153,17 @@ type Config struct {
 	// defaults to [DefaultMQTTClientID], which is what this daemon used
 	// before the key existed.
 	MQTTClientID string `yaml:"MQTT_CLIENT_ID"`
+	// MQTTMaintenance enables the mqtt-smarthome 2.0 maintenance topics:
+	// `<name>/maintenance/set/loglevel`, `<name>/maintenance/set/restart` and
+	// the periodic `<name>/maintenance/stats`. On by default (nil → true).
+	// Anyone who may publish on the broker can then restart the daemon or
+	// raise its log level — the broker's ACLs are the only gate; disable it on
+	// a broker that cannot be secured. See [Config.MaintenanceEnabled].
+	MQTTMaintenance *bool `yaml:"MQTT_MAINTENANCE"`
+	// MQTTStatsInterval is how often (seconds) `<name>/maintenance/stats` is
+	// published; 0 switches the topic off. Default 60 (nil → 60). See
+	// [Config.StatsIntervalSeconds].
+	MQTTStatsInterval *int `yaml:"MQTT_STATS_INTERVAL"`
 
 	// --- Home Assistant ---
 	HASSEnable    bool   `yaml:"HASS_ENABLE"`
@@ -233,6 +250,21 @@ type Config struct {
 
 	// --- Misc ---
 	Debug bool `yaml:"DEBUG"`
+}
+
+// MaintenanceEnabled reports whether the maintenance topics are on. Defaults
+// to true when unset.
+func (c *Config) MaintenanceEnabled() bool {
+	return c.MQTTMaintenance == nil || *c.MQTTMaintenance
+}
+
+// StatsIntervalSeconds returns the maintenance stats interval in seconds, 0
+// meaning off. Defaults to [DefaultMQTTStatsInterval] when unset.
+func (c *Config) StatsIntervalSeconds() int {
+	if c.MQTTStatsInterval == nil {
+		return DefaultMQTTStatsInterval
+	}
+	return *c.MQTTStatsInterval
 }
 
 // ScheduleCatchupDuration returns ScheduleCatchup as a duration.

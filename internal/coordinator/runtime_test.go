@@ -39,9 +39,10 @@ import (
 
 // TestQoSIsStatedNotDefaulted is F9 in one assertion.
 //
-// publisher.QoS's zero value is QoSUnset and every runtime field in that
-// package resolves it to QoS 1. This bridge publishes at QoS 0 — measured over
-// 1 083 recorded publishes — so all three of its QoS fields have to SAY so. The
+// publisher.QoS's zero value is QoSUnset and most runtime fields in that
+// package resolve it to QoS 1. This bridge publishes at QoS 0 — measured over
+// 1 083 recorded publishes — and since 0.14.0 subscribes its set items at QoS 1
+// (openccu-loom ADR 0083), so every one of its QoS fields has to SAY which. The
 // sentinel is 0x80, outside the wire's 0-2 range, precisely so that a struct
 // literal cannot arrive at "deliberately at most once" by omission.
 //
@@ -53,18 +54,19 @@ func TestQoSIsStatedNotDefaulted(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		got  publisher.QoS
+		wire byte
 	}{
-		{"StateQoS", StateQoS},
-		{"StatePulseQoS", StatePulseQoS},
-		{"CommandQoS", CommandQoS},
-		{"DiscoveryQoS", DiscoveryQoS},
+		{"StateQoS", StateQoS, 0},
+		{"StatePulseQoS", StatePulseQoS, 0},
+		{"CommandQoS", CommandQoS, 1},
+		{"DiscoveryQoS", DiscoveryQoS, 0},
 	} {
 		if tc.got == publisher.QoSUnset {
-			t.Errorf("%s is QoSUnset, which the library resolves to QoS 1 — state publisher.QoSAtMostOnce", tc.name)
+			t.Errorf("%s is QoSUnset; state it", tc.name)
 		}
 		wire, ok := tc.got.Wire()
-		if !ok || wire != 0 {
-			t.Errorf("%s resolves to wire %d (ok=%v), want 0", tc.name, wire, ok)
+		if !ok || wire != tc.wire {
+			t.Errorf("%s resolves to wire %d (ok=%v), want %d", tc.name, wire, ok, tc.wire)
 		}
 	}
 }
@@ -84,9 +86,9 @@ func TestEveryLibraryPublishReachesTheWireAtQoS0(t *testing.T) {
 		Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
 	})
 	ctx := context.Background()
-	c.PublishOnline(ctx)                                  // the availability marker, via publisher.Runtime
-	c.publishState(ctx, "daikin/dev1/mp/x/state", "21.5") // the state plane
-	c.publishState(ctx, "daikin/dev1/mp/y/state", "")     // the retained clear, via Evict
+	c.PublishOnline(ctx)                                 // the connected level, via publisher.Runtime
+	c.publishState(ctx, "daikin/status/dev1/mp/x", 21.5) // the state plane
+	c.publishState(ctx, "daikin/status/dev1/mp/y", "")   // the retained clear, via Evict
 
 	got := rec.snapshot()
 	if len(got) != 3 {
@@ -100,8 +102,8 @@ func TestEveryLibraryPublishReachesTheWireAtQoS0(t *testing.T) {
 			t.Errorf("%s published unretained; every topic this daemon owns is retained", p.topic)
 		}
 	}
-	if got[0].topic != "daikin/bridge/status" || string(got[0].payload) != "online" {
-		t.Errorf("availability marker = %q %q, want daikin/bridge/status online", got[0].topic, got[0].payload)
+	if got[0].topic != "daikin/connected" || string(got[0].payload) != "1" {
+		t.Errorf("connected level = %q %q, want daikin/connected 1", got[0].topic, got[0].payload)
 	}
 	// The empty payload stays an empty payload: retained + zero bytes is how
 	// MQTT clears a retained topic, and four of the twelve pinned scenarios
@@ -142,18 +144,18 @@ func TestRuntimeStatesTheLegacyTopicForm(t *testing.T) {
 }
 
 // TestRuntimeDerivesTheStatusTopicFromTheLayout pins the birth/LWT
-// convergence: one function feeds the will, the retained "online" and the
-// availability_topic of all 264 payloads.
+// convergence: one function feeds the will, the connected level and the bridge
+// availability entry of every payload.
 func TestRuntimeDerivesTheStatusTopicFromTheLayout(t *testing.T) {
 	t.Parallel()
 	for _, root := range []string{"daikin", "haus/klima"} {
 		cfg := &config.Config{MQTTTopic: root, HASSBaseTopic: "homeassistant", Language: "en"}
 		rt := publisher.New(&qosRecorderTransport{}, RuntimeConfig(cfg, slog.New(slog.DiscardHandler)))
-		want := layout.New(root).BridgeStatus()
+		want := layout.New(root).Connected()
 		if got := rt.BridgeTopic(); got != want {
 			t.Errorf("root %q: runtime status topic %q, want %q", root, got, want)
 		}
-		if adv := hass.New(cfg.HASSBaseTopic, root, "en", nil).BridgeStatusTopic(); adv != want {
+		if adv := hass.New(cfg.HASSBaseTopic, root, "en", nil).ConnectedTopic(); adv != want {
 			t.Errorf("root %q: discovery advertises %q, the runtime writes %q", root, adv, want)
 		}
 		rt.Close()
@@ -205,13 +207,15 @@ func TestPublishOnlineRebuildsTheRuntimeOnEveryConnect(t *testing.T) {
 	}
 }
 
-// TestTheDedupGateReopensOnReconnect is the other half of a reconnect.
+// TestReconnectRepublishesTheCachedStatus is the other half of a reconnect.
 //
 // A broker that came back without its retained store holds nothing, while the
-// state plane's cache still believes every value is published. Without the
-// reset every entity sits blank until its value happens to change, which on a
-// sensor that reports on change alone is forever.
-func TestTheDedupGateReopensOnReconnect(t *testing.T) {
+// state plane's cache still believes every value is published. mqtt-smarthome
+// 2.0 §3.2 asks for the full state again after every reconnect, and never on
+// every poll: so the reconnect itself re-sends each cached status object, byte
+// for byte with its original `ts`, and the gate stays closed for the unchanged
+// value the next poll offers.
+func TestReconnectRepublishesTheCachedStatus(t *testing.T) {
 	t.Parallel()
 	rec := &qosRecorder{}
 	c := New(Deps{
@@ -219,17 +223,24 @@ func TestTheDedupGateReopensOnReconnect(t *testing.T) {
 		Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
 	})
 	ctx := context.Background()
-	const topic = "daikin/dev1/climateControl/room_temperature/state"
+	const topic = "daikin/status/dev1/climateControl/room_temperature"
 
-	if w, _ := c.publishState(ctx, topic, "21.5"); !w {
+	if w, _ := c.publishState(ctx, topic, 21.5); !w {
 		t.Fatal("the first publish did not reach the broker")
 	}
-	if w, _ := c.publishState(ctx, topic, "21.5"); w {
+	if w, _ := c.publishState(ctx, topic, 21.5); w {
 		t.Error("an unchanged value was written again; the dedup gate is not doing its job")
 	}
+	first := rec.lastPayload(topic)
 	c.PublishOnline(ctx) // a reconnect
-	if w, _ := c.publishState(ctx, topic, "21.5"); !w {
-		t.Error("after a reconnect the gate still suppressed a value the broker may no longer hold")
+	if n := rec.countOf(topic); n != 2 {
+		t.Errorf("after a reconnect %s was written %d times, want 2 — the reconnect re-sends the cached value", topic, n)
+	}
+	if got := rec.lastPayload(topic); !bytes.Equal(got, first) {
+		t.Errorf("the republish changed the object: %s, was %s", got, first)
+	}
+	if w, _ := c.publishState(ctx, topic, 21.5); w {
+		t.Error("after a reconnect an unchanged poll value was written again; status is published on change and on reconnect only")
 	}
 }
 
@@ -751,6 +762,31 @@ func (r *qosRecorder) Publish(
 	return nil
 }
 
+// countOf returns how often topic was published to.
+func (r *qosRecorder) countOf(topic string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	n := 0
+	for _, m := range r.msgs {
+		if m.topic == topic {
+			n++
+		}
+	}
+	return n
+}
+
+// lastPayload returns the last payload published to topic.
+func (r *qosRecorder) lastPayload(topic string) []byte {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i := len(r.msgs) - 1; i >= 0; i-- {
+		if r.msgs[i].topic == topic {
+			return r.msgs[i].payload
+		}
+	}
+	return nil
+}
+
 func (r *qosRecorder) Subscribe(
 	context.Context, string, mqtt.QoS, mqtt.MessageHandler, ...mqtt.SubscribeOption,
 ) (mqtt.SubscribeResult, error) {
@@ -786,7 +822,7 @@ func (r *qosRecorder) snapshot() []recordedPublish {
 func TestStatePlaneStatesBothStateLevels(t *testing.T) {
 	t.Parallel()
 	rec := &pulseRecorderTransport{}
-	plane := NewStatePlane(rec, layout.New("daikin"), slog.New(slog.DiscardHandler))
+	plane := NewStatePlane(rec, layout.New("daikin"), nil, slog.New(slog.DiscardHandler))
 
 	wantState, ok := StateQoS.Wire()
 	if !ok {
@@ -840,7 +876,7 @@ func TestStatePlaneDoesNotWarnAboutAnUnstatedPulseQoS(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	NewStatePlane(&pulseRecorderTransport{}, layout.New("daikin"), logger)
+	NewStatePlane(&pulseRecorderTransport{}, layout.New("daikin"), nil, logger)
 
 	if strings.Contains(buf.String(), "publisher.state.pulse_qos_unstated") {
 		t.Errorf(

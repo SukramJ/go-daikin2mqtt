@@ -32,8 +32,10 @@ Everything else has sensible defaults; use the reference below to fine-tune.
 | `mqtt_port` | int | `1883` | MQTT broker port. Only used when `mqtt_server` is set; the auto-detected broker brings its own port. |
 | `mqtt_login` | str | `""` | MQTT username. Only used when `mqtt_server` is set (auto-detect supplies credentials). |
 | `mqtt_password` | password | `""` | MQTT password. Only used when `mqtt_server` is set. |
-| `mqtt_topic` | str | `daikin` | Base MQTT topic for published device state. |
+| `mqtt_topic` | str | `daikin` | Instance name every MQTT topic starts with (`daikin/status/…`, `daikin/set/…`, `daikin/connected`, `daikin/info`). **It is the only thing that keeps two instances apart on one broker** — a second go-daikin2mqtt against the same broker needs a different name, or both write the same topics. No `+`, `#` or leading `$`. |
 | `mqtt_client_id` | str? | `daikin2mqtt` | MQTT client identifier. A broker disconnects the session it already holds when a second client presents the same id, so two instances on one broker must differ here. Leave empty unless you run more than one. |
+| `mqtt_maintenance` | bool | `true` | Maintenance topics: `<mqtt_topic>/maintenance/set/loglevel` (`error`/`warn`/`info`/`debug`), the periodic `<mqtt_topic>/maintenance/stats`, and `…/set/restart`, which the add-on refuses (the Supervisor does not restart an add-on that exits cleanly). **Anyone who may publish on the broker can change the log level** — keep the broker's ACLs tight or turn this off. |
+| `mqtt_stats_interval` | int | `60` | Seconds between `<mqtt_topic>/maintenance/stats` publishes; `0` switches them off. |
 | `hass_enable` | bool | `true` | Publish Home Assistant MQTT discovery so devices and entities appear automatically. On by default — leave enabled for the normal HA experience; disable only to manage entities manually. |
 | `language` | list(en\|de) | `en` | UI / entity naming language. |
 | `web_enable` | bool | `true` | Enable the diagnostic web UI / OAuth flow (required for Ingress login). |
@@ -58,6 +60,29 @@ Fixed by the add-on (not user-configurable): the token store lives at
 add-on updates), and the web UI binds to `0.0.0.0:8080` for Ingress.
 The OAuth callback is served on that same port; the externally registered
 address is the `redirect_uri` option above.
+
+## MQTT topics (0.14 and later)
+
+Since 0.14 the add-on follows the
+[mqtt-smarthome 2.0](https://github.com/mqtt-smarthome/mqtt-smarthome/blob/master/SPEC.md)
+topic convention. **Home Assistant entities are unaffected** — they keep their
+identity and are re-pointed automatically. Anything else reading the raw topics
+(Node-RED, dashboards, scripts) has to move:
+
+| 0.13 and earlier | 0.14 |
+| --- | --- |
+| `daikin/<uuid>/<emb>/<key>/state` | `daikin/status/<uuid>/<emb>/<key>` |
+| `daikin/<uuid>/<emb>/<key>/set` | `daikin/set/<uuid>/<emb>/<key>` |
+| `daikin/scheduler/<id>/enabled/state` · `…/set` | `daikin/status/scheduler/<id>/enabled` · `daikin/set/scheduler/<id>/enabled` |
+| `daikin/bridge/status` (`online`/`offline`) | `daikin/connected` (`0` gone, `1` cloud/Faikin unusable, `2` operational) |
+| — | `daikin/status/<uuid>/online`, `daikin/info`, `daikin/maintenance/…` |
+
+Every value is now a JSON object, `{"val": …, "ts": …, "lc": …}`, with real
+booleans (power is `true`/`false`), numbers, and stable tokens instead of
+localized labels (`cooling`, not `Kühlen`). Commands take the plain value or
+`{"val": …}`. The add-on clears the retained 0.13 topics of its own devices
+on start; another instance's topics are never touched. Details in the
+[README](https://github.com/SukramJ/go-daikin2mqtt#mqtt-topics).
 
 ## Home Assistant discovery and rolling back
 

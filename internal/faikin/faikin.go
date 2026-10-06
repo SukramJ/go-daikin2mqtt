@@ -27,6 +27,9 @@ type State struct {
 	// with no AC fields; processing those would reset every entity to its zero
 	// value (power off, temp 0, …), so callers must skip when this is false.
 	HasAC bool `json:"-"`
+	// Up is the module's own liveness, present on the OS documents: the
+	// firmware's Last Will on this topic is `{"up":false}`. Nil when absent.
+	Up *bool `json:"up"`
 
 	Online   bool   `json:"online"`
 	Power    bool   `json:"power"`

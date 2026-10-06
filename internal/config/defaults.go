@@ -29,6 +29,9 @@ const (
 	DefaultMQTTPort     = 1883
 	DefaultMQTTLogin    = ""
 	DefaultMQTTPassword = ""
+	// DefaultMQTTStatsInterval is mqtt-smarthome 2.0's own default for
+	// `<name>/maintenance/stats`, in seconds.
+	DefaultMQTTStatsInterval = 60
 
 	DefaultHASSEnable    = false
 	DefaultHASSBaseTopic = "homeassistant"

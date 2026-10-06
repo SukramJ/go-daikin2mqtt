@@ -4,6 +4,7 @@
 package coordinator
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -28,10 +29,15 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 )
 
-// ADR 0070 phase 8 step 4 — the decisive experiment.
+// ADR 0070 phase 8 step 4 — the decisive experiment, and since 0.14.0 its
+// identity half.
 //
-// These tests prove that go-hamqtt reproduces this bridge's published discovery
-// payloads BYTE FOR BYTE, while publishing nothing.
+// Step 4 proved that go-hamqtt reproduced this bridge's per-entity discovery
+// payloads byte for byte. 0.14.0 (openccu-loom ADR 0083) moves every topic and
+// every template on purpose, so what is still asserted against the twelve
+// pinned per-entity fleets is what must NOT move: the config topic, unique_id,
+// default_entity_id and device block of every entity. The full payloads the
+// daemon publishes are pinned by the device-bundle goldens instead.
 //
 // What "byte for byte" means here is what the pin itself means by it: the
 // comparison is on canonical re-encoding, the same standard
@@ -47,13 +53,9 @@ import (
 // reachable from here, and none of the twelve SHA-256 literals in
 // goldenDigests moves.
 //
-// One key group is reproduced SEMANTICALLY rather than literally, named once
-// here and nowhere else: the library's default path renders availability as a
-// LIST and this bridge publishes the singular `availability_topic` with
-// top-level payloads. Home Assistant accepts both spellings identically and an
-// entity's registry keys are unaffected. hass.singularAvailability performs
-// that one re-spelling, and it refuses anything that is not exactly one
-// bridge-level source — so model.BridgeOnly stays load-bearing (decision F8).
+// The per-entity goldens themselves stay frozen on the 0.13 layout: they are
+// the retraction contract of an installed base that retained exactly those
+// configs (hass.Discovery.Publish says why).
 
 // --- the inputs ------------------------------------------------------------
 
@@ -125,7 +127,7 @@ func buildHamqttInputs(t *testing.T, sc surfaceScenario) hamqttInputs {
 	in := hamqttInputs{
 		points:       points,
 		infos:        infos,
-		climateInfos: climateInfos(devices, cfg.Language),
+		climateInfos: climateInfos(devices),
 		configURL:    c.webConfigURL(),
 		disc:         disc,
 	}
@@ -170,21 +172,6 @@ func isConfigTopic(topic string) bool {
 	return strings.HasPrefix(topic, "homeassistant/") && strings.HasSuffix(topic, "/config")
 }
 
-// canonical re-encodes a rendered body so both sides are compared on the same
-// footing: sorted keys, no formatting.
-func canonical(t *testing.T, body []byte) string {
-	t.Helper()
-	var obj map[string]any
-	if err := json.Unmarshal(body, &obj); err != nil {
-		t.Fatalf("decode rendered body: %v", err)
-	}
-	b, err := json.Marshal(obj)
-	if err != nil {
-		t.Fatalf("canonical encode: %v", err)
-	}
-	return string(b)
-}
-
 // renderHamqtt renders a scenario's whole discovery plane through go-hamqtt.
 func renderHamqtt(t *testing.T, in hamqttInputs) []hass.HamqttConfig {
 	t.Helper()
@@ -204,23 +191,30 @@ func renderHamqtt(t *testing.T, in hamqttInputs) []hass.HamqttConfig {
 
 // --- the experiment --------------------------------------------------------
 
-// TestHamqttReproducesPublishedConfigs is the step-4 proof: every one of the
-// 264 pinned discovery payloads across the twelve scenarios, rendered by
-// go-hamqtt from a model.Device, its entities' descriptions and bindings, an
-// own topic.Layout and an own discovery.Context — compared key by key against
-// the golden FILES.
-func TestHamqttReproducesPublishedConfigs(t *testing.T) {
+// identityKeys are the keys of a discovery config Home Assistant's registries
+// hang off. A change to any of them strands a registered entity.
+var identityKeys = []string{"unique_id", "default_entity_id", "device"}
+
+// TestHamqttKeepsThePinnedConfigIdentities renders every one of the 264 pinned
+// per-entity configs across the twelve scenarios through go-hamqtt and requires
+// the same config topic and the same identity keys as the golden FILES — while
+// every topic the entity names has moved to the mqtt-smarthome layout.
+func TestHamqttKeepsThePinnedConfigIdentities(t *testing.T) {
 	total, matched := 0, 0
 	for _, sc := range surfaceScenarios() {
 		t.Run(sc.name, func(t *testing.T) {
 			want := goldenConfigs(t, sc.name)
 			in := buildHamqttInputs(t, sc)
-			got := map[string]string{}
+			got := map[string]map[string]any{}
 			for _, c := range renderHamqtt(t, in) {
 				if _, dup := got[c.Topic]; dup {
 					t.Fatalf("rendered %q twice", c.Topic)
 				}
-				got[c.Topic] = canonical(t, c.Body)
+				var body map[string]any
+				if err := json.Unmarshal(c.Body, &body); err != nil {
+					t.Fatalf("decode %s: %v", c.Topic, err)
+				}
+				got[c.Topic] = body
 			}
 
 			for _, topic := range sortedStringKeys(want) {
@@ -230,13 +224,32 @@ func TestHamqttReproducesPublishedConfigs(t *testing.T) {
 					t.Errorf("- not rendered: %s", topic)
 					continue
 				}
-				if g != want[topic] {
-					t.Errorf("~ %s\n  golden   %s\n  rendered %s", topic, want[topic], g)
-					continue
+				var w map[string]any
+				if err := json.Unmarshal([]byte(want[topic]), &w); err != nil {
+					t.Fatal(err)
 				}
-				matched++
+				same := true
+				for _, k := range identityKeys {
+					gb, _ := json.Marshal(g[k])
+					wb, _ := json.Marshal(w[k])
+					if !bytes.Equal(gb, wb) {
+						t.Errorf("~ %s %s\n  golden   %s\n  rendered %s", topic, k, wb, gb)
+						same = false
+					}
+				}
+				// And the topics did move: nothing still names the 0.13 tree.
+				for k, v := range g {
+					if s, isStr := v.(string); isStr && strings.HasSuffix(k, "_topic") &&
+						!strings.HasPrefix(s, "daikin/status/") && !strings.HasPrefix(s, "daikin/set/") {
+						t.Errorf("%s %s = %q, outside the mqtt-smarthome layout", topic, k, s)
+						same = false
+					}
+				}
+				if same {
+					matched++
+				}
 			}
-			for _, topic := range sortedStringKeys(got) {
+			for _, topic := range sortedStringKeys2(got) {
 				if _, ok := want[topic]; !ok {
 					t.Errorf("+ rendered a config the bridge does not publish: %s", topic)
 				}
@@ -253,10 +266,17 @@ func TestHamqttReproducesPublishedConfigs(t *testing.T) {
 		t.Errorf("compared %d pinned configs, want %d", total, wantTotal)
 	}
 	if matched != wantTotal {
-		t.Errorf("reproduced %d of %d pinned configs byte for byte", matched, wantTotal)
+		t.Errorf("kept the identity of %d of %d pinned configs", matched, wantTotal)
 	}
-	t.Logf("go-hamqtt reproduced %d of %d pinned discovery payloads across %d scenarios",
-		matched, total, len(surfaceScenarios()))
+}
+
+func sortedStringKeys2[V any](m map[string]V) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // TestHamqttInputsReproduceThePublishedConfigTopics is what makes the proof

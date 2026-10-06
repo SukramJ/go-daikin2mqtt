@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/SukramJ/go-hamqtt/discovery"
 	"github.com/SukramJ/go-hamqtt/publisher"
@@ -26,27 +27,18 @@ import (
 // QoS constants below are the reason this file exists at all.
 
 // StateQoS, StatePulseQoS, CommandQoS and DiscoveryQoS are the delivery
-// guarantees this bridge has always had, stated in the library's vocabulary.
-//
-// All four are publisher.QoSAtMostOnce — MQTT QoS 0 — because that is what all
-// fifteen of this daemon's transport calls pass today, measured over 1 083
-// recorded publishes by TestPublishQoSAndRetain and unchanged by this step.
+// guarantees of this bridge, stated in the library's vocabulary.
 //
 // They are constants rather than inline literals because of the trap F9 of the
-// phase 8 measurement records: publisher.QoS's zero value is QoSUnset and every
-// runtime field in that package resolves it to **QoS 1**. An omitted QoS field
-// is therefore not "keep what we had", it is a silent upgrade of the whole
-// surface — 221 retained topics per poll on a ten-minute cycle — inside a step
-// whose entire claim is that nothing on the wire moved. QoSAtMostOnce is 0x80,
-// deliberately outside the wire's 0-2 range, precisely so that "unset" and
-// "deliberately at most once" cannot be written the same way.
-//
-// This is an inherited choice being preserved, not an endorsement: a retained
-// config lost at QoS 0 is a config that may never be published again, which is
-// why the library defaults the other way. Changing it is an operator-visible
-// decision about an installed base and belongs in its own step.
+// phase 8 measurement records: publisher.QoS's zero value is QoSUnset and most
+// runtime fields in that package resolve it to **QoS 1**. An omitted QoS field
+// is therefore not "keep what we had", it is a silent change of the whole
+// surface. QoSAtMostOnce is 0x80, deliberately outside the wire's 0-2 range,
+// precisely so that "unset" and "deliberately at most once" cannot be written
+// the same way.
 const (
-	// StateQoS is publisher.StateConfig.QoS — the entity state and attributes plane.
+	// StateQoS is publisher.StateConfig.QoS — every status item, at QoS 0 as
+	// mqtt-smarthome 2.0 §4 asks.
 	StateQoS = publisher.QoSAtMostOnce
 	// StatePulseQoS is publisher.StateConfig.PulseQoS — StatePublisher.Pulse's
 	// own level, which does NOT inherit StateConfig.QoS.
@@ -56,19 +48,23 @@ const (
 	// stating it is therefore load-bearing in the opposite direction from every
 	// other field here: leaving it out is correct today only by the coincidence
 	// that this bridge's chosen level and the library's pulse default are the
-	// same number. The paragraph above contemplates changing StateQoS in its
-	// own step; on the day that happens, an unstated PulseQoS would silently
-	// stay at 0 while everything around it moved, and nothing in this file
-	// would say so. go-hamqtt v0.34.0 warns about exactly this shape at
+	// same number. go-hamqtt v0.34.0 warns about exactly this shape at
 	// construction (publisher.state.pulse_qos_unstated) — this daemon does not
 	// publish pulses today, so the warning would be advisory rather than a
 	// live defect, and the field is stated regardless because "not reached" is
 	// not the same claim as "chosen".
 	StatePulseQoS = publisher.QoSAtMostOnce
-	// CommandQoS is publisher.CommandConfig.QoS — the `<root>/+/+/+/set` subscription.
-	CommandQoS = publisher.QoSAtMostOnce
-	// DiscoveryQoS is publisher.Config.QoS — the bridge availability marker, the
-	// Last Will it is paired with, and the sweep's snapshot window.
+	// CommandQoS is publisher.CommandConfig.QoS — the `<name>/set/+/+/+` and
+	// `<name>/maintenance/set/#` subscriptions. QoS 1 since 0.14.0 (openccu-loom
+	// ADR 0083): a lost write on a flaky link is the failure operators report,
+	// and a subscription QoS is an upper bound — a consumer publishing at QoS 0
+	// still gets QoS 0, and with it control over the duplicate risk of an
+	// action item such as `refresh`.
+	CommandQoS = publisher.QoSAtLeastOnce
+	// DiscoveryQoS is publisher.Config.QoS — the retained device documents, the
+	// `<name>/connected` level, the Last Will it is paired with, and the
+	// sweep's snapshot window. Unchanged from what all fifteen of this daemon's
+	// transport calls passed before the library planes existed.
 	DiscoveryQoS = publisher.QoSAtMostOnce
 )
 
@@ -102,9 +98,10 @@ func RuntimeConfig(cfg *config.Config, logger *slog.Logger) publisher.Config {
 		Prefix: cfg.HASSBaseTopic,
 		// Layout, not StatusTopic: with a Layout set the runtime derives the
 		// status topic from Layout.Bridge() and PANICS on a StatusTopic that
-		// disagrees with it. The availability topic named by all 264 discovery
-		// payloads, the retained "online" and the Last Will therefore cannot
-		// drift apart — they are one function, internal/layout's BridgeStatus.
+		// disagrees with it. The bridge availability entry of every discovery
+		// payload, the connected level and the Last Will therefore cannot
+		// drift apart — they are one function, internal/layout's Connected.
+		// It is a SmartHomeLayout, so the will is "0" and SetConnected works.
 		Layout:             hass.Layout(cfg.MQTTTopic),
 		QoS:                DiscoveryQoS,
 		LegacyEntityTopics: hass.LegacyConfigTopicForms(),
@@ -112,15 +109,15 @@ func RuntimeConfig(cfg *config.Config, logger *slog.Logger) publisher.Config {
 	}
 }
 
-// NewStatePlane builds the state publisher: retained entity state and the
-// attributes siblings, at QoS 0 on both state levels, guarded against this
-// daemon's own command subscription.
+// NewStatePlane builds the state publisher: every retained status item as an
+// mqtt-smarthome 2.0 status object, `{"val","ts","lc"}`, at QoS 0, guarded
+// against this daemon's own command subscription.
 //
-// Encoding is stated even though this daemon renders its own payload bytes
-// (formatValue's output is the installed base's, and the library's raw renderer
-// would print a Go float differently), because the zero Encoding is
-// EnvelopeEncoding — the shape a `value_template` would have to read.
-func NewStatePlane(tr publisher.Transport, root layout.Root, logger *slog.Logger) *publisher.StatePublisher {
+// clock is the observation time of every status object (nil is time.Now); the
+// coordinator passes its own so a test pins `ts` and `lc`. The library's dedup
+// gate compares `val` only, so an unchanged reading costs one comparison rather
+// than one retained write per poll (spec §3.2), and `lc` moves only with `val`.
+func NewStatePlane(tr publisher.Transport, root layout.Root, clock func() time.Time, logger *slog.Logger) *publisher.StatePublisher {
 	return publisher.NewStatePublisher(tr, publisher.StateConfig{
 		// Both levels are stated. PulseQoS does not inherit QoS and is the one
 		// field in the package that defaults to QoS 0 rather than QoS 1, so a
@@ -128,7 +125,8 @@ func NewStatePlane(tr publisher.Transport, root layout.Root, logger *slog.Logger
 		// other — see StatePulseQoS.
 		QoS:      StateQoS,
 		PulseQoS: StatePulseQoS,
-		Encoding: discovery.RawEncoding,
+		Encoding: discovery.StatusObjectEncoding,
+		Clock:    clock,
 		// The library's own echo guard: a state publish that would land inside
 		// this process's own command subscription is refused with
 		// ErrStateCommandCollision instead of being delivered back to the
@@ -139,18 +137,18 @@ func NewStatePlane(tr publisher.Transport, root layout.Root, logger *slog.Logger
 	})
 }
 
-// NewCommandRouter builds the router for the one command filter this bridge
-// subscribes: "<root>/+/+/+/set".
+// NewCommandRouter builds the router for this bridge's two command routes:
+// "<name>/set/+/+/+" and, when maintenance is on, "<name>/maintenance/set/#".
 //
-// Workers is 1 because the handler's only job is to parse the topic and hand
-// the request to the daemon's own `writes` channel, which the single drain
-// goroutine serialises behind the cloud's single-in-flight lock anyway; a pool
-// would buy concurrency the cloud API cannot use.
+// Workers is 1 because the set handler's only job is to normalise the payload
+// and hand the request to the daemon's own `writes` channel, which the single
+// drain goroutine serialises behind the cloud's single-in-flight lock anyway; a
+// pool would buy concurrency the cloud API cannot use.
 //
 // DeliverRetained is false, which is the behaviour the hand-written handler had
-// with an explicit check: a retained /set is a stale command the broker replays
-// on every (re)subscribe, and applying it re-writes hardware state on each
-// reconnect.
+// with an explicit check and what mqtt-smarthome 2.0 §3.3 asks: a retained set
+// is a stale command the broker replays on every (re)subscribe, and applying
+// it re-writes hardware state on each reconnect.
 func NewCommandRouter(tr publisher.Transport, logger *slog.Logger) *publisher.CommandRouter {
 	return publisher.NewCommandRouter(tr, publisher.CommandConfig{
 		QoS:             CommandQoS,
@@ -239,7 +237,9 @@ func checkLegacyForms(rt *publisher.Runtime) {
 // wantLegacyForms is what [RuntimeConfig] states, read back off a throwaway
 // runtime so the expectation cannot be a second spelling of the answer.
 func wantLegacyForms() []string {
-	probe := publisher.New(nopTransport{}, RuntimeConfig(&config.Config{}, slog.New(slog.DiscardHandler)))
+	// Any valid name: the legacy forms are a property of the discovery
+	// prefix's topic shape, not of the instance name.
+	probe := publisher.New(nopTransport{}, RuntimeConfig(&config.Config{MQTTTopic: config.TopicRoot}, slog.New(slog.DiscardHandler)))
 	defer probe.Close()
 	return probe.LegacyForms()
 }

@@ -74,12 +74,14 @@ Faikin/Faikout firmware:
 
 On start, the coordinator subscribes to `state/<host>` for every mapped device
 (`subscribeLocal`). Each update is translated (`localStateMessages`) and
-republished to the **same** per-unit topics the cloud path uses
-(`<root>/<deviceID>/<embeddedID>/<topic>/state`), with identical value formats
-(localized select labels, catalog precision), so HA sees the same entities
+republished to the **same** per-unit status items the cloud path uses
+(`<name>/status/<deviceID>/<embeddedID>/<topic>`), with identical values
+(API tokens, JSON booleans, numbers at catalog precision), so HA sees the same entities
 regardless of backend. The `embeddedID` is taken from a cache populated by the
 cloud poll — so the cloud bootstraps device structure and HA discovery once,
-then local state takes over. The cloud poll **skips** the locally-owned topics
+then local state takes over. In local mode `<name>/connected` reads `2` while
+the Faikin connection is up and the cloud has resolved the devices at least
+once; a later cloud outage does not take it down. The cloud poll **skips** the locally-owned topics
 for mapped devices (`localTopics`) to avoid redundant writes.
 
 Two refinements are essential here:
@@ -89,7 +91,10 @@ Two refinements are essential here:
   state documents. Parsing those would decode to the `State` zero value and
   publish `power off`, `temp 0`, `outdoor_silent off`, … resetting every
   entity. `ParseState` sets `State.HasAC` from the presence of `power`, and the
-  read path skips messages where it is false.
+  read path skips messages where it is false — with one exception: the
+  firmware's Last Will on the same topic, `{"up":false}`, sets the device's
+  `<name>/status/<deviceID>/online` item to `false` (since 0.14). Otherwise
+  `online` follows the AC document's own `online` field.
 - **Synthesized discovery for local-only settings** — HA discovery is driven by
   the cloud poll, so settings the cloud does not expose for a unit (econo,
   streamer, outdoor silent, demand on the FTXA range — Faikin reads them off the

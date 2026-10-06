@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/SukramJ/go-hamqtt/discovery"
+	"github.com/SukramJ/go-hamqtt/model"
+
 	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 )
@@ -22,14 +25,42 @@ const (
 	PresetModeTopic = "preset_mode"
 )
 
-// ClimateInfo carries the available fan/swing/preset option lists for a
-// climate management point (derived from fanControl / powerfulMode). Empty
-// lists omit the corresponding climate feature.
+// ClimateInfo carries the available fan/swing/preset options for a climate
+// management point (derived from fanControl / powerfulMode). An enum with no
+// codes omits the corresponding climate feature.
+//
+// Each is an enum rather than a list of strings because the status item carries
+// the stable token (`quiet`, `windnice`, `boost`) while Home Assistant lists the
+// localized label, and the discovery payload maps one onto the other in both
+// directions ([climateEnumTemplates]). Holding both in one [model.Enum] is what
+// keeps the option list and the two templates from disagreeing.
 type ClimateInfo struct {
-	FanModes             []string
-	SwingModes           []string
-	SwingHorizontalModes []string
-	PresetModes          []string
+	FanModes             *model.Enum
+	SwingModes           *model.Enum
+	SwingHorizontalModes *model.Enum
+	PresetModes          *model.Enum
+}
+
+// hasCodes reports whether an option enum offers anything at all.
+func hasCodes(e *model.Enum) bool { return e != nil && len(e.Codes) > 0 }
+
+// climateEnumTemplates is the state/command template pair for one climate
+// role key under the status-object encoding.
+//
+// Where a label differs from its token in lang — German fan and swing names,
+// say — the pair maps token to label for display and label back to token for
+// the command, through go-hamqtt's [discovery.EnumTemplates] reading the
+// object's `val`. Where none does, Home Assistant shows the token itself (and
+// its own translation of the modes it knows), so only `val` is read and no
+// command template is needed: the option Home Assistant sends back already is
+// the token.
+func climateEnumTemplates(e *model.Enum, lang string) (state, command string) {
+	for _, code := range e.Codes {
+		if e.Label(code, lang) != code {
+			return discovery.EnumTemplates(e, lang, discovery.StatusValueField)
+		}
+	}
+	return discovery.StatusValueTemplate, ""
 }
 
 // daikinToHA maps a Daikin operationMode to a Home Assistant hvac mode.
@@ -108,7 +139,8 @@ type climatePayload struct {
 	Device device `json:"device"`
 }
 
-// ClimateAttributesTopic returns the climate entity's JSON-attributes topic.
+// ClimateAttributesTopic returns the climate entity's JSON-attributes status
+// item, `<name>/status/<device>/<embedded>/climate/attributes`.
 func (d *Discovery) ClimateAttributesTopic(deviceID, embeddedID string) string {
 	return d.state.Climate(deviceID, embeddedID).Attributes()
 }
@@ -212,7 +244,8 @@ func (d *Discovery) climateEntities(points []process.Point, infos map[string]Dev
 	return msgs, consumed
 }
 
-// buildClimate renders one climate entity config.
+// buildClimate renders one climate entity config on the frozen 0.13 layout —
+// see [Discovery.Publish] for why it is kept and why it does not move.
 func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInfo) (topic string, payload []byte, ok bool) {
 	uid := sanitize(fmt.Sprintf("daikin_%s_climate", g.deviceID))
 	// The composite climate's five synthetic slots (hvac_mode, fan_mode,
@@ -220,8 +253,8 @@ func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInf
 	// and no register, so they are the slots most likely to drift from the
 	// coordinator's publish path — they have no shared process.Point to keep
 	// them honest. They go through the same layout (F3).
-	aux := func(suffix string) layout.Slot {
-		return d.state.Slot(g.deviceID, g.embeddedID, suffix)
+	aux := func(suffix string) layout.LegacySlot {
+		return d.legacy.Slot(g.deviceID, g.embeddedID, suffix)
 	}
 	mode := aux(HVACModeTopic)
 
@@ -239,39 +272,39 @@ func (d *Discovery) buildClimate(g *climateGroup, info DeviceInfo, ci ClimateInf
 		Modes:                   modes,
 		ModeStateTopic:          mode.State(),
 		ModeCommandTopic:        mode.Command(),
-		TemperatureStateTopic:   d.StateTopic(*g.setpoint),
-		TemperatureCommandTopic: d.CommandTopic(*g.setpoint),
+		TemperatureStateTopic:   d.legacySlot(*g.setpoint).State(),
+		TemperatureCommandTopic: d.legacySlot(*g.setpoint).Command(),
 		MinTemp:                 g.setpoint.Min,
 		MaxTemp:                 g.setpoint.Max,
 		TempStep:                g.setpoint.Step,
-		AvailabilityTopic:       d.BridgeStatusTopic(),
+		AvailabilityTopic:       d.legacy.BridgeStatus(),
 		PayloadAvailable:        "online",
 		PayloadNotAvailable:     "offline",
-		JSONAttributesTopic:     d.ClimateAttributesTopic(g.deviceID, g.embeddedID),
+		JSONAttributesTopic:     d.legacy.Climate(g.deviceID, g.embeddedID).Attributes(),
 		Device:                  d.deviceBlock(g.deviceID, info),
 	}
 	if g.current != nil {
-		cfg.CurrentTemperatureTopic = d.StateTopic(*g.current)
+		cfg.CurrentTemperatureTopic = d.legacySlot(*g.current).State()
 	}
 
 	// Optional fan / swing / preset features, advertised only when available.
-	if len(ci.FanModes) > 0 {
-		cfg.FanModes = ci.FanModes
+	if hasCodes(ci.FanModes) {
+		cfg.FanModes = ci.FanModes.Options(d.lang)
 		cfg.FanModeStateTopic = aux(FanModeTopic).State()
 		cfg.FanModeCommandTopic = aux(FanModeTopic).Command()
 	}
-	if len(ci.SwingModes) > 0 {
-		cfg.SwingModes = ci.SwingModes
+	if hasCodes(ci.SwingModes) {
+		cfg.SwingModes = ci.SwingModes.Options(d.lang)
 		cfg.SwingModeStateTopic = aux(SwingModeTopic).State()
 		cfg.SwingModeCommandTopic = aux(SwingModeTopic).Command()
 	}
-	if len(ci.SwingHorizontalModes) > 0 {
-		cfg.SwingHorizontalModes = ci.SwingHorizontalModes
+	if hasCodes(ci.SwingHorizontalModes) {
+		cfg.SwingHorizontalModes = ci.SwingHorizontalModes.Options(d.lang)
 		cfg.SwingHorizontalModeStateTopic = aux(SwingHModeTopic).State()
 		cfg.SwingHorizontalModeCommandTopic = aux(SwingHModeTopic).Command()
 	}
-	if len(ci.PresetModes) > 0 {
-		cfg.PresetModes = ci.PresetModes
+	if hasCodes(ci.PresetModes) {
+		cfg.PresetModes = ci.PresetModes.Options(d.lang)
 		cfg.PresetModeStateTopic = aux(PresetModeTopic).State()
 		cfg.PresetModeCommandTopic = aux(PresetModeTopic).Command()
 	}

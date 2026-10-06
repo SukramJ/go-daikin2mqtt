@@ -72,11 +72,15 @@ Load config → load catalog → build `auth.TokenSource` → `client.Client` �
   publishes no state (HA's MQTT button has none). Presses within `refreshMinInterval` (30s) of
   the last poll are dropped and concurrent presses coalesce — the ONECTA daily request quota
   must not be spendable from an automation.
-- **Write path**: subscribes `<root>/+/+/+/set`, queues onto a channel, drains sequentially.
-  Synthetic topics route to climate handlers; catalog topics resolve via `catalog.ByTopic`,
-  coerce the payload (select label → raw code, string → number), substitute `{mode}` in the
-  PATCH path from `modeCache`, then `cloud.Patch(...)`. The climate fan/swing/preset reverse
-  mapping lives in `climate.go` (`canonicalAux`).
+- **Write path**: subscribes `<name>/set/+/+/+` at QoS 1 through go-hamqtt's
+  `CommandRouter.HandleSet` (mqtt-smarthome §5.3: `{"val":x}` unwrapped, empty and retained
+  payloads dropped), queues onto a channel, drains sequentially. Synthetic topics route to
+  climate handlers; catalog topics resolve via `catalog.ByTopic`, coerce the value
+  (`coerceWriteValue`: booleans in every §5.3 spelling → `on`/`off`, select token
+  case-insensitive or a label → raw code, numbers rounded/clamped to the live range),
+  substitute `{mode}` in the PATCH path from `modeCache`, then `cloud.Patch(...)`. Every
+  rejected or failed set is logged at warn with topic and payload (`rejectWrite`). The
+  climate fan/swing/preset label → token reversal lives in `climate.go` (`canonicalAux`).
 
 ### Cloud client — four ONECTA quirks in one place (`internal/daikin/client/client.go`)
 1. **Single global `cloudLock` mutex** — ONECTA allows only one in-flight request; every GET
@@ -235,9 +239,9 @@ switchable from HA. Full rationale in `docs/schedule-design.md`.
   so looping here would write everything twice.
 - **HA:** one switch per schedule on the daemon's own device (`daikin_scheduler`), plus
   the per-device sensors `schedule_state` / `schedule_next_change` (synthetic catalog
-  entries like the refresh button). The switch topic
-  `<root>/scheduler/<id>/enabled/set` fits the existing `<root>/+/+/+/set` filter, so
-  `handleWrite` just branches on the reserved device id `scheduler` — no second
+  entries like the refresh button). The switch item
+  `<name>/set/scheduler/<id>/enabled` fits the one `<name>/set/+/+/+` filter, so
+  `handleWrite` just branches on the reserved item `scheduler` — no second
   subscription. Schedule configs join the published set, so orphan reconcile clears a
   deleted schedule.
 - **Slugs are frozen.** A schedule's id is derived from its name once at creation (same
@@ -259,25 +263,42 @@ languages (the stored day keys are Monday-based). `TestI18nBundlesCoverEveryKey`
 that both bundles carry the same keys and that every key referenced from the HTML or JS
 exists.
 
-**The one documented exception:** the climate fan/swing/preset dropdowns emit
-the German *label as the command value* (HA's MQTT climate platform has no separate label/value
-field), reversed on write by `canonicalAux` (see `coordinator/climate.go`).
+**Tokens on the wire, labels in discovery** (since 0.14, openccu-loom ADR 0083): every
+enum status item — selects, `schedule_state`'s `idle`, the climate fan/swing/preset — carries
+the API token; the discovery payload lists the localized labels and maps token ↔ label in its
+value/command templates (`go-hamqtt` does it for selects under `StatusObjectEncoding`; the
+climate builder and the schedule sensor state theirs). The set path still accepts a label
+(`CodeForLabel` / `canonicalAux`).
 
 ### MQTT (`github.com/SukramJ/go-mqtt`, `github.com/SukramJ/go-mqtt/protocol`)
 A **custom pure-Go MQTT 3.1.1 implementation** (no paho/library), extracted into the shared
 `go-mqtt` module (formerly a locally duplicated `internal/mqtt`): packet codec in `protocol/`,
 TCP adapter, and a `Lifecycle` wrapper that auto-reconnects with backoff and re-fires
-`OnConnect` (used to re-announce availability). Narrow `Publisher`/`Subscriber`/`Client`
-interfaces make the coordinator and discovery testable with stubs.
+`OnConnect` (used to re-announce `connected`, `info` and the cached status). Narrow
+`Publisher`/`Subscriber`/`Client` interfaces make the coordinator and discovery testable with
+stubs.
 
-### Topic layout
+### Topic layout (mqtt-smarthome 2.0, openccu-loom ADR 0083, since 0.14)
 ```
-<MQTT_TOPIC>/<deviceID>/<embeddedID>/<topic>/state    # retained, QoS0
-<MQTT_TOPIC>/<deviceID>/<embeddedID>/<topic>/set      # subscribed, settable entities
-<MQTT_TOPIC>/bridge/status                            # LWT: online/offline (availability)
-<MQTT_TOPIC>/scheduler/<scheduleID>/enabled/{state,set}  # per-schedule enable switch
-homeassistant/<platform>/<unique_id>/config           # HA discovery, retained
+<name>/status/<deviceID>/<embeddedID>/<topic>             # retained {"val","ts","lc"}, QoS 0
+<name>/status/<deviceID>/<embeddedID>/<topic>/attributes  # data_source document in val
+<name>/set/<deviceID>/<embeddedID>/<topic>                # subscribed QoS 1 (refresh: action item)
+<name>/status/<deviceID>/online                           # device reachability (bool)
+<name>/{status,set}/scheduler/<scheduleID>/enabled        # per-schedule enable switch
+<name>/connected                                          # 0 will/stop, 1 upstream down, 2 operational
+<name>/info, <name>/maintenance/{set/loglevel,set/restart,stats}
+homeassistant/device/<node id>/config                     # HA device documents, retained
 ```
+`<name>` is `MQTT_TOPIC` (default `daikin`). All of it is composed in `internal/layout`
+(`layout.Root`); `layout.Legacy` is the 0.13 tree, read only by the start-up sweep
+(`coordinator/legacy_sweep.go`, exact owned shapes only) and by the frozen per-entity
+discovery builders the retraction goldens are pinned against. `connected` is driven by
+`coordinator/upstream.go` (cloud: last poll; local mode: Faikin link + known topology).
+Maintenance (`MQTT_MAINTENANCE`, `MQTT_STATS_INTERVAL`) is go-hamqtt's `publisher.Instance`,
+wired in `main` with the daemon's `slog.LevelVar` and its signal-context cancel; restart is
+refused unless `publisher.DetectSupervised("DAIKIN_SUPERVISED")`. The HA identities
+(`unique_id`, node ids, device identifiers) must not move — `TestHAIdentityUnchangedByTheTopicMigration`
+pins them against v0.13.0.
 
 ### Web UI (`internal/web/`)
 Optional (`WEB_ENABLE`, default off, bind `127.0.0.1:8080`, optional basic auth). Vanilla
@@ -296,7 +317,9 @@ Local-first / multi-split keys (`LOCAL_MODE`, `LOCAL_FAIKIN_*`, `LOCAL_DEVICE_MA
 `SCHEDULE_STORE_PATH`, `SCHEDULE_TIMEZONE`, `SCHEDULE_CATCHUP`) are validated only when
 their feature switch is on; the
 add-on surfaces them as options and `script/run.sh` maps them to env (`local_device_map` as a
-list joined into the `id=host,…` scalar form).
+list joined into the `id=host,…` scalar form). `MQTT_MAINTENANCE` (default true) and
+`MQTT_STATS_INTERVAL` (seconds, default 60, 0 = off) are `*bool`/`*int` so an unset key keeps
+its default; `MQTT_TOPIC` is refused when it holds a wildcard, NUL or a leading `$`.
 
 ## Testing conventions
 

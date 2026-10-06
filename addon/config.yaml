@@ -3,7 +3,7 @@
 # version MUST equal the published image tag (ghcr.io/sukramj/go-daikin2mqtt-addon-{arch})
 # and is bumped in the release commit that cuts the matching git tag.
 name: go-daikin2mqtt
-version: "0.13.0"
+version: "0.14.0"
 slug: go-daikin2mqtt
 description: >-
   Bridges Daikin ONECTA cloud climate devices to MQTT with Home Assistant
@@ -56,6 +56,8 @@ options:
   mqtt_password: ""
   mqtt_topic: daikin
   mqtt_client_id: ""
+  mqtt_maintenance: true
+  mqtt_stats_interval: 60
   hass_enable: true
   language: en
   web_enable: true
@@ -85,6 +87,8 @@ schema:
   mqtt_password: "password?"
   mqtt_topic: str
   mqtt_client_id: "str?"
+  mqtt_maintenance: bool
+  mqtt_stats_interval: int(0,86400)
   hass_enable: bool
   language: "list(en|de)"
   web_enable: bool

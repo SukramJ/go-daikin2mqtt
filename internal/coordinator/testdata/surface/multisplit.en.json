@@ -2,578 +2,932 @@
   "scenario": "multisplit.en",
   "messages": [
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/climate/attributes",
+      "topic": "daikin/connected",
       "qos": 0,
       "retain": true,
-      "json": {
-        "data_source": "cloud"
-      }
+      "text": "1"
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_daily/attributes",
-      "qos": 0,
-      "retain": true,
-      "json": {
-        "data_source": "cloud"
-      }
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_daily/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.100"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_monthly/attributes",
-      "qos": 0,
-      "retain": true,
-      "json": {
-        "data_source": "cloud"
-      }
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_monthly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.000"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_weekly/attributes",
-      "qos": 0,
-      "retain": true,
-      "json": {
-        "data_source": "cloud"
-      }
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_weekly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.300"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_code/attributes",
-      "qos": 0,
-      "retain": true,
-      "json": {
-        "data_source": "cloud"
-      }
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_code/state",
-      "qos": 0,
-      "retain": true,
-      "text": "00"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_state/attributes",
-      "qos": 0,
-      "retain": true,
-      "json": {
-        "data_source": "cloud"
-      }
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/error_state/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/fan_mode/state",
+      "topic": "daikin/connected",
       "qos": 0,
       "retain": true,
       "text": "2"
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_daily/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/climate/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_daily/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.000"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_monthly/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_daily",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0.1
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_monthly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.000"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_weekly/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_daily/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_weekly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.000"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/holiday_mode/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_monthly",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/holiday_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/hvac_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "heat_cool"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/operation_mode/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_monthly/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/operation_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "Auto"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_weekly",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0.3
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "30.0"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/power/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_weekly/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/power/state",
-      "qos": 0,
-      "retain": true,
-      "text": "on"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/powerful_mode/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/error_code",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "00"
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/powerful_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "off"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/preset_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "none"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/refresh/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/error_code/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_humidity/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/error_state",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_humidity/state",
-      "qos": 0,
-      "retain": true,
-      "text": "40"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_temperature/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/error_state/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/room_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "26.0"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/swing_h_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "stop"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/swing_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "swing"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/temperature_setpoint/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/fan_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "2"
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/temperature_setpoint/state",
-      "qos": 0,
-      "retain": true,
-      "text": "25.0"
-    },
-    {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/gateway/gateway_ip_address/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_daily",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
       }
     },
     {
-      "topic": "daikin/11112222-3333-4444-5555-666677778888/gateway/gateway_ip_address/state",
-      "qos": 0,
-      "retain": true,
-      "text": "192.168.0.3"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/climate/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_daily/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_monthly",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.100"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_monthly/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.000"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_weekly",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.300"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_weekly/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code/state",
-      "qos": 0,
-      "retain": true,
-      "text": "00"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/holiday_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "2"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/holiday_mode/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.000"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/hvac_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "heat_cool"
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.000"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/operation_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "auto"
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.000"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/operation_mode/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/hvac_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "heat_cool"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/operation_mode/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 30
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/operation_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "Auto"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "30.0"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/power",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power/state",
-      "qos": 0,
-      "retain": true,
-      "text": "on"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/power/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "off"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/preset_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "none"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/powerful_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/powerful_mode/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity/state",
-      "qos": 0,
-      "retain": true,
-      "text": "40"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/preset_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "none"
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "26.0"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_h_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "stop"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "swing"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/temperature_setpoint/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/refresh/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/temperature_setpoint/state",
-      "qos": 0,
-      "retain": true,
-      "text": "25.0"
-    },
-    {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address/attributes",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/room_humidity",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 40
       }
     },
     {
-      "topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address/state",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/room_humidity/attributes",
       "qos": 0,
       "retain": true,
-      "text": "192.168.0.3"
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
     },
     {
-      "topic": "daikin/bridge/status",
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/room_temperature",
       "qos": 0,
       "retain": true,
-      "text": "online"
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 26
+      }
+    },
+    {
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/room_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/swing_h_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "stop"
+      }
+    },
+    {
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/swing_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "swing"
+      }
+    },
+    {
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/temperature_setpoint",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 25
+      }
+    },
+    {
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/temperature_setpoint/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/gateway/gateway_ip_address",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "192.168.0.3"
+      }
+    },
+    {
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/gateway/gateway_ip_address/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/online",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0.1
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0.3
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "00"
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "2"
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/hvac_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "heat_cool"
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/operation_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "auto"
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/operation_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 30
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/powerful_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/preset_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "none"
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refresh/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 40
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 26
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_h_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "stop"
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/swing_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "swing"
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/temperature_setpoint",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 25
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/temperature_setpoint/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "192.168.0.3"
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/online",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
+      }
     },
     {
       "topic": "homeassistant/binary_sensor/daikin_11112222-3333-4444-5555-666677778888_error_state/config",

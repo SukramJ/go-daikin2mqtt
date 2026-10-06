@@ -45,18 +45,24 @@ import (
 // ADR 0070 phase 8 step 2, finding F4. Nothing here reaches for
 // [hatopic.Slug].
 //
-// # The two library settings that would each have been a silent 264-row diff
+// # The library settings this bridge's surface rests on
 //
-//   - [discovery.RawEncoding]. The zero [discovery.Encoding] is
-//     EnvelopeEncoding, which attaches a `value_template` reading
-//     `value_json.value` to every entity that has a state topic. This bridge
-//     publishes bare scalars.
-//   - The zero [discovery.Origin] on [discovery.RenderComponent], which
-//     attaches an `origin` block whenever its name is non-empty. This bridge
-//     publishes none (F12, deliberately deferred past this step so it is not
-//     a 264-row payload addition inside the byte-equality proof).
+//   - [discovery.StatusObjectEncoding] (0.14.0, openccu-loom ADR 0083). Every
+//     status item is mqtt-smarthome 2.0's `{"val","ts","lc"}` object, so every
+//     value template reads `value_json.val`; switches and binary sensors read
+//     `{{ value_json.val | lower }}` against `true`/`false` payloads; a select
+//     whose labels differ from its tokens gets the token/label template pair.
+//     The composite climate spells its own per-role templates, because the
+//     library projects only the plain value_template.
+//   - [hatopic.SmartHomeLayout], through [hamqttLayout]. It is what makes the
+//     bridge-level availability entry read `<name>/connected` at ≥ 2 and what
+//     turns the runtime's Last Will into the plain `0`.
+//
+// The zero [discovery.Origin] on [discovery.RenderComponent] is still
+// load-bearing for the per-entity render: it attaches an `origin` block
+// whenever its name is non-empty, and the per-entity form never carried one.
 
-// hamqttLayout is this bridge's [hatopic.Layout]: a thin delegation to
+// hamqttLayout is this bridge's [hatopic.SmartHomeLayout]: a thin delegation to
 // internal/layout, so the library path and the daemon's own publish path
 // cannot disagree about a topic.
 //
@@ -67,19 +73,18 @@ import (
 // against builder by TestHamqttLayoutMatchesInternalLayout, which never reads
 // testdata.
 //
-// [hatopic.Default] is unusable here on every one of its four methods: its
-// State inserts a bucket segment and has no /state leaf, its Command appends
-// /set to that, its Availability names a per-device topic this bridge never
-// writes, and its Bridge happens to agree only by coincidence.
+// [hatopic.SmartHome]'s own State and Command are not used: they would put the
+// slot's bucket into the item path (`…/values/<topic>`), and this bridge's item
+// is exactly `<deviceID>/<embeddedID>/<topic>`.
 type hamqttLayout struct{ root layout.Root }
 
-var _ hatopic.Layout = hamqttLayout{}
+var _ hatopic.SmartHomeLayout = hamqttLayout{}
 
-// slot resolves a [model.Slot] to this bridge's topic family.
+// slot resolves a [model.Slot] to this bridge's item.
 //
 // Scope, Bucket and Path arity are deliberately NOT read, and that is a
-// statement rather than an omission: this bridge's tree is exactly four levels
-// — "<root>/<deviceID>/<embeddedID>/<topic>" — so a Slot that carried a scope
+// statement rather than an omission: this bridge's item is exactly three
+// levels — "<deviceID>/<embeddedID>/<topic>" — so a Slot that carried a scope
 // or a bucket would have nowhere to put it, and silently dropping a segment
 // moves a datapoint into another device's tree. [hamqttSlot] is the only
 // constructor, it fills Address, Channel and a single-segment Path, and
@@ -90,34 +95,43 @@ func (l hamqttLayout) slot(s model.Slot) layout.Slot {
 	return l.root.Slot(s.Address, s.Channel, strings.Join(s.Path, "/"))
 }
 
-// State implements [hatopic.Layout].
+// State implements [hatopic.Layout]: the slot's status item.
 func (l hamqttLayout) State(s model.Slot) string { return l.slot(s).State() }
 
-// Command implements [hatopic.Layout].
+// Command implements [hatopic.Layout]: the slot's set item.
 func (l hamqttLayout) Command(s model.Slot) string { return l.slot(s).Command() }
 
 // Availability implements [hatopic.Layout] and deliberately renders NOTHING.
 //
-// This bridge has one availability level, the bridge LWT, and no per-device
-// reachability topic at all (phase 8 measurement §4, decision F8). Returning a
-// plausible-looking "<root>/<uid>/availability" would name a topic nobody
-// writes, and under Home Assistant's default `all` mode every entity listing
-// it is permanently unavailable with nothing in any log — which is the defect
-// go-mtec2mqtt shipped.
-//
-// It cannot be reached as long as no description declares
-// [model.LevelDevice]: [singularAvailability] refuses any component whose
-// availability list is not exactly the bridge topic, so adopting the library's
-// default would fail the render rather than publish an unreachable topic.
+// The library resolves [model.LevelDevice] against a slot whose address is the
+// Home Assistant device's UID — `daikin_<uuid>`, `daikin_outdoor_<serial>` —
+// while this bridge's reachability item is keyed by the ONECTA device id whose
+// topics the entity reads (`<name>/status/<uuid>/online`). The two are not the
+// same string for a shared outdoor unit or a gateway, so no description
+// declares LevelDevice and [renderEntity.BuildDiscovery] appends the online
+// entry itself, from the point it was built from. Returning a plausible topic
+// here would name one nobody writes, and under `availability_mode: all` every
+// entity listing it would be permanently unavailable with nothing in any log.
 func (l hamqttLayout) Availability(model.Slot) string { return "" }
 
-// Bridge implements [hatopic.Layout]: "<root>/bridge/status", the one topic
-// all 264 payloads name.
-func (l hamqttLayout) Bridge() string { return l.root.BridgeStatus() }
+// Bridge implements [hatopic.Layout]: `<name>/connected`, the one topic every
+// payload's bridge-level availability entry names.
+func (l hamqttLayout) Bridge() string { return l.root.Connected() }
+
+// Connected implements [hatopic.SmartHomeLayout]; it equals [hamqttLayout.Bridge].
+func (l hamqttLayout) Connected() string { return l.root.Connected() }
+
+// Info implements [hatopic.SmartHomeLayout].
+func (l hamqttLayout) Info() string { return l.root.Info() }
+
+// Maintenance implements [hatopic.SmartHomeLayout].
+func (l hamqttLayout) Maintenance(item ...string) string {
+	return l.root.SmartHome().Maintenance(item...)
+}
 
 // Attributes is beyond [hatopic.Layout] — Home Assistant's
 // `json_attributes_topic` has no Layout method — but it belongs here for the
-// same reason the other four do: it is the fifth string internal/layout owns.
+// same reason the other four do: it is a string internal/layout owns.
 func (l hamqttLayout) Attributes(s model.Slot) string { return l.slot(s).Attributes() }
 
 // hamqttSlot is the only [model.Slot] constructor this path uses: the
@@ -161,6 +175,10 @@ type renderEntity struct {
 	// attributes is the json_attributes_topic, or "" for an entity that
 	// publishes none (the schedule switches).
 	attributes string
+	// online is the reachability item of the ONECTA device whose topics the
+	// entity reads, or "" for an entity of the daemon's own (the schedule
+	// switches), which depends on `<name>/connected` alone.
+	online string
 	// fields is the platform Fields struct, or nil.
 	fields any
 	// suppresses names the sibling entity keys this one replaces.
@@ -186,46 +204,51 @@ func (e *renderEntity) BuildDiscovery(ctx discovery.Context, comp *discovery.Com
 	}
 	if e.attributes != "" {
 		comp.JSONAttributesTopic = e.attributes
+		comp.JSONAttributesTemplate = AttributesTemplate
 	}
 	if e.build != nil {
 		if err := e.build(ctx, comp); err != nil {
 			return err
 		}
 	}
-	return singularAvailability(comp)
+	return smartHomeAvailability(comp, e.online)
 }
 
-// singularAvailability rewrites the library's `availability` LIST into the
-// singular `availability_topic` + top-level payload keys this bridge's 264
-// retained configs carry.
+// AttributesTemplate hands Home Assistant the attributes document out of its
+// status object. The document is the item's `val`; without the template Home
+// Assistant would show `val`, `ts` and `lc` as three attributes instead of
+// `data_source`.
+const AttributesTemplate = `{{ value_json.val | tojson }}`
+
+// smartHomeAvailability completes the availability list ADR 0083 asks for:
+// `<name>/connected` at ≥ 2, plus the device's `online` item, combined with
+// `availability_mode: all`.
 //
-// Home Assistant accepts both spellings identically and an entity's registry
-// keys are unaffected, so this is the one key group where phase 8's
-// "byte-equal" is bought by a deliberate re-spelling rather than by the
-// library's default path — named here, and only here, exactly as decision F8
-// requires.
+// The library renders the bridge entry itself (the layout is a
+// [hatopic.SmartHomeLayout]); the device entry is appended here because only
+// the entity knows which ONECTA device's item it reads — see
+// [hamqttLayout.Availability]. Each entry carries exactly the four keys spec §8
+// allows, through the library's own constructors.
 //
-// It refuses anything that is not one plain bridge-level source, which is what
-// keeps [model.BridgeOnly] load-bearing: the library's zero
-// [model.Availability] resolves to {LevelBridge, LevelDevice}, so dropping
-// BridgeOnly produces two entries and fails the render instead of silently
-// publishing a second, never-written topic that would grey out all 264
-// entities.
-func singularAvailability(comp *discovery.Component) error {
+// It refuses anything other than one connected-level bridge source from the
+// library, which is what keeps [model.BridgeOnly] load-bearing: the library's
+// zero [model.Availability] resolves to {LevelBridge, LevelDevice}, and with
+// the layout rendering no device topic that would fail here instead of
+// publishing an entry whose topic is empty.
+func smartHomeAvailability(comp *discovery.Component, online string) error {
 	if len(comp.Availability) != 1 {
-		return fmt.Errorf("hamqtt: want exactly one availability source (model.BridgeOnly), got %d", len(comp.Availability))
+		return fmt.Errorf("hamqtt: want exactly one bridge availability source (model.BridgeOnly), got %d", len(comp.Availability))
 	}
-	a := comp.Availability[0]
-	if a.ValueTemplate != "" {
-		return fmt.Errorf("hamqtt: availability source carries a value template %q", a.ValueTemplate)
+	if want := discovery.ConnectedTemplate(discovery.ConnectedOperational); comp.Availability[0].ValueTemplate != want {
+		return fmt.Errorf("hamqtt: bridge availability source reads %q, want %q", comp.Availability[0].ValueTemplate, want)
 	}
-	comp.AvailabilityTopic = a.Topic
-	comp.PayloadAvailable = a.PayloadAvailable
-	comp.PayloadNotAvail = a.PayloadNotAvailable
-	comp.Availability = nil
-	// A mode beside no list is the one combination Home Assistant reads as a
-	// contradiction, and this bridge publishes neither.
-	comp.AvailabilityMode = ""
+	if online == "" {
+		// One entry needs no combining rule.
+		comp.AvailabilityMode = ""
+		return nil
+	}
+	comp.Availability = append(comp.Availability, discovery.OnlineAvailability(online, discovery.StatusObjectEncoding))
+	comp.AvailabilityMode = string(model.AvailabilityAll)
 	return nil
 }
 
@@ -254,8 +277,9 @@ func newHamqttContext(lay hamqttLayout, lang string) hamqttContext {
 	return hamqttContext{
 		Layout: lay,
 		Lang:   lang,
-		// Bare scalars on every state topic; see the file comment.
-		Enc: discovery.RawEncoding,
+		// mqtt-smarthome status objects on every status item; see the file
+		// comment.
+		Enc: discovery.StatusObjectEncoding,
 	}
 }
 
@@ -535,16 +559,20 @@ func (d *Discovery) pointEntity(lay hamqttLayout, p process.Point, idBase, seed 
 		desc.StateClass = hacatalog.StateClass(p.Entry.StateClass)
 	case "binary_sensor":
 		desc.DeviceClass = model.DeviceClass(p.Entry.DeviceClass)
-		fields = discovery.BinarySensorFields{PayloadOn: "true", PayloadOff: "false"}
+		fields = discovery.BinarySensorFields{PayloadOn: discovery.PayloadTrue, PayloadOff: discovery.PayloadFalse}
 	case "switch":
 		writable()
-		fields = discovery.SwitchFields{PayloadOn: "on", PayloadOff: "off", StateOn: "on", StateOff: "off"}
+		// The status item carries a JSON boolean, which the value template
+		// lowers to `true`/`false`; the command is the same word, which the
+		// set path reads with spec §5.3's boolean conversions.
+		fields = boolSwitchFields()
 	case "select":
 		writable()
-		// The options are localized labels and the state is published as the
-		// label too; [model.Enum] is the model's own spelling of exactly that
-		// pairing, so the localization goes through the model rather than
-		// being flattened to a []string by the caller.
+		// The options are localized labels while the status item carries the
+		// API token; [model.Enum] is the model's own spelling of exactly that
+		// pairing, and under the status-object encoding the library derives
+		// the token→label value template and the label→token command template
+		// from it.
 		desc.Options = entryEnum(p.Entry)
 	case "number":
 		writable()
@@ -566,9 +594,30 @@ func (d *Discovery) pointEntity(lay hamqttLayout, p process.Point, idBase, seed 
 		idBase:         idBase,
 		seed:           seed,
 		attributes:     lay.Attributes(slot),
+		online:         lay.root.Online(p.DeviceID),
 		fields:         fields,
 	}
+	if p.Entry.Platform == "sensor" && len(p.Entry.Values) > 0 {
+		// A sensor with catalogue values (the scheduler's "no block in force")
+		// publishes the token and shows the label. It is no enum sensor —
+		// its other states are the operator's own schedule names — so it has
+		// no `options` list, and the library derives no template for it: the
+		// mapping is stated here, falling back to the value itself for every
+		// state the catalogue does not name.
+		enum := entryEnum(p.Entry)
+		e.build = func(ctx discovery.Context, comp *discovery.Component) error {
+			comp.ValueTemplate, _ = discovery.EnumTemplates(enum, ctx.Language(), discovery.StatusValueField)
+			return nil
+		}
+	}
 	return e, true
+}
+
+// boolSwitchFields are the payloads of every switch this bridge publishes: the
+// spec §5.1 boolean spellings, which is what `{{ value_json.val | lower }}`
+// renders a JSON boolean as.
+func boolSwitchFields() discovery.SwitchFields {
+	return discovery.SwitchFields{PayloadOn: discovery.PayloadTrue, PayloadOff: discovery.PayloadFalse}
 }
 
 // entryEnum is a catalogue entry's value list as a [model.Enum], preserving
@@ -620,16 +669,16 @@ func (d *Discovery) climateEntity(lay hamqttLayout, g *climateGroup, info Device
 	if g.current != nil {
 		binds = append(binds, model.Binding{Role: roleCurrentTemperature, Slot: pointOf(g.current), Mode: model.Read})
 	}
-	if len(ci.FanModes) > 0 {
+	if hasCodes(ci.FanModes) {
 		binds = append(binds, model.Binding{Role: roleFanMode, Slot: aux(FanModeTopic), Mode: model.ReadWrite})
 	}
-	if len(ci.SwingModes) > 0 {
+	if hasCodes(ci.SwingModes) {
 		binds = append(binds, model.Binding{Role: roleSwingMode, Slot: aux(SwingModeTopic), Mode: model.ReadWrite})
 	}
-	if len(ci.SwingHorizontalModes) > 0 {
+	if hasCodes(ci.SwingHorizontalModes) {
 		binds = append(binds, model.Binding{Role: roleSwingHorizontalMode, Slot: aux(SwingHModeTopic), Mode: model.ReadWrite})
 	}
-	if len(ci.PresetModes) > 0 {
+	if hasCodes(ci.PresetModes) {
 		binds = append(binds, model.Binding{Role: rolePresetMode, Slot: aux(PresetModeTopic), Mode: model.ReadWrite})
 	}
 
@@ -653,6 +702,7 @@ func (d *Discovery) climateEntity(lay hamqttLayout, g *climateGroup, info Device
 		// The suppression key is "climate"; the entity id reads "thermostat".
 		seedKey:    "thermostat",
 		attributes: lay.Attributes(aux(layout.ClimateTopic)),
+		online:     lay.root.Online(g.deviceID),
 		suppresses: climateConsumedKeys(g),
 	}
 	e.build = func(ctx discovery.Context, comp *discovery.Component) error {
@@ -662,26 +712,43 @@ func (d *Discovery) climateEntity(lay hamqttLayout, g *climateGroup, info Device
 			MaxTemp:  g.setpoint.Max,
 			TempStep: g.setpoint.Step,
 		}
+		lang := ctx.Language()
+		// Every role key reads a status object, so every one needs its own
+		// template: Home Assistant's climate platform has no shared
+		// value_template, and a role topic without one would show the whole
+		// `{"val":…}` document as the state. The mode and both temperatures
+		// carry Home Assistant's own tokens and plain numbers; fan, swing and
+		// preset carry the API tokens and map them onto the listed labels.
 		for _, b := range e.Bindings() {
 			switch b.Role {
 			case roleMode:
 				f.ModeStateTopic, f.ModeCommandTopic = ctx.StateTopic(b.Slot), ctx.CommandTopic(b.Slot)
+				f.ModeStateTemplate = discovery.StatusValueTemplate
 			case roleTemperature:
 				f.TemperatureStateTopic, f.TemperatureCommandTopic = ctx.StateTopic(b.Slot), ctx.CommandTopic(b.Slot)
+				f.TemperatureStateTemplate = discovery.StatusValueTemplate
 			case roleCurrentTemperature:
 				f.CurrentTemperatureTopic = ctx.StateTopic(b.Slot)
+				f.CurrentTemperatureTemplate = discovery.StatusValueTemplate
 			case roleFanMode:
-				f.FanModes = ci.FanModes
+				f.FanModes = ci.FanModes.Options(lang)
 				f.FanModeStateTopic, f.FanModeCommandTopic = ctx.StateTopic(b.Slot), ctx.CommandTopic(b.Slot)
+				f.FanModeStateTemplate, f.FanModeCommandTemplate = climateEnumTemplates(ci.FanModes, lang)
 			case roleSwingMode:
-				f.SwingModes = ci.SwingModes
+				f.SwingModes = ci.SwingModes.Options(lang)
 				f.SwingModeStateTopic, f.SwingModeCommandTopic = ctx.StateTopic(b.Slot), ctx.CommandTopic(b.Slot)
+				f.SwingModeStateTemplate, f.SwingModeCommandTemplate = climateEnumTemplates(ci.SwingModes, lang)
 			case roleSwingHorizontalMode:
-				f.SwingHorizontalModes = ci.SwingHorizontalModes
+				f.SwingHorizontalModes = ci.SwingHorizontalModes.Options(lang)
 				f.SwingHorizontalModeStateTopic, f.SwingHorizontalModeCommandTopic = ctx.StateTopic(b.Slot), ctx.CommandTopic(b.Slot)
+				f.SwingHorizontalModeStateTemplate, f.SwingHorizontalModeCommandTemplate = climateEnumTemplates(ci.SwingHorizontalModes, lang)
 			case rolePresetMode:
-				f.PresetModes = ci.PresetModes
+				f.PresetModes = ci.PresetModes.Options(lang)
 				f.PresetModeStateTopic, f.PresetModeCommandTopic = ctx.StateTopic(b.Slot), ctx.CommandTopic(b.Slot)
+				// `none` is a state but never an option (Home Assistant
+				// rejects it in preset_modes); the templates pass an
+				// unlisted value through unchanged, so it still reads.
+				f.PresetModeValueTemplate, f.PresetModeCommandTemplate = climateEnumTemplates(ci.PresetModes, lang)
 			default:
 				return fmt.Errorf("hamqtt: climate binding on unknown role %q", b.Role)
 			}
@@ -735,17 +802,21 @@ func (d *Discovery) scheduleEntity(s ScheduleInfo) *renderEntity {
 
 // --- ADR 0070 phase 8 step 5: what the RUNTIME reads ------------------------
 
-// Layout is the go-hamqtt [hatopic.Layout] for a state plane rooted at
+// Layout is the go-hamqtt [hatopic.SmartHomeLayout] for the instance named
 // stateRoot.
 //
 // Exported at step 5 because publisher.Config takes it: with a Layout set, the
 // runtime derives Config.StatusTopic from Layout.Bridge() and refuses a
-// StatusTopic that disagrees with it. That is what makes the birth marker, the
-// Last Will and the availability_topic of all 264 discovery payloads one
-// string by construction rather than by three literals that happen to match —
-// the drift go-mtec2mqtt shipped, where a will nobody reads is
-// indistinguishable from no will at all.
-func Layout(stateRoot string) hatopic.Layout { return hamqttLayout{root: layout.New(stateRoot)} }
+// StatusTopic that disagrees with it. That is what makes the connected level,
+// the Last Will and the bridge availability entry of every discovery payload
+// one string by construction rather than by three literals that happen to
+// match — the drift go-mtec2mqtt shipped, where a will nobody reads is
+// indistinguishable from no will at all. Being a SmartHomeLayout is what makes
+// the runtime write `0`/`1`/`2` there rather than online/offline, and what
+// publisher.Instance takes for `<name>/info` and the maintenance topics.
+func Layout(stateRoot string) hatopic.SmartHomeLayout {
+	return hamqttLayout{root: layout.New(stateRoot)}
+}
 
 // LegacyConfigTopicForms is [LegacyConfigTopicForm] as the value
 // publisher.Config.LegacyEntityTopics takes.

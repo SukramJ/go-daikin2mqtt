@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SukramJ/go-hamqtt/publisher"
+
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
@@ -199,20 +201,25 @@ func (c *Coordinator) enqueueWrite(req writeReq) bool {
 }
 
 // handleSchedulerWrite applies a command addressed to the reserved "scheduler"
-// device — currently only the per-schedule enable switch. The topic fits the
-// existing <root>/+/+/+/set filter, so no second subscription is needed.
+// item — currently only the per-schedule enable switch. The topic fits the one
+// <name>/set/+/+/+ filter, so no second subscription is needed.
 func (c *Coordinator) handleSchedulerWrite(req writeReq) {
 	eng := c.scheduleEngine()
 	if eng == nil {
-		c.deps.Logger.Warn("coordinator.schedule_disabled", slog.String("topic", req.topic))
+		c.rejectWrite("coordinator.schedule_disabled", req)
 		return
 	}
 	if req.topic != ScheduleEnabledTopic {
-		c.deps.Logger.Warn("coordinator.schedule_unknown_topic", slog.String("topic", req.topic))
+		c.rejectWrite("coordinator.schedule_unknown_topic", req)
 		return
 	}
-	if err := eng.SetEnabled(req.embeddedID, truthy(req.payload)); err != nil {
-		c.deps.Logger.Warn("coordinator.schedule_toggle_failed",
+	enabled, err := (publisher.SetValue{Text: strings.TrimSpace(req.payload)}).Bool()
+	if err != nil {
+		c.rejectWrite("coordinator.write_bad_value", req)
+		return
+	}
+	if err := eng.SetEnabled(req.embeddedID, enabled); err != nil {
+		c.rejectWrite("coordinator.schedule_toggle_failed", req,
 			slog.String("schedule", req.embeddedID), slog.String("err", err.Error()))
 		return
 	}
@@ -224,7 +231,7 @@ func (c *Coordinator) handleSchedulerWrite(req writeReq) {
 // reports intent — what the schedule says should be in force — not a device
 // reading.
 func (c *Coordinator) PublishScheduleState(ctx context.Context, target schedule.Target, st schedule.DeviceState) {
-	state := c.scheduleStateLabel(st)
+	state := scheduleStateValue(st)
 	next := ""
 	if !st.NextChange.IsZero() {
 		next = st.NextChange.Format(time.RFC3339)
@@ -259,15 +266,13 @@ func (c *Coordinator) publishOutdoorScheduleState(ctx context.Context, serial, s
 	}
 }
 
-// scheduleStateLabel renders the active-block sensor value. The schedule and
-// block names are the operator's own words and are published verbatim; only
-// the idle state is a string the daemon produces, and it comes from the
-// catalog entry's values so it follows LANGUAGE like every other label.
-func (c *Coordinator) scheduleStateLabel(st schedule.DeviceState) string {
+// scheduleStateValue renders the active-block sensor value. The schedule and
+// block names are the operator's own words and are published verbatim; the
+// idle state is the catalogue token `idle`, which discovery shows as the
+// localized label (its value template maps it), so it follows LANGUAGE in Home
+// Assistant like every other label without a label on the wire.
+func scheduleStateValue(st schedule.DeviceState) string {
 	if st.Active == nil {
-		if entry, ok := c.deps.Catalog.ByTopic(ScheduleStateTopic); ok {
-			return entry.LocalizedLabel(scheduleIdleValue, c.deps.Cfg.Language)
-		}
 		return scheduleIdleValue
 	}
 	if st.Active.Label == "" {
@@ -285,16 +290,16 @@ func (c *Coordinator) PublishScheduleSwitches(ctx context.Context, doc *schedule
 	for i := range doc.Schedules {
 		s := &doc.Schedules[i]
 		topic := c.topicRoot.Schedule(s.ID).State()
-		c.publishRetained(ctx, topic, onOff(s.Enabled))
+		c.publishState(ctx, topic, s.Enabled)
 	}
 }
 
-// publishRetained publishes a retained QoS 0 payload through the state plane.
+// publishRetained publishes a retained status item through the state plane.
 //
-// An empty payload is how an unscheduled device's schedule_next_change is
+// An empty value is how an unscheduled device's schedule_next_change is
 // expressed, and it stays a retained clear — see [Coordinator.publishState].
-func (c *Coordinator) publishRetained(ctx context.Context, topic, payload string) {
-	c.publishState(ctx, topic, payload)
+func (c *Coordinator) publishRetained(ctx context.Context, topic, value string) {
+	c.publishState(ctx, topic, value)
 }
 
 // schedulePoints synthesizes the discovery points for the two per-device

@@ -2,130 +2,214 @@
   "scenario": "airpurifier.de",
   "messages": [
     {
-      "topic": "daikin/bridge/status",
+      "topic": "daikin/connected",
       "qos": 0,
       "retain": true,
-      "text": "online"
+      "text": "1"
     },
     {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/attributes",
+      "topic": "daikin/connected",
+      "qos": 0,
+      "retain": true,
+      "text": "2"
+    },
+    {
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "econo"
       }
     },
     {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "Eco"
-    },
-    {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/climate/attributes",
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code/attributes",
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/climate/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code/state",
-      "qos": 0,
-      "retain": true,
-      "text": "00"
-    },
-    {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state/attributes",
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "00"
       }
     },
     {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode/attributes",
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/attributes",
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
       }
     },
     {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/state",
-      "qos": 0,
-      "retain": true,
-      "text": "on"
-    },
-    {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity/attributes",
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity/state",
-      "qos": 0,
-      "retain": true,
-      "text": "40"
-    },
-    {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature/attributes",
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
       }
     },
     {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "26.0"
-    },
-    {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address/attributes",
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address/state",
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power",
       "qos": 0,
       "retain": true,
-      "text": "192.168.0.31"
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
+      }
+    },
+    {
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 40
+      }
+    },
+    {
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 26
+      }
+    },
+    {
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "192.168.0.31"
+      }
+    },
+    {
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/online",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
+      }
     },
     {
       "topic": "homeassistant/binary_sensor/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_state/config",

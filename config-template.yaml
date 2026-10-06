@@ -29,12 +29,26 @@ MQTT_SERVER: localhost
 MQTT_PORT: 1883
 MQTT_LOGIN: ""
 MQTT_PASSWORD: ""
+# Instance name every topic starts with: <MQTT_TOPIC>/status/..., /set/...,
+# /connected, /info (mqtt-smarthome 2.0). Default: daikin.
+# It is the ONLY thing that keeps two instances apart on one broker: two
+# daikin2mqtt instances on the same broker need DIFFERENT names, or they
+# overwrite each other's topics. No +, # or leading $.
 MQTT_TOPIC: daikin2mqtt
 # Client identifier presented to the broker. A broker disconnects an existing
 # session when a second client presents the same id, so two daikin2mqtt
 # instances on one broker MUST differ here or they kick each other in a loop.
 # Empty -> daikin2mqtt (what the daemon used before this key existed).
 MQTT_CLIENT_ID: ""
+# Maintenance topics (<MQTT_TOPIC>/maintenance/set/loglevel, .../set/restart,
+# .../stats). On by default. SECURITY: anyone who may publish on the broker can
+# then restart the daemon or raise its log level - secure the broker with ACLs,
+# or set false. A restart is only honoured under a supervisor (systemd,
+# Kubernetes, a container) or with DAIKIN_SUPERVISED=1; DAIKIN_SUPERVISED=0
+# refuses it (e.g. a container without a restart policy).
+MQTT_MAINTENANCE: true
+# Seconds between <MQTT_TOPIC>/maintenance/stats publishes; 0 = off.
+MQTT_STATS_INTERVAL: 60
 
 # --- Home Assistant ---
 HASS_ENABLE: true

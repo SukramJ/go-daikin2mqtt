@@ -6,6 +6,27 @@ top-level changelog.md. Newest version first.
 
 # Unreleased
 
+# 0.14.0 (2026-10-06)
+
+- **Every MQTT topic changes** to the mqtt-smarthome 2.0 convention:
+  `daikin/status/…` and `daikin/set/…` instead of `…/state` and `…/set`,
+  and `daikin/connected` (`0`/`1`/`2`) instead of `daikin/bridge/status`.
+  **Home Assistant entities are unaffected** — ids, names, areas and
+  history are kept. Node-RED flows, dashboards and scripts reading raw
+  topics must be updated (see the add-on documentation).
+- Every value is a JSON object `{"val","ts","lc"}`: power and switches are
+  `true`/`false`, enums are tokens (`cooling`) instead of localized labels.
+  Commands take the plain value or `{"val": …}`, at QoS 1.
+- Entities now go unavailable when a device is unreachable
+  (`daikin/status/<device>/online`), not only when the add-on stops.
+- New `daikin/info` and maintenance topics (log level, stats), with the
+  new options `mqtt_maintenance` and `mqtt_stats_interval`. Restart over
+  MQTT is refused in the add-on. Anyone who may publish on the broker can
+  change the log level — keep its ACLs tight or turn maintenance off.
+- The retained topics 0.13 left are cleared on start; another
+  instance's topics are never touched. `mqtt_topic` is what keeps two
+  instances apart — give a second one a different name.
+
 # 0.13.0 (2026-10-02)
 
 - **Built with Go 1.27.1** (Docker image, add-on image and CI). Nothing

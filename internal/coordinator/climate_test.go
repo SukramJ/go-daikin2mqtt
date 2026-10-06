@@ -54,32 +54,52 @@ func TestParseClimateAux(t *testing.T) {
 }
 
 // TestClimateAuxInfoGerman verifies the discovery option lists carry the
-// German labels while numeric fan speeds stay raw.
+// German labels while numeric fan speeds stay raw — and that the codes behind
+// them, which are what the status items carry, stay the API tokens.
 func TestClimateAuxInfoGerman(t *testing.T) {
-	ci := parseClimateAux(climateMP(), "cooling").info("de")
-	if want := []string{"Automatik", "Leise", "1", "2", "3", "4", "5"}; !reflect.DeepEqual(ci.FanModes, want) {
-		t.Errorf("FanModes = %v, want %v", ci.FanModes, want)
+	ci := parseClimateAux(climateMP(), "cooling").info()
+	if want := []string{"Automatik", "Leise", "1", "2", "3", "4", "5"}; !reflect.DeepEqual(ci.FanModes.Options("de"), want) {
+		t.Errorf("FanModes = %v, want %v", ci.FanModes.Options("de"), want)
 	}
-	if want := []string{"Aus", "Schwenken", "Sanfter Luftstrom"}; !reflect.DeepEqual(ci.SwingModes, want) {
-		t.Errorf("SwingModes = %v, want %v", ci.SwingModes, want)
+	if want := []string{"Aus", "Schwenken", "Sanfter Luftstrom"}; !reflect.DeepEqual(ci.SwingModes.Options("de"), want) {
+		t.Errorf("SwingModes = %v, want %v", ci.SwingModes.Options("de"), want)
 	}
-	if want := []string{"Aus", "Schwenken"}; !reflect.DeepEqual(ci.SwingHorizontalModes, want) {
-		t.Errorf("SwingHorizontalModes = %v, want %v", ci.SwingHorizontalModes, want)
+	if want := []string{"Aus", "Schwenken"}; !reflect.DeepEqual(ci.SwingHorizontalModes.Options("de"), want) {
+		t.Errorf("SwingHorizontalModes = %v, want %v", ci.SwingHorizontalModes.Options("de"), want)
 	}
-	if want := []string{"Boost"}; !reflect.DeepEqual(ci.PresetModes, want) {
-		t.Errorf("PresetModes = %v, want %v", ci.PresetModes, want)
+	if want := []string{"Boost"}; !reflect.DeepEqual(ci.PresetModes.Options("de"), want) {
+		t.Errorf("PresetModes = %v, want %v", ci.PresetModes.Options("de"), want)
+	}
+	if want := []string{"auto", "quiet", "1", "2", "3", "4", "5"}; !reflect.DeepEqual(ci.FanModes.Codes, want) {
+		t.Errorf("FanModes codes = %v, want the tokens %v", ci.FanModes.Codes, want)
 	}
 }
 
-// TestClimateAuxInfoEnglishRaw verifies non-German keeps the raw values so the
-// command values stay language-neutral.
+// TestClimateAuxInfoEnglishRaw verifies non-German shows the raw values, so
+// the option Home Assistant sends back already is the token.
 func TestClimateAuxInfoEnglishRaw(t *testing.T) {
-	ci := parseClimateAux(climateMP(), "cooling").info("en")
-	if want := []string{"stop", "swing", "windnice"}; !reflect.DeepEqual(ci.SwingModes, want) {
-		t.Errorf("SwingModes = %v, want raw %v", ci.SwingModes, want)
+	ci := parseClimateAux(climateMP(), "cooling").info()
+	if want := []string{"stop", "swing", "windnice"}; !reflect.DeepEqual(ci.SwingModes.Options("en"), want) {
+		t.Errorf("SwingModes = %v, want raw %v", ci.SwingModes.Options("en"), want)
 	}
-	if want := []string{"auto", "quiet", "1", "2", "3", "4", "5"}; !reflect.DeepEqual(ci.FanModes, want) {
-		t.Errorf("FanModes = %v, want raw %v", ci.FanModes, want)
+	if want := []string{"auto", "quiet", "1", "2", "3", "4", "5"}; !reflect.DeepEqual(ci.FanModes.Options("en"), want) {
+		t.Errorf("FanModes = %v, want raw %v", ci.FanModes.Options("en"), want)
+	}
+}
+
+// TestCanonicalAuxReadsTokensAndLabels pins spec §5.3 on the climate role
+// items: the token in any case, and a German label still accepted.
+func TestCanonicalAuxReadsTokensAndLabels(t *testing.T) {
+	for in, want := range map[string]string{
+		"quiet": "quiet", "QUIET": "quiet", "Leise": "quiet", "leise": "quiet", "3": "3",
+		"Automatik": "auto",
+	} {
+		if got := canonicalAux(in, fanModeDE); got != want {
+			t.Errorf("canonicalAux(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := canonicalAux("WindNice", swingModeDE); got != "windnice" {
+		t.Errorf("canonicalAux(WindNice) = %q, want windnice", got)
 	}
 }
 

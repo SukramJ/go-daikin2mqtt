@@ -174,8 +174,10 @@ func TestSchedulerEnableRouting(t *testing.T) {
 		{"ON", true},
 		{"true", true},
 		{"1", true},
+		{"yes", true},
 		{"off", false},
-		{"nonsense", false},
+		{"False", false},
+		{"0", false},
 	}
 	for _, tc := range cases {
 		c.handleWrite(context.Background(), writeReq{
@@ -185,6 +187,11 @@ func TestSchedulerEnableRouting(t *testing.T) {
 			payload:    tc.payload,
 		})
 	}
+	// spec §5.3: a value that is no boolean is rejected (and logged at warn),
+	// not read as "off".
+	c.handleWrite(context.Background(), writeReq{
+		deviceID: schedule.SchedulerDeviceID, embeddedID: "werktag", topic: ScheduleEnabledTopic, payload: "nonsense",
+	})
 	if len(sched.toggles) != len(cases) {
 		t.Fatalf("toggles = %d, want %d", len(sched.toggles), len(cases))
 	}
@@ -234,37 +241,36 @@ func TestPublishScheduleState(t *testing.T) {
 		NextChange: next,
 	})
 
-	got, ok := m.get("daikin/" + dev + "/" + emb + "/" + ScheduleStateTopic + "/state")
-	if !ok || got.payload != "Werktag · Nacht" {
-		t.Errorf("state = %+v, want 'Werktag · Nacht'", got)
+	state := "daikin/status/" + dev + "/" + emb + "/" + ScheduleStateTopic
+	if got, ok := m.val(t, state); !ok || got != "Werktag · Nacht" {
+		t.Errorf("state = %v, want 'Werktag · Nacht'", got)
 	}
-	if !got.retain {
+	if got, _ := m.get(state); !got.retain {
 		t.Error("the state must be retained")
 	}
-	got, ok = m.get("daikin/" + dev + "/" + emb + "/" + ScheduleNextTopic + "/state")
-	if !ok || got.payload != next.Format(time.RFC3339) {
-		t.Errorf("next change = %+v, want %s", got, next.Format(time.RFC3339))
+	if got, ok := m.val(t, "daikin/status/"+dev+"/"+emb+"/"+ScheduleNextTopic); !ok || got != next.Format(time.RFC3339) {
+		t.Errorf("next change = %v, want %s", got, next.Format(time.RFC3339))
 	}
 }
 
-func TestPublishScheduleStateIdleIsLocalized(t *testing.T) {
+func TestPublishScheduleStateIdleIsAToken(t *testing.T) {
 	const dev, emb = "dev1", "climateControl"
 	m := newStubMQTT()
 	c := newCoordinator(t, &stubCloud{devices: devicesJSON(dev, emb)}, m)
 	c.pollOnce(context.Background())
 
-	// The test config is German, so the idle label comes from label_de — the
-	// only string in this sensor the daemon produces itself.
+	// The test config is German, and the idle state is still the catalogue
+	// token: the label ("Kein Block") is discovery's, through the sensor's
+	// value template, so it follows LANGUAGE without travelling on the wire.
 	c.PublishScheduleState(context.Background(), schedule.Target{DeviceID: dev}, schedule.DeviceState{})
 
-	got, ok := m.get("daikin/" + dev + "/" + emb + "/" + ScheduleStateTopic + "/state")
-	if !ok || got.payload != "Kein Block" {
-		t.Errorf("idle state = %+v, want 'Kein Block'", got)
+	if got, ok := m.val(t, "daikin/status/"+dev+"/"+emb+"/"+ScheduleStateTopic); !ok || got != "idle" {
+		t.Errorf("idle state = %v, want the token idle", got)
 	}
-	// With no next change the topic is published empty rather than left stale.
-	got, ok = m.get("daikin/" + dev + "/" + emb + "/" + ScheduleNextTopic + "/state")
-	if !ok || got.payload != "" {
-		t.Errorf("next change = %+v, want empty", got)
+	// With no next change the topic is cleared rather than left stale.
+	got, ok := m.get("daikin/status/" + dev + "/" + emb + "/" + ScheduleNextTopic)
+	if !ok || got.payload != "" || !got.retain {
+		t.Errorf("next change = %+v, want a retained clear", got)
 	}
 }
 
@@ -277,9 +283,8 @@ func TestPublishScheduleStateWithoutLabel(t *testing.T) {
 	c.PublishScheduleState(context.Background(), schedule.Target{DeviceID: dev}, schedule.DeviceState{
 		Active: &schedule.Claim{ScheduleID: "s", ScheduleName: "Urlaub"},
 	})
-	got, _ := m.get("daikin/" + dev + "/" + emb + "/" + ScheduleStateTopic + "/state")
-	if got.payload != "Urlaub" {
-		t.Errorf("state = %q, want 'Urlaub'", got.payload)
+	if got, _ := m.val(t, "daikin/status/"+dev+"/"+emb+"/"+ScheduleStateTopic); got != "Urlaub" {
+		t.Errorf("state = %v, want 'Urlaub'", got)
 	}
 }
 
@@ -304,12 +309,15 @@ func TestPublishScheduleSwitches(t *testing.T) {
 	}
 	c.PublishScheduleSwitches(context.Background(), doc)
 
-	for _, tc := range []struct{ id, want string }{{"werktag", "on"}, {"urlaub", "off"}} {
-		got, ok := m.get("daikin/" + schedule.SchedulerDeviceID + "/" + tc.id + "/" + ScheduleEnabledTopic + "/state")
-		if !ok || got.payload != tc.want {
-			t.Errorf("%s = %+v, want %s", tc.id, got, tc.want)
+	for _, tc := range []struct {
+		id   string
+		want bool
+	}{{"werktag", true}, {"urlaub", false}} {
+		topic := "daikin/status/" + schedule.SchedulerDeviceID + "/" + tc.id + "/" + ScheduleEnabledTopic
+		if got, ok := m.val(t, topic); !ok || got != tc.want {
+			t.Errorf("%s = %v, want %v", tc.id, got, tc.want)
 		}
-		if !got.retain {
+		if got, _ := m.get(topic); !got.retain {
 			t.Errorf("%s must be retained", tc.id)
 		}
 	}
@@ -522,13 +530,11 @@ func TestPublishOutdoorScheduleStateOnEveryMember(t *testing.T) {
 	// member's topic that entity reads from depends on the discovery order —
 	// so every member has to carry the value.
 	for _, dev := range []string{"dev-a", "dev-b"} {
-		got, ok := m.get("daikin/" + dev + "/climateControl/" + OutdoorScheduleStateTopic + "/state")
-		if !ok || got.payload != "Nachtruhe · leise" {
-			t.Errorf("%s state = %+v, want 'Nachtruhe · leise'", dev, got)
+		if got, ok := m.val(t, "daikin/status/"+dev+"/climateControl/"+OutdoorScheduleStateTopic); !ok || got != "Nachtruhe · leise" {
+			t.Errorf("%s state = %v, want 'Nachtruhe · leise'", dev, got)
 		}
-		got, ok = m.get("daikin/" + dev + "/climateControl/" + OutdoorScheduleNextTopic + "/state")
-		if !ok || got.payload != next.Format(time.RFC3339) {
-			t.Errorf("%s next change = %+v", dev, got)
+		if got, ok := m.val(t, "daikin/status/"+dev+"/climateControl/"+OutdoorScheduleNextTopic); !ok || got != next.Format(time.RFC3339) {
+			t.Errorf("%s next change = %v", dev, got)
 		}
 	}
 }

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	hatopic "github.com/SukramJ/go-hamqtt/topic"
 )
 
 // ValidationError is returned by [Validate] when the loaded config fails
@@ -84,6 +86,14 @@ func Validate(c *Config) error {
 	}
 	if c.MQTTTopic == "" {
 		add("MQTT_TOPIC is required")
+	} else if _, err := hatopic.NewSmartHomeMultiLevel(c.MQTTTopic); err != nil {
+		// A wildcard, NUL or a leading `$` makes every topic of the tree
+		// unpublishable; a `/` is accepted (an existing multi-level root keeps
+		// working) and logged at start as outside mqtt-smarthome 2.0 §3.
+		add("MQTT_TOPIC %v", err)
+	}
+	if c.MQTTStatsInterval != nil && (*c.MQTTStatsInterval < 0 || *c.MQTTStatsInterval > 86400) {
+		add("MQTT_STATS_INTERVAL must be 0..86400 seconds, got %d", *c.MQTTStatsInterval)
 	}
 	// A client id is what the broker keys the session on. Whitespace inside
 	// it is legal on the wire but is almost always a paste accident, and the
