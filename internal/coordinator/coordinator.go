@@ -382,6 +382,7 @@ func (c *Coordinator) PublishOffline(ctx context.Context) {
 func (c *Coordinator) pollLoop(ctx context.Context) error {
 	for {
 		c.pollOnce(ctx)
+		c.maybeSweepLegacy(ctx)
 		interval := c.deps.Cfg.PollInterval(c.deps.Clock().Hour())
 		c.deps.Logger.Debug("coordinator.poll_sleep", slog.Duration("interval", interval))
 		select {

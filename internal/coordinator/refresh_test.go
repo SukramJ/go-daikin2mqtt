@@ -43,7 +43,7 @@ func newRefreshCoordinator(t *testing.T, cloud *stubCloud, m *stubMQTT, clk *mov
 	cfg := testConfig()
 	cfg.RefreshDayInterval = 3600
 	cfg.RefreshNightInterval = 3600
-	return New(Deps{
+	c := New(Deps{
 		Cfg:     cfg,
 		Client:  cloud,
 		MQTT:    m,
@@ -51,6 +51,11 @@ func newRefreshCoordinator(t *testing.T, cloud *stubCloud, m *stubMQTT, clk *mov
 		Logger:  slog.New(slog.DiscardHandler),
 		Clock:   clk.now,
 	})
+	// The poll loop runs the start-up sweep of the 0.13 layout once, for one
+	// collect window, after its first poll; the stub broker delivers nothing,
+	// so shrink the window rather than wait it out.
+	c.collectWindow = 5 * time.Millisecond
+	return c
 }
 
 // A press on the refresh button writes nothing to the device — it queues a poll
