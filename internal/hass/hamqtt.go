@@ -557,6 +557,7 @@ func (d *Discovery) pointEntity(lay hamqttLayout, p process.Point, idBase, seed 
 		desc.Unit = model.Unit(p.Unit)
 		desc.DeviceClass = model.DeviceClass(p.Entry.DeviceClass)
 		desc.StateClass = hacatalog.StateClass(p.Entry.StateClass)
+		desc.ValueTemplate = SensorValueTemplate
 	case "binary_sensor":
 		desc.DeviceClass = model.DeviceClass(p.Entry.DeviceClass)
 		fields = discovery.BinarySensorFields{PayloadOn: discovery.PayloadTrue, PayloadOff: discovery.PayloadFalse}
@@ -606,11 +607,48 @@ func (d *Discovery) pointEntity(lay hamqttLayout, p process.Point, idBase, seed 
 		// state the catalogue does not name.
 		enum := entryEnum(p.Entry)
 		e.build = func(ctx discovery.Context, comp *discovery.Component) error {
-			comp.ValueTemplate, _ = discovery.EnumTemplates(enum, ctx.Language(), discovery.StatusValueField)
+			comp.ValueTemplate = sensorEnumValueTemplate(enum, ctx.Language())
 			return nil
 		}
 	}
 	return e, true
+}
+
+// sensorValueGuard is the condition under which a sensor's status item holds
+// a value: a status object whose `val` is present, not null and not the empty
+// string. Every operand short-circuits before the next one touches an
+// undefined, so Home Assistant never logs a template error for an empty
+// payload (a cleared item) or a document without `val`.
+const sensorValueGuard = `value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != ''`
+
+// SensorValueTemplate reads a sensor's value out of its status object and
+// renders `None` when there is none.
+//
+// `None` is the one payload Home Assistant's MQTT sensor turns into an unknown
+// state for every sensor kind — plain, numeric, enum and timestamp alike — and
+// it is checked before any of them parses the value
+// (homeassistant/components/mqtt/sensor.py, `payload == PAYLOAD_NONE`). The
+// plain `{{ value_json.val }}` cannot do that: an empty payload leaves
+// value_json undefined, the render fails, and the sensor keeps showing the
+// value the item was cleared from (the render error makes it return before the
+// state is touched) — which is how 0.14.0 kept a cleared error code or the
+// next change of a disabled schedule on screen until Home Assistant restarted.
+const SensorValueTemplate = `{% if ` + sensorValueGuard + ` %}{{ value_json.val }}{% else %}None{% endif %}`
+
+// sensorEnumValueTemplate is [SensorValueTemplate] for a sensor whose catalogue
+// names some of its states: a named token shows as its label, anything else as
+// itself, and no value as `None`.
+func sensorEnumValueTemplate(enum *model.Enum, lang string) string {
+	var b strings.Builder
+	b.WriteString(`{% set m = {`)
+	for i, code := range enum.Codes {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(discovery.JinjaQuote(code) + ": " + discovery.JinjaQuote(enum.Label(code, lang)))
+	}
+	b.WriteString(`} %}{% if ` + sensorValueGuard + ` %}{{ m.get(value_json.val, value_json.val) }}{% else %}None{% endif %}`)
+	return b.String()
 }
 
 // boolSwitchFields are the payloads of every switch this bridge publishes: the
@@ -796,7 +834,14 @@ func (d *Discovery) scheduleEntity(s ScheduleInfo) *renderEntity {
 		// at the schedule's creation rather than from its display name, so
 		// renaming a schedule leaves switch.daikin_schedule_<slug> untouched.
 		objectIDIsUniqueID: true,
-		fields:             discovery.SwitchFields{PayloadOn: "on", PayloadOff: "off", StateOn: "on", StateOff: "off"},
+		// The same payloads as every device switch: the status item carries
+		// the schedule's enabled flag as a JSON boolean, which the library's
+		// value template lowers to `true`/`false`. Until 0.14.1 this said
+		// `on`/`off`, which no rendered state matched, so Home Assistant
+		// dropped every update and the switch stayed unknown. The command is
+		// the same word, read by handleSchedulerWrite with spec §5.3's boolean
+		// conversions (which also still take `on`/`off`).
+		fields: boolSwitchFields(),
 	}
 }
 

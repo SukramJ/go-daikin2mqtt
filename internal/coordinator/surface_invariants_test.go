@@ -722,6 +722,11 @@ func TestTwoDefaultInstancesCollideOnEveryString(t *testing.T) {
 // TestSurfaceCensus holds the measured entity counts as Go literals, so a
 // silent change in what the bridge publishes is visible without reading a
 // 2 500-line golden.
+//
+// 0.14.1 lowered two message counts: the poll no longer clears the retained
+// state of the discovery-only points another plane owns (22 clears of the
+// Faikin-served telemetry in multisplit.local.en, 3 of the scheduler's
+// sensors in multisplit.scheduler.en).
 func TestSurfaceCensus(t *testing.T) {
 	t.Parallel()
 	want := map[string]struct {
@@ -738,8 +743,8 @@ func TestSurfaceCensus(t *testing.T) {
 		"d2cnd-gas-boiler.de":           {13, 48, "binary_sensor=5 button=1 climate=1 sensor=5 switch=1"},
 		"multisplit.en":                 {30, 116, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
 		"multisplit.de":                 {30, 116, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
-		"multisplit.local.en":           {52, 224, "binary_sensor=4 button=1 climate=2 number=1 sensor=38 switch=6"},
-		"multisplit.scheduler.en":       {38, 145, "binary_sensor=4 button=1 climate=2 sensor=27 switch=4"},
+		"multisplit.local.en":           {52, 202, "binary_sensor=4 button=1 climate=2 number=1 sensor=38 switch=6"},
+		"multisplit.scheduler.en":       {38, 142, "binary_sensor=4 button=1 climate=2 sensor=27 switch=4"},
 	}
 	for _, sc := range surfaceScenarios() {
 		msgs := buildSurface(t, sc)

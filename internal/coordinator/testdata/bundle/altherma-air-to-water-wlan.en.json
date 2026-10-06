@@ -99,7 +99,7 @@
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_daily",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "cooling_energy_monthly": {
             "availability": [
@@ -127,7 +127,7 @@
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_monthly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "cooling_energy_weekly": {
             "availability": [
@@ -155,7 +155,7 @@
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_weekly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "dhw_error_state": {
             "availability": [
@@ -266,7 +266,7 @@
             "platform": "sensor",
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_setpoint_mode",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "dhw_tank_temperature": {
             "availability": [
@@ -294,7 +294,7 @@
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_tank_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "dhw_temperature_setpoint": {
             "availability": [
@@ -353,7 +353,7 @@
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_daily",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "heating_energy_monthly": {
             "availability": [
@@ -381,7 +381,7 @@
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_monthly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "heating_energy_weekly": {
             "availability": [
@@ -409,7 +409,7 @@
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_weekly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "holiday_mode": {
             "availability": [
@@ -494,7 +494,7 @@
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_outdoor_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "powerful_mode": {
             "availability": [
@@ -576,7 +576,7 @@
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_room_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           }
         },
         "device": {
@@ -628,7 +628,7 @@
             "platform": "sensor",
             "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address",
             "unique_id": "daikin_gateway_ABCDEF0123456789_gateway_ip_address",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           }
         },
         "device": {

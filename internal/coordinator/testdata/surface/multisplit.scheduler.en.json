@@ -287,12 +287,6 @@
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_schedule_state",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_schedule_state",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -465,7 +459,11 @@
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/schedule_state",
       "qos": 0,
       "retain": true,
-      "empty": true
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "idle"
+      }
     },
     {
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/schedule_state/attributes",
@@ -827,12 +825,6 @@
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_schedule_state",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_schedule_state",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -1000,12 +992,6 @@
           "data_source": "cloud"
         }
       }
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/schedule_state",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/schedule_state",

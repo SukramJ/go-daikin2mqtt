@@ -22,9 +22,14 @@ import (
 // function name, not another root, not the Faikin firmware's own topics.
 func TestClassifyRetainedTouchesOnlyExactOwnedShapes(t *testing.T) {
 	t.Parallel()
-	owned := map[string]bool{"dev1": true}
-	schedules := map[string]bool{"werktag": true}
-	current := map[string]bool{"daikin/status/dev1/climateControl/power": true}
+	// dev1 is served by the cloud, dev3 by a Faikin module (local mode).
+	scope := sweepScope{
+		Owned:            map[string]bool{"dev1": true, "dev3": true},
+		Schedules:        map[string]bool{"werktag": true},
+		Current:          map[string]bool{"daikin/status/dev1/climateControl/power": true},
+		CloudServed:      map[string]bool{"dev1": true},
+		OtherOwnerLeaves: map[string]bool{"schedule_state": true},
+	}
 
 	for _, tc := range []struct {
 		topic string
@@ -59,9 +64,19 @@ func TestClassifyRetainedTouchesOnlyExactOwnedShapes(t *testing.T) {
 		{"daikin/set/dev1/climateControl/power", sweepKeep},
 		{"daikin/status/dev1/climateControl/power", sweepKeep},     // published this run
 		{"daikin/status/dev1/climateControl/old_leaf", sweepStale}, // owned, no longer published
-		{"daikin/status/dev1/online", sweepStale},                  // owned, not yet published
-		{"daikin/status/dev2/climateControl/power", sweepKeep},     // a sibling's current item
-		{"daikin/status/scheduler/werktag/enabled", sweepKeep},     // no device of ours
+		{"daikin/status/dev1/climateControl/old_leaf/attributes", sweepStale},
+		// The stale path never touches what the cloud poll does not write:
+		// a device's online item (every entity's availability rests on it),
+		// a Faikin-served device's items (its module may not have reported
+		// yet), the scheduler's own sensors.
+		{"daikin/status/dev1/online", sweepKeep},
+		{"daikin/status/dev3/online", sweepKeep},
+		{"daikin/status/dev3/climateControl/power_consumption", sweepKeep},
+		{"daikin/status/dev3/climateControl/old_leaf", sweepKeep},
+		{"daikin/status/dev1/climateControl/schedule_state", sweepKeep},
+		{"daikin/dev3/climateControl/power/state", sweepLegacy}, // the 0.13 tree is still the sweep's job
+		{"daikin/status/dev2/climateControl/power", sweepKeep},  // a sibling's current item
+		{"daikin/status/scheduler/werktag/enabled", sweepKeep},  // no device of ours
 		{"daikin/status/dev1", sweepKeep},
 
 		// Not under this root at all.
@@ -70,7 +85,7 @@ func TestClassifyRetainedTouchesOnlyExactOwnedShapes(t *testing.T) {
 		{"command/Klima SZ/power", sweepKeep},
 		{"homeassistant/device/daikin_dev1/config", sweepKeep},
 	} {
-		if got := classifyRetained("daikin", tc.topic, owned, schedules, current); got != tc.want {
+		if got := classifyRetained("daikin", tc.topic, scope); got != tc.want {
 			t.Errorf("classifyRetained(%q) = %v, want %v", tc.topic, got, tc.want)
 		}
 	}
@@ -78,10 +93,10 @@ func TestClassifyRetainedTouchesOnlyExactOwnedShapes(t *testing.T) {
 	// A root named like the Faikin firmware's first level still leaves the
 	// firmware's own topics alone: a Faikin host is no ONECTA device id.
 	for _, topic := range []string{"state/Klima SZ", "command/Klima SZ/power", "state/dev1"} {
-		if got := classifyRetained("state", topic, owned, schedules, current); got != sweepKeep {
+		if got := classifyRetained("state", topic, scope); got != sweepKeep {
 			t.Errorf("root \"state\": classifyRetained(%q) = %v, want keep", topic, got)
 		}
-		if got := classifyRetained("command", topic, owned, schedules, current); got != sweepKeep {
+		if got := classifyRetained("command", topic, scope); got != sweepKeep {
 			t.Errorf("root \"command\": classifyRetained(%q) = %v, want keep", topic, got)
 		}
 	}
@@ -209,5 +224,53 @@ func TestLegacySweepWaitsForTheFirstPicture(t *testing.T) {
 	}
 	if len(br.log()) != 0 {
 		t.Errorf("subscribed before any device was known: %v", br.log())
+	}
+}
+
+// TestLegacySweepLeavesAFaikinServedDeviceAlone is finding 3 of the 0.14.0
+// review: in local mode a mapped device's `online` item and its Faikin-owned
+// leaves are written only by the Faikin read path. When no module has reported
+// by the time the first poll's sweep runs, 0.14.0's stale path cleared the
+// previous run's retained values — and under availability_mode: all a cleared
+// `online` makes every entity of the device unavailable until the module's
+// next state message. The sweep must leave them, while still clearing the
+// device's 0.13 tree.
+func TestLegacySweepLeavesAFaikinServedDeviceAlone(t *testing.T) {
+	t.Parallel()
+	const dev, emb = "dev1", "climateControl"
+	br := newRetainedBroker()
+	keep := map[string]string{
+		"daikin/status/dev1/online":                              `{"val":true,"ts":1,"lc":1}`,
+		"daikin/status/dev1/climateControl/power":                `{"val":true,"ts":1,"lc":1}`,
+		"daikin/status/dev1/climateControl/power_consumption":    `{"val":120,"ts":1,"lc":1}`,
+		"daikin/status/dev1/climateControl/fan_mode":             `{"val":"auto","ts":1,"lc":1}`,
+		"daikin/status/dev1/climateControl/power_consumption/xx": `{"val":1,"ts":1,"lc":1}`,
+	}
+	for topic, payload := range keep {
+		br.retain(topic, payload)
+	}
+	const legacy = "daikin/dev1/climateControl/power/state"
+	br.retain(legacy, "on")
+
+	cfg := testConfig()
+	cfg.LocalMode = true
+	cfg.LocalDeviceMap = map[string]string{dev: "Klima SZ"}
+	c := New(Deps{
+		Cfg: cfg, Client: &stubCloud{devices: devicesJSON(dev, emb)}, MQTT: br, FaikinMQTT: newStubMQTT(),
+		Catalog: loadTestCatalog(t), Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
+	})
+	c.collectWindow = 20 * time.Millisecond
+	ctx := context.Background()
+
+	c.pollOnce(ctx) // no Faikin state has arrived
+	c.maybeSweepLegacy(ctx)
+
+	for topic, payload := range keep {
+		if v, _ := br.retained(topic); v != payload {
+			t.Errorf("%s = %q, want it untouched (%q): the Faikin plane has not reported yet", topic, v, payload)
+		}
+	}
+	if v, ok := br.retained(legacy); !ok || v != "" {
+		t.Errorf("%s = %q (present %v), want the 0.13 topic cleared", legacy, v, ok)
 	}
 }

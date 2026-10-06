@@ -73,7 +73,7 @@
             "platform": "sensor",
             "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code",
             "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_code",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "error_state": {
             "availability": [
@@ -128,7 +128,7 @@
             "platform": "sensor",
             "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address",
             "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_gateway_ip_address",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "holiday_mode": {
             "availability": [
@@ -212,7 +212,7 @@
             "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity",
             "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_humidity",
             "unit_of_measurement": "%",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "room_temperature": {
             "availability": [
@@ -240,7 +240,7 @@
             "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature",
             "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           }
         },
         "device": {

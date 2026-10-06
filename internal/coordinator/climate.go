@@ -331,7 +331,7 @@ func (c *Coordinator) publishClimateAux(ctx context.Context, devices []model.Dev
 			}
 			a := parseClimateAux(mp, currentMode(mp))
 			pub := func(suffix, val string) {
-				c.publishState(ctx, c.topicRoot.Slot(d.ID, mp.EmbeddedID, suffix).State(), val)
+				c.publishState(ctx, c.topicRoot.Slot(d.ID, mp.EmbeddedID, suffix).State(), noneIfEmpty(val))
 			}
 			// In local mode the Faikin read path owns fan/swing (the cloud poll's
 			// values are stale for a locally-controlled unit), so skip them here.

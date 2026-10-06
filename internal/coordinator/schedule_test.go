@@ -176,6 +176,7 @@ func TestSchedulerEnableRouting(t *testing.T) {
 		{"1", true},
 		{"yes", true},
 		{"off", false},
+		{"false", false}, // what the switch's payload_off sends since 0.14.1
 		{"False", false},
 		{"0", false},
 	}
@@ -568,5 +569,48 @@ func TestSchedulePointsIncludeOutdoorOnlyWhenUsed(t *testing.T) {
 	}
 	if !seen[OutdoorScheduleStateTopic] || !seen[OutdoorScheduleNextTopic] {
 		t.Errorf("outdoor sensors missing with an outdoor schedule: %v", seen)
+	}
+}
+
+// TestPollLeavesTargetedScheduleSensorsToTheEngine pins the split 0.14.1 made
+// between the two writers of the schedule sensors. The engine publishes the
+// pair for the targets it evaluates; the poll publishes it for every device no
+// schedule targets — no block (`idle`) and no next change (cleared) — and never
+// touches a targeted device's pair. Up to 0.14.0 the poll cleared every
+// device's pair on every poll, which emptied a scheduled device's sensors until
+// the engine's next evaluation and left an untargeted device's advertised
+// state item without a value.
+func TestPollLeavesTargetedScheduleSensorsToTheEngine(t *testing.T) {
+	const serial = "0J723746"
+	m := newStubMQTT()
+	c := newCoordinator(t, &stubCloud{devices: outdoorDevicesJSON(serial, "dev-a", "dev-b")}, m)
+	doc := schedule.NewDocument()
+	doc.Schedules = append(doc.Schedules,
+		schedule.Schedule{ID: "werktag", Name: "Werktag", Targets: []schedule.Target{{DeviceID: "dev-a"}}},
+		schedule.Schedule{ID: "leise", Name: "Leise", Type: schedule.TypeOutdoor, Targets: []schedule.Target{{OutdoorSerial: serial}}},
+	)
+	c.AttachScheduler(&stubScheduler{doc: doc})
+	ctx := context.Background()
+	c.pollOnce(ctx) // resolves the embedded ids and the outdoor group
+	c.pollOnce(ctx)
+
+	item := func(dev, leaf string) string { return c.topicRoot.Slot(dev, "climateControl", leaf).State() }
+	// dev-a is targeted indoors, and both devices sit on the targeted outdoor
+	// unit: none of these is the poll's to write.
+	engineOwned := []string{
+		item("dev-a", ScheduleStateTopic), item("dev-a", ScheduleNextTopic),
+		item("dev-a", OutdoorScheduleStateTopic), item("dev-a", OutdoorScheduleNextTopic),
+		item("dev-b", OutdoorScheduleStateTopic), item("dev-b", OutdoorScheduleNextTopic),
+	}
+	for _, topic := range engineOwned {
+		if n := m.countOf(topic); n != 0 {
+			t.Errorf("the poll wrote %s %d times; a targeted pair is the engine's", topic, n)
+		}
+	}
+	if v, ok := m.val(t, item("dev-b", ScheduleStateTopic)); !ok || v != scheduleIdleValue {
+		t.Errorf("untargeted device's schedule_state = %v (published %v), want %q", v, ok, scheduleIdleValue)
+	}
+	if msg, ok := m.get(item("dev-b", ScheduleNextTopic)); !ok || msg.payload != "" || !msg.retain {
+		t.Errorf("untargeted device's schedule_next_change = %+v (published %v), want a retained clear", msg, ok)
 	}
 }

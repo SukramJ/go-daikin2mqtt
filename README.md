@@ -242,9 +242,10 @@ mosquitto_pub -t 'daikin/set/<uuid>/climateControl/temperature_setpoint' -m '{"v
 
 **`daikin/connected`** is retained: `0` when the daemon is gone (Last Will,
 and on a graceful stop), `1` when it is connected to the broker but its
-upstream is unusable (the ONECTA cloud failing, rate-limited or not yet
-authorized; in local mode, the Faikin broker down), `2` when it is fully
-operational. Every Home Assistant entity is available while it is `2` and its
+upstream is unusable (two cloud polls in a row failed, the authorization
+is gone or no poll has succeeded yet; in local mode, the Faikin broker
+down), `2` when it is fully operational. A rate-limited poll does not lower
+it: the last values stay available until the quota resets. Every Home Assistant entity is available while it is `2` and its
 device's `daikin/status/<uuid>/online` is `true` (the cloud's
 `isCloudConnectionUp`, or in local mode the Faikin module's report).
 

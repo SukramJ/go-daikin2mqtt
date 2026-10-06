@@ -336,7 +336,9 @@ func TestHamqttStatusTemplates(t *testing.T) {
 		}
 
 		sensor := render(testPoint("room_temperature", "sensor"))
-		if sensor["value_template"] != "{{ value_json.val }}" {
+		// A sensor renders `None` (unknown) for a cleared or empty item; see
+		// SensorValueTemplate.
+		if sensor["value_template"] != SensorValueTemplate {
 			t.Errorf("%s sensor value_template = %v", lang, sensor["value_template"])
 		}
 		if sensor["json_attributes_template"] != AttributesTemplate {

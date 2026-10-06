@@ -27,23 +27,47 @@ import (
 // Faikin broker that drops in between must not leave the level at 2 that long.
 const upstreamWatchInterval = 15 * time.Second
 
+// cloudFailThreshold is how many consecutive failed polls take the cloud
+// level down. One is not enough: the client already retries a GET three times
+// with backoff, so a single failed poll is usually one bad minute of ONECTA's,
+// and dropping every entity to unavailable for a whole poll interval over it
+// is worse than showing the last known values — which is all 0.13 ever did.
+// Two in a row is a cloud that has been unusable for at least one interval.
+const cloudFailThreshold = 2
+
 // noteCloud records the outcome of one cloud poll and re-derives the level.
 func (c *Coordinator) noteCloud(ctx context.Context, ok bool) {
 	c.mu.Lock()
 	c.cloudOK = ok
 	if ok {
 		c.devicesKnown = true
+		c.cloudFails = 0
 	}
 	c.mu.Unlock()
 	c.updateConnected(ctx)
 }
 
+// noteCloudFailure records one failed poll. The level goes down when the
+// failure is definitive (a dead refresh token) or the [cloudFailThreshold]th
+// in a row; a rate-limited poll is not recorded at all (see pollOnce).
+func (c *Coordinator) noteCloudFailure(ctx context.Context, definitive bool) {
+	c.mu.Lock()
+	c.cloudFails++
+	down := definitive || c.cloudFails >= cloudFailThreshold
+	c.mu.Unlock()
+	if down {
+		c.noteCloud(ctx, false)
+	}
+}
+
 // upstreamLevel is the level the daemon's upstream justifies right now.
 //
-//   - Cloud mode: 2 while the last ONECTA poll succeeded. A failed poll — the
-//     cloud unreachable, rate-limited, a dead refresh token, missing
-//     credentials — is 1. A scan-ignore skip after a write is no answer and
-//     changes nothing (see pollOnce).
+//   - Cloud mode: 2 while the cloud is usable. It becomes 1 on a dead refresh
+//     token at once, and on any other failure — the cloud unreachable,
+//     missing credentials, an unparsable answer — at the second consecutive
+//     failed poll ([cloudFailThreshold]). A rate-limited poll and a
+//     scan-ignore skip after a write change nothing (see pollOnce). Before
+//     the first successful poll the level is 1.
 //   - Local mode: 2 while the connection the Faikin modules are reached over
 //     is up and the device topology is known, i.e. at least one cloud poll has
 //     succeeded since start. The topology is what routes a Faikin state onto a

@@ -127,7 +127,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_daily",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_daily",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "cooling_energy_monthly": {
             "availability": [
@@ -155,7 +155,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_monthly",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_monthly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "cooling_energy_total": {
             "availability": [
@@ -183,7 +183,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_total",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_total",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "cooling_energy_weekly": {
             "availability": [
@@ -211,7 +211,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_weekly",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_weekly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "energy_total": {
             "availability": [
@@ -239,7 +239,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/energy_total",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_energy_total",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "error_code": {
             "availability": [
@@ -265,7 +265,7 @@
             "platform": "sensor",
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/error_code",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_code",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "error_state": {
             "availability": [
@@ -322,7 +322,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/fan_speed",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_fan_speed",
             "unit_of_measurement": "rpm",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "heating_energy_daily": {
             "availability": [
@@ -350,7 +350,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_daily",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_daily",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "heating_energy_monthly": {
             "availability": [
@@ -378,7 +378,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_monthly",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_monthly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "heating_energy_total": {
             "availability": [
@@ -406,7 +406,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_total",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_total",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "heating_energy_weekly": {
             "availability": [
@@ -434,7 +434,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_weekly",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_weekly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "holiday_mode": {
             "availability": [
@@ -490,7 +490,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/power_consumption",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_power_consumption",
             "unit_of_measurement": "W",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "powerful_mode": {
             "availability": [
@@ -547,7 +547,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/refrigerant_temperature",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_refrigerant_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "room_humidity": {
             "availability": [
@@ -575,7 +575,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/room_humidity",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_humidity",
             "unit_of_measurement": "%",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "room_temperature": {
             "availability": [
@@ -603,7 +603,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/room_temperature",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "streamer": {
             "availability": [
@@ -779,7 +779,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_daily",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "cooling_energy_monthly": {
             "availability": [
@@ -807,7 +807,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_monthly",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "cooling_energy_total": {
             "availability": [
@@ -835,7 +835,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_total",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_total",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "cooling_energy_weekly": {
             "availability": [
@@ -863,7 +863,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_weekly",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "energy_total": {
             "availability": [
@@ -891,7 +891,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/energy_total",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_energy_total",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "error_code": {
             "availability": [
@@ -917,7 +917,7 @@
             "platform": "sensor",
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_code",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "error_state": {
             "availability": [
@@ -974,7 +974,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_speed",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_fan_speed",
             "unit_of_measurement": "rpm",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "heating_energy_daily": {
             "availability": [
@@ -1002,7 +1002,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_daily",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "heating_energy_monthly": {
             "availability": [
@@ -1030,7 +1030,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_monthly",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "heating_energy_total": {
             "availability": [
@@ -1058,7 +1058,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_total",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_total",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "heating_energy_weekly": {
             "availability": [
@@ -1086,7 +1086,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_weekly",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "holiday_mode": {
             "availability": [
@@ -1142,7 +1142,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power_consumption",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_power_consumption",
             "unit_of_measurement": "W",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "powerful_mode": {
             "availability": [
@@ -1199,7 +1199,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refrigerant_temperature",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_refrigerant_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "room_humidity": {
             "availability": [
@@ -1227,7 +1227,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_humidity",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity",
             "unit_of_measurement": "%",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "room_temperature": {
             "availability": [
@@ -1255,7 +1255,7 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "streamer": {
             "availability": [
@@ -1336,7 +1336,7 @@
             "platform": "sensor",
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/gateway/gateway_ip_address",
             "unique_id": "daikin_gateway_GW0000000001_gateway_ip_address",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           }
         },
         "device": {
@@ -1395,7 +1395,7 @@
             "platform": "sensor",
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/gateway/gateway_ip_address",
             "unique_id": "daikin_gateway_GW0000000002_gateway_ip_address",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           }
         },
         "device": {
@@ -1466,7 +1466,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/compressor_frequency",
             "unique_id": "daikin_outdoor_ODU0000000001_compressor_frequency",
             "unit_of_measurement": "Hz",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "demand_control": {
             "availability": [
@@ -1552,7 +1552,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_cooling_energy_total",
             "unique_id": "daikin_outdoor_ODU0000000001_outdoor_cooling_energy_total",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "outdoor_energy_total": {
             "availability": [
@@ -1580,7 +1580,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_energy_total",
             "unique_id": "daikin_outdoor_ODU0000000001_outdoor_energy_total",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "outdoor_heating_energy_total": {
             "availability": [
@@ -1608,7 +1608,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_heating_energy_total",
             "unique_id": "daikin_outdoor_ODU0000000001_outdoor_heating_energy_total",
             "unit_of_measurement": "kWh",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "outdoor_power": {
             "availability": [
@@ -1636,7 +1636,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_power",
             "unique_id": "daikin_outdoor_ODU0000000001_outdoor_power",
             "unit_of_measurement": "W",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "outdoor_silent": {
             "availability": [
@@ -1692,7 +1692,7 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_temperature",
             "unique_id": "daikin_outdoor_ODU0000000001_outdoor_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "refresh": {
             "availability": [

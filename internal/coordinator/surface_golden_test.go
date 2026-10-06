@@ -73,12 +73,12 @@ var goldenDigests = map[string]string{
 	"airpurifier.de":                "e0951559d94d714a5b14b541833579453ffa8a08f6a7281831d2f30ce15b993d",
 	"altherma-air-to-water-wlan.en": "fe25651a85eabcd857a688323b18035d64aa8cfdc7abc6644a0c17e9457253c2",
 	"altherma-air-to-water-wlan.de": "4061f53e0a5ae4d01d0e05bb4477c6eec28fa8c222488fabee89b75941a03caa",
-	"d2cnd-gas-boiler.en":           "d6213707a6475ca1f91f4edb927f381f386380b5d2bf43ec00a2db27d382b9ec",
-	"d2cnd-gas-boiler.de":           "e2dc26dba9923bc40f1993ea2b35b905531b10c35ff9ca3d5acf0ec7b218b4b1",
+	"d2cnd-gas-boiler.en":           "8b38da9981eb5dcd8a6935c0f65a63ff25bb324e611ffcae6d315c11c269d333",
+	"d2cnd-gas-boiler.de":           "3c66372409056bb7c4305b9696b2b32064ce8b76109065f78c6695175ee72a36",
 	"multisplit.en":                 "e28b49c84e585fdba04f08817a140dd3133f71f05b4d9122c2d2fbfe6fcc11c8",
 	"multisplit.de":                 "7e4b338a6279de5dacf52d988d828f61bd3ebb76e3cddb2318ba1012426e24f6",
-	"multisplit.local.en":           "57fbff7f6eff2de1e80e2fa75a28a99eca034828694e773c7656a7cadef40532",
-	"multisplit.scheduler.en":       "a6934ff49aeb685ccd04396fe8b0a229962db4cca66c78cefebfefd9b39810e3",
+	"multisplit.local.en":           "9f7f5903d814311f9c6f8b9e50760d90c96e8002a9f103f536d7952d8db7b742",
+	"multisplit.scheduler.en":       "3e2e63618fceefdbffc93bb523187d4f978fbbd719ddf1685d9fdd8405f34a30",
 }
 
 // --- recording broker ------------------------------------------------------
@@ -94,6 +94,10 @@ type recordedMsg struct {
 	JSON  map[string]any `json:"json,omitempty"`
 	Text  *string        `json:"text,omitempty"`
 	Empty bool           `json:"empty,omitempty"`
+	// Payload is the bytes exactly as published. Not part of the pin (the
+	// decoded fields above are); kept for the template contract test, which
+	// renders Home Assistant's templates against what really went out.
+	Payload []byte `json:"-"`
 }
 
 // surfaceDoc is one scenario's golden.
@@ -112,7 +116,7 @@ type recorderMQTT struct {
 }
 
 func (r *recorderMQTT) Publish(_ context.Context, topic string, payload []byte, qos mqtt.QoS, retain bool, _ ...mqtt.PublishOption) error {
-	m := recordedMsg{Topic: topic, QoS: int(qos), Retain: retain}
+	m := recordedMsg{Topic: topic, QoS: int(qos), Retain: retain, Payload: append([]byte(nil), payload...)}
 	switch {
 	case len(payload) == 0:
 		m.Empty = true

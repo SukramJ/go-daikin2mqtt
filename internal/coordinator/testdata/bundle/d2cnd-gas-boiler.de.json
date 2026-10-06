@@ -145,7 +145,7 @@
             "state_topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_tank_temperature",
             "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_tank_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "error_code": {
             "availability": [
@@ -171,7 +171,7 @@
             "platform": "sensor",
             "state_topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code",
             "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_error_code",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "error_state": {
             "availability": [
@@ -255,7 +255,7 @@
             "platform": "sensor",
             "state_topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_ip_address",
             "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_gateway_ip_address",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "holiday_mode": {
             "availability": [
@@ -311,7 +311,7 @@
             "state_topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/outdoor_temperature",
             "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_outdoor_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "refresh": {
             "availability": [
@@ -365,7 +365,7 @@
             "state_topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/room_temperature",
             "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_room_temperature",
             "unit_of_measurement": "°C",
-            "value_template": "{{ value_json.val }}"
+            "value_template": "{% if value_json is defined and value_json.val is defined and value_json.val is not none and value_json.val != '' %}{{ value_json.val }}{% else %}None{% endif %}"
           },
           "warning_state": {
             "availability": [
