@@ -6,6 +6,21 @@ top-level changelog.md. Newest version first.
 
 # Unreleased
 
+# 0.14.1 (2026-10-06)
+
+Fixes for 0.14.0; updating needs no other action.
+
+- The scheduler's enable switches showed no state (*unknown*); they now
+  work like every other switch.
+- A cleared value (an error code that went away, the next change of a
+  disabled schedule) now shows as *unknown* instead of the old value.
+- In local mode, every cloud poll no longer briefly clears the
+  Faikin-provided values, and the start-up clean-up no longer clears a
+  device's availability before its Faikin module reported.
+- A single failed or rate-limited cloud poll no longer makes every entity
+  unavailable; a rate limit keeps the last values, other failures count
+  from the second poll in a row.
+
 # 0.14.0 (2026-10-06)
 
 - **Every MQTT topic changes** to the mqtt-smarthome 2.0 convention:
