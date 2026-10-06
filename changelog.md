@@ -1,5 +1,97 @@
 # Unreleased
 
+# Version 0.14.0 (2026-10-06)
+
+## Before you upgrade
+
+**Every MQTT topic changes.** This release adopts the
+[mqtt-smarthome 2.0](https://github.com/mqtt-smarthome/mqtt-smarthome/blob/master/SPEC.md)
+topic convention (openccu-loom ADR 0083), shared by all `go-*2mqtt`
+bridges and openccu-loom. It is a clean break with no compatibility switch.
+
+- **Home Assistant users:** nothing to do. Every `unique_id`, node id,
+  device identifier and discovery topic is unchanged — pinned against the
+  0.13.0 rendering of all twelve scenarios — so Home Assistant re-points
+  every entity to the new topics and keeps its entity id, name, area and
+  history.
+- **Everything that reads raw topics** — Node-RED flows, dashboards,
+  Telegraf, `mosquitto_sub` scripts — has to move to the new topics and read
+  `val` out of a JSON object. Enum values are API tokens now, power is a
+  boolean. The README's "MQTT topics" section has the full old/new table.
+- `MQTT_TOPIC` is the only thing that keeps two instances apart on one
+  broker. Two instances of this bridge need different names.
+
+## Changed (breaking)
+
+- **Topics** are `<name>/<function>/<item…>`, `<name>` being `MQTT_TOPIC`
+  (default `daikin`, unchanged):
+  `daikin/<uuid>/<emb>/<key>/state` → `daikin/status/<uuid>/<emb>/<key>`;
+  `…/set` → `daikin/set/<uuid>/<emb>/<key>` (same item path);
+  `…/<key>/attributes` and `…/climate/attributes` → `daikin/status/…/attributes`;
+  `daikin/scheduler/<id>/enabled/{state,set}` →
+  `daikin/{status,set}/scheduler/<id>/enabled`;
+  `…/refresh/set` → `daikin/set/<uuid>/<emb>/refresh` (an action item: any
+  non-empty payload).
+- **`daikin/bridge/status` (`online`/`offline`) is replaced by
+  `daikin/connected`**: `0` by the Last Will and on a graceful stop, `1`
+  while the upstream is unusable (cloud polls failing; in local mode the
+  Faikin broker down or the devices not yet known), `2` when operational.
+- **Payloads** are status objects, `{"val": …, "ts": …, "lc": …}` in integer
+  milliseconds, for every status item. Switches and binary sensors carry JSON
+  booleans (power was `on`/`off`), numbers JSON numbers at the catalog's
+  precision, enums the API token instead of the localized label (selects,
+  the climate fan/swing/preset, the scheduler's idle state); the labels live
+  in the discovery payloads' value and command templates. A value is
+  published when it changes and again after every reconnect, not on every
+  poll.
+- **Commands** accept the plain value or `{"val": …}`; booleans as
+  `true/false, 1/0, on/off, yes/no`, enum tokens in any case (labels still
+  accepted), numbers rounded to the live step and clamped to the live range.
+  Empty and retained commands are ignored, a rejected or failed one is
+  logged at `warn` with topic and payload. The set items are subscribed at
+  **QoS 1** (was 0). A value that is no boolean no longer switches a schedule
+  off; it is rejected.
+- **Home Assistant availability** reads `daikin/connected` (available at
+  `2`) plus the device's new `daikin/status/<uuid>/online` item, with
+  `availability_mode: all`. `online` is the ONECTA device's
+  `isCloudConnectionUp`, or in local mode the Faikin module's own report
+  (`false` on its `{"up":false}` will).
+
+## Added
+
+- `daikin/info` (retained on every connect): `name` `go-daikin2mqtt`,
+  `version`, `spec`, `go`, `host`, `pid`, `started`, `maintenance`, `mode`.
+- **Maintenance topics**, on by default: `daikin/maintenance/set/loglevel`,
+  `daikin/maintenance/set/restart` (graceful stop, `connected` → `0`, exit 0;
+  only under a supervisor — `DAIKIN_SUPERVISED`, systemd, Kubernetes or a
+  container — otherwise refused at `warn`) and the retained
+  `daikin/maintenance/stats`. New keys `MQTT_MAINTENANCE` (default `true`)
+  and `MQTT_STATS_INTERVAL` (seconds, default `60`, `0` = off); add-on
+  options `mqtt_maintenance` / `mqtt_stats_interval`. Anyone who may publish
+  on the broker can use them — secure it with ACLs or turn them off.
+- **Start-up sweep of the 0.13 tree**: once per start, after the first poll,
+  the daemon clears the retained 0.13 topics of the devices it polls, of its
+  own schedules and `daikin/bridge/status` — exact old shapes only, never a
+  prefix, never another instance's devices, never the Faikin firmware's
+  topics — plus status items of its own devices it no longer publishes.
+- `connected` is now set to `0` on a graceful stop too, which the old
+  `bridge/status` never was (a clean disconnect discards the Last Will).
+
+## Fixed
+
+- An econo suspend/restore whose write failed no longer reflects the
+  unwritten value optimistically on the outdoor unit's entity.
+- `MQTT_TOPIC` values containing `+`, `#`, NUL or a leading `$`, which made
+  every topic unpublishable, are refused at start.
+
+## Internal
+
+- go-hamqtt 0.36.0: `topic.SmartHome`, `StatusObjectEncoding`,
+  `PublishStatus`, `Runtime.SetConnected`, `CommandRouter.HandleSet`,
+  `publisher.Instance`, `DetectSupervised`.
+- The device-bundle and surface goldens are regenerated; a new pin compares
+  every rendered identity against the frozen 0.13.0 projection.
+
 # Version 0.13.0 (2026-10-02)
 
 ## Changed
