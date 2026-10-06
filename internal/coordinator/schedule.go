@@ -299,7 +299,7 @@ func (c *Coordinator) PublishScheduleSwitches(ctx context.Context, doc *schedule
 // An empty value is how an unscheduled device's schedule_next_change is
 // expressed, and it stays a retained clear — see [Coordinator.publishState].
 func (c *Coordinator) publishRetained(ctx context.Context, topic, value string) {
-	c.publishState(ctx, topic, value)
+	c.publishState(ctx, topic, noneIfEmpty(value))
 }
 
 // schedulePoints synthesizes the discovery points for the two per-device
@@ -341,6 +341,50 @@ func (c *Coordinator) schedulePoints(devices []model.Device) []process.Point {
 		}
 	}
 	return out
+}
+
+// publishUntargetedScheduleState publishes the schedule sensors of every
+// device no schedule targets: no block in force (`idle`) and no next change
+// (the item cleared).
+//
+// The engine publishes the pair only for the targets it evaluates, so without
+// this an untargeted device's sensors would be advertised and never written —
+// and a device whose schedule was deleted or retargeted would keep showing
+// its last block forever. Up to 0.14.0 the poll covered both by clearing every
+// device's pair on every poll, the engine's own targets included, which left
+// a scheduled device's sensors empty until the engine's next evaluation.
+// Targeted devices are now the engine's alone.
+func (c *Coordinator) publishUntargetedScheduleState(ctx context.Context, devices []model.Device) {
+	eng := c.scheduleEngine()
+	if eng == nil {
+		return
+	}
+	targeted := map[string]bool{}
+	for _, key := range eng.Document().TargetKeys() {
+		targeted[key] = true
+	}
+	serialOf := map[string]string{}
+	for serial, members := range c.OutdoorGroups() {
+		for _, m := range members {
+			serialOf[m] = serial
+		}
+	}
+	outdoor := c.hasOutdoorSchedule()
+	for _, d := range devices {
+		emb, ok := c.climateEmbeddedID(d.ID)
+		if !ok {
+			continue
+		}
+		if !targeted[schedule.Target{DeviceID: d.ID}.Key()] {
+			c.publishRetained(ctx, c.topicRoot.Slot(d.ID, emb, ScheduleStateTopic).State(), scheduleIdleValue)
+			c.publishRetained(ctx, c.topicRoot.Slot(d.ID, emb, ScheduleNextTopic).State(), "")
+		}
+		serial := serialOf[d.ID]
+		if outdoor && (serial == "" || !targeted[schedule.Target{OutdoorSerial: serial}.Key()]) {
+			c.publishRetained(ctx, c.topicRoot.Slot(d.ID, emb, OutdoorScheduleStateTopic).State(), scheduleIdleValue)
+			c.publishRetained(ctx, c.topicRoot.Slot(d.ID, emb, OutdoorScheduleNextTopic).State(), "")
+		}
+	}
 }
 
 // hasOutdoorSchedule reports whether any schedule drives an outdoor unit.

@@ -73,7 +73,11 @@
       "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code",
       "qos": 0,
       "retain": true,
-      "empty": true
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": ""
+      }
     },
     {
       "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code/attributes",

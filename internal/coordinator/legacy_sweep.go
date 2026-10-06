@@ -42,7 +42,11 @@ import (
 //  4. The same read-back serves spec §3.2's steady-state rule: a status item
 //     of an owned device that this run's first complete picture no longer
 //     contains — a characteristic dropped from the catalogue, LOCAL_MODE
-//     turned off — is cleared too.
+//     turned off — is cleared too. That "first complete picture" is the cloud
+//     poll's, so this stale path is restricted to the items the cloud poll is
+//     the only writer of (see [sweepScope]); 0.14.0 applied it to every item
+//     of an owned device and could clear a Faikin-served device's `online`
+//     item and its local leaves when the module had not reported yet.
 //
 // The Faikin firmware's own topics (`state/<host>`, `command/<host>/<suffix>`)
 // live outside `<root>/` and are not subscribed; a root named like one of their
@@ -64,20 +68,49 @@ const (
 	sweepStale
 )
 
-// classifyRetained decides one retained topic. owned is the set of ONECTA
-// device ids the first poll resolved, schedules the ids the attached engine
-// holds, current the status items this process has published.
+// sweepScope is what the sweep may claim. Owned is the set of ONECTA device
+// ids the first poll resolved, Schedules the ids the attached engine holds,
+// Current the status items this process has published.
+//
+// CloudServed and OtherOwnerLeaves bound the stale path. A current-layout item
+// is only stale when the plane that writes it has delivered its first complete
+// picture and left it out, and the only plane the sweep can wait for is the
+// cloud poll that triggers it. So the stale path is limited to:
+//
+//   - a device in CloudServed — not one the Faikin read path serves, whose
+//     module may not have reported yet when the sweep runs;
+//   - an item under a management point (`status/<dev>/<emb>/<leaf>…`) — never
+//     the device's `online` item, which availability_mode: all makes every
+//     entity of the device depend on;
+//   - a leaf not in OtherOwnerLeaves — the scheduler's sensors, which its
+//     engine publishes on its own schedule rather than from the poll.
+type sweepScope struct {
+	Owned, Schedules, Current     map[string]bool
+	CloudServed, OtherOwnerLeaves map[string]bool
+}
+
+// staleCandidate reports whether segs (a status topic split below the root:
+// `status`, device, …) is an item the stale path may clear.
+func (s sweepScope) staleCandidate(topic string, segs []string) bool {
+	if len(segs) < 4 || !s.Owned[segs[1]] || s.Current[topic] {
+		return false
+	}
+	return s.CloudServed[segs[1]] && segs[2] != "" && !s.OtherOwnerLeaves[segs[3]]
+}
+
+// classifyRetained decides one retained topic against scope.
 //
 // A pure function so that what the sweep may touch is assertable topic by
 // topic, without a broker.
-func classifyRetained(root, topic string, owned, schedules, current map[string]bool) sweepVerdict {
+func classifyRetained(root, topic string, scope sweepScope) sweepVerdict {
+	owned, schedules := scope.Owned, scope.Schedules
 	rest, ok := strings.CutPrefix(topic, root+"/")
 	if !ok {
 		return sweepKeep
 	}
 	segs := strings.Split(rest, "/")
 	if hatopic.IsFunction(segs[0]) {
-		if segs[0] == hatopic.FunctionStatus && len(segs) >= 3 && owned[segs[1]] && !current[topic] {
+		if segs[0] == hatopic.FunctionStatus && scope.staleCandidate(topic, segs) {
 			return sweepStale
 		}
 		return sweepKeep
@@ -131,19 +164,34 @@ func (c *Coordinator) sweepLegacyTopics(ctx context.Context, devices []string) {
 		owned[id] = true
 		filters = append(filters, root+"/"+id+"/#", root+"/"+hatopic.FunctionStatus+"/"+id+"/#")
 	}
-	schedules := c.scheduleIDs()
+	scope := sweepScope{
+		Owned:            owned,
+		Schedules:        c.scheduleIDs(),
+		Current:          map[string]bool{},
+		CloudServed:      map[string]bool{},
+		OtherOwnerLeaves: map[string]bool{},
+	}
+	for id := range owned {
+		if !c.localActiveFor(id) {
+			scope.CloudServed[id] = true
+		}
+	}
+	if c.scheduleEngine() != nil {
+		for _, leaf := range []string{ScheduleStateTopic, ScheduleNextTopic, OutdoorScheduleStateTopic, OutdoorScheduleNextTopic} {
+			scope.OtherOwnerLeaves[leaf] = true
+		}
+	}
 
 	seen := c.collectRetained(ctx, filters)
 
-	current := map[string]bool{}
 	if c.deps.StatePlane != nil {
 		for _, t := range c.deps.StatePlane.Published() {
-			current[t] = true
+			scope.Current[t] = true
 		}
 	}
 	var legacy, stale []string
 	for _, t := range seen {
-		switch classifyRetained(root, t, owned, schedules, current) {
+		switch classifyRetained(root, t, scope) {
 		case sweepLegacy:
 			legacy = append(legacy, t)
 		case sweepStale:

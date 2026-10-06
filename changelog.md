@@ -1,5 +1,54 @@
 # Unreleased
 
+# Version 0.14.1 (2026-10-06)
+
+Fixes for 0.14.0. Updating needs no other action: Home Assistant picks up
+the corrected discovery documents and the next values by itself, and no
+entity id, name or history changes.
+
+## Fixed
+
+- **The scheduler's enable switches never showed a state.** Their discovery
+  said `on`/`off`, while the status item carries the JSON boolean every other
+  switch carries; Home Assistant ignores a state matching neither payload, so
+  the switches stayed *unknown*. They now use `true`/`false` like the device
+  switches (commands still accept `on`/`off` too).
+- **A value that became empty kept showing its old state in Home
+  Assistant** — a cleared error code, or the next change of a schedule that
+  was disabled — until Home Assistant restarted, with a template error in
+  its log per clear. Every sensor now renders an empty or cleared item as
+  *unknown*. On the wire, an empty error code is now `{"val":""}` (it was a
+  cleared item); an item without a value of its type (a timestamp, a number,
+  a token) is still cleared with an empty retained payload.
+- **Every poll cleared the retained state of entities another part of the
+  daemon owns**: in local mode the Faikin-only telemetry (power, energy,
+  fan speed, compressor frequency, …), and with the scheduler on its two
+  status sensors, each until the Faikin module's or the scheduler's next
+  update. The poll leaves them alone now. A device no schedule targets gets
+  its schedule sensors from the poll instead — *No block* and no next
+  change — so they no longer stay empty, and a device whose schedule was
+  removed no longer keeps showing its last block.
+- **Local mode: the start-up clean-up could clear a Faikin-served device's
+  `online` item and its local values** when no Faikin state arrived within
+  the first poll, which made the device's entities unavailable after a Home
+  Assistant restart until the module's next message. Clearing current items
+  is now limited to cloud-served devices and to items the cloud poll itself
+  writes; clearing the 0.13 topics is unchanged.
+- **A single failed or rate-limited cloud poll made every entity
+  unavailable** (`daikin/connected` dropped to `1`). 0.13 kept the last
+  values on screen. A rate limit no longer changes the level; any other
+  failure lowers it at the second consecutive failed poll, a dead
+  authorization at once.
+
+## Tests
+
+- A template contract test renders every entity's templates from the
+  device documents against the state the publish path really writes —
+  switch/binary sensor payloads, numbers, options, timestamps, attributes,
+  availability, the command round trip — with a small Jinja-subset
+  evaluator that fails on any template shape it cannot read. It fails on
+  0.14.0's scheduler switches and empty-value templates.
+
 # Version 0.14.0 (2026-10-06)
 
 ## Before you upgrade

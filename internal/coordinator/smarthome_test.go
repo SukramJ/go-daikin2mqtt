@@ -21,6 +21,7 @@ import (
 	"github.com/SukramJ/go-mqtt"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
+	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
 	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 )
@@ -75,9 +76,10 @@ func (r *routerMQTT) qosOf(filter string) (mqtt.QoS, bool) {
 }
 
 // TestConnectedFollowsTheUpstream pins `<name>/connected` in cloud mode: 1 on
-// connect until a poll proves the cloud usable, 2 while it is, 1 again on a
-// failed poll, unchanged by a scan-ignore skip, re-announced at the decided
-// level on every reconnect, and 0 on a graceful stop.
+// connect until a poll proves the cloud usable, 2 while it is, 1 again at the
+// second consecutive failed poll or at once on a dead refresh token, unchanged
+// by a scan-ignore skip or a rate limit, re-announced at the decided level on
+// every reconnect, and 0 on a graceful stop.
 func TestConnectedFollowsTheUpstream(t *testing.T) {
 	t.Parallel()
 	cloud := &stubCloud{devices: devicesJSON("dev1", "climateControl")}
@@ -106,10 +108,37 @@ func TestConnectedFollowsTheUpstream(t *testing.T) {
 	if got := level(); got != "2" {
 		t.Errorf("after a scan-ignore skip: %q, want 2 — the skip says nothing about the cloud", got)
 	}
+	cloud.getErr = client.ErrRateLimited
+	for range 3 {
+		c.pollOnce(ctx)
+	}
+	if got := level(); got != "2" {
+		t.Errorf("after rate-limited polls: %q, want 2 — a spent quota keeps the last values available, as 0.13 did", got)
+	}
 	cloud.getErr = errors.New("cloud down")
 	c.pollOnce(ctx)
+	if got := level(); got != "2" {
+		t.Errorf("after one failed poll: %q, want 2 — one bad poll is not an outage", got)
+	}
+	c.pollOnce(ctx)
 	if got := level(); got != "1" {
-		t.Errorf("after a failed poll: %q, want 1", got)
+		t.Errorf("after two consecutive failed polls: %q, want 1", got)
+	}
+	cloud.getErr = nil
+	c.pollOnce(ctx)
+	if got := level(); got != "2" {
+		t.Errorf("after recovery: %q, want 2", got)
+	}
+	// The count restarts at a success: one failure after it is not two.
+	cloud.getErr = errors.New("cloud down")
+	c.pollOnce(ctx)
+	if got := level(); got != "2" {
+		t.Errorf("one failure after a recovery: %q, want 2", got)
+	}
+	cloud.getErr = auth.ErrReauthRequired
+	c.pollOnce(ctx)
+	if got := level(); got != "1" {
+		t.Errorf("after a dead refresh token: %q, want 1 at once", got)
 	}
 	cloud.getErr = nil
 	c.pollOnce(ctx)

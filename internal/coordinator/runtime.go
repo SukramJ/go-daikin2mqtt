@@ -65,15 +65,19 @@ func (c *Coordinator) resetHAPlane() {
 // coordinator.published log line reports. [Coordinator.PublishOnline]
 // re-sends the cached objects on every reconnect.
 //
-// A nil or empty value routes to Evict rather than PublishStatus: the plane
-// refuses a nil `val`, and an empty retained payload is how MQTT clears a topic
-// (spec §5.1). This bridge does clear status: an unscheduled device's
-// schedule_next_change is "" in four of the twelve pinned scenarios.
+// A nil value means "no value" and routes to Evict rather than PublishStatus:
+// the plane refuses a nil `val`, and an empty retained payload is how MQTT
+// clears a topic (spec §5.1) — an unscheduled device's schedule_next_change,
+// say. An empty STRING is a value, not its absence, and is published as
+// `{"val":""}`: a plain text item such as a cleared error code. Which of the
+// two an empty reading is, is the caller's decision ([emptyStatus],
+// [noneIfEmpty]); this function no longer guesses. Home Assistant shows both
+// as unknown — see hass.SensorValueTemplate.
 func (c *Coordinator) publishState(ctx context.Context, topic string, value any) (written, ok bool) {
 	if c.deps.StatePlane == nil {
 		return false, false
 	}
-	if s, isStr := value.(string); value == nil || (isStr && s == "") {
+	if value == nil {
 		if err := c.deps.StatePlane.Evict(ctx, topic); err != nil {
 			c.deps.Logger.Warn("coordinator.state_publish_failed",
 				slog.String("topic", topic), slog.String("err", err.Error()))
@@ -88,6 +92,16 @@ func (c *Coordinator) publishState(ctx context.Context, topic string, value any)
 		return false, false
 	}
 	return written, true
+}
+
+// noneIfEmpty maps an empty string onto nil, for the status items whose
+// empty reading means "no value" rather than an empty text: a timestamp, an
+// enum token.
+func noneIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 // sweepFanOut is why each retained config a report-only pass saw was left

@@ -29,12 +29,6 @@
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/compressor_frequency",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/compressor_frequency",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -96,12 +90,6 @@
           "data_source": "cloud"
         }
       }
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_total",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/cooling_energy_total",
@@ -195,12 +183,6 @@
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/energy_total",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/energy_total",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -277,12 +259,6 @@
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/fan_speed",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/fan_speed",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -344,12 +320,6 @@
           "data_source": "cloud"
         }
       }
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_total",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/heating_energy_total",
@@ -463,12 +433,6 @@
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_cooling_energy_total",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_cooling_energy_total",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -486,12 +450,6 @@
           "data_source": "local"
         }
       }
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_energy_total",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_energy_total",
@@ -519,12 +477,6 @@
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_heating_energy_total",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_heating_energy_total",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -542,12 +494,6 @@
           "data_source": "local"
         }
       }
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_power",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/outdoor_power",
@@ -651,12 +597,6 @@
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/power_consumption",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/power_consumption",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -718,12 +658,6 @@
           "data_source": "cloud"
         }
       }
-    },
-    {
-      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/refrigerant_temperature",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/refrigerant_temperature",
@@ -903,12 +837,6 @@
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/compressor_frequency",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/compressor_frequency",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -970,12 +898,6 @@
           "data_source": "cloud"
         }
       }
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_total",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/cooling_energy_total",
@@ -1069,12 +991,6 @@
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/energy_total",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/energy_total",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -1151,12 +1067,6 @@
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_speed",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_speed",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -1218,12 +1128,6 @@
           "data_source": "cloud"
         }
       }
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_total",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/heating_energy_total",
@@ -1337,12 +1241,6 @@
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_cooling_energy_total",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_cooling_energy_total",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -1360,12 +1258,6 @@
           "data_source": "local"
         }
       }
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_energy_total",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_energy_total",
@@ -1393,12 +1285,6 @@
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_heating_energy_total",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_heating_energy_total",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -1416,12 +1302,6 @@
           "data_source": "local"
         }
       }
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_power",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/outdoor_power",
@@ -1525,12 +1405,6 @@
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power_consumption",
       "qos": 0,
       "retain": true,
-      "empty": true
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/power_consumption",
-      "qos": 0,
-      "retain": true,
       "json": {
         "lc": 1771156800000,
         "ts": 1771156800000,
@@ -1592,12 +1466,6 @@
           "data_source": "cloud"
         }
       }
-    },
-    {
-      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refrigerant_temperature",
-      "qos": 0,
-      "retain": true,
-      "empty": true
     },
     {
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/refrigerant_temperature",

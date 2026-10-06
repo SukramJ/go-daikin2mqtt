@@ -153,6 +153,9 @@ type Coordinator struct {
 	// whether any ever did since start; both guarded by mu. See
 	// [Coordinator.upstreamLevel].
 	cloudOK, devicesKnown bool
+	// cloudFails counts consecutive failed polls since the last success,
+	// guarded by mu. See [Coordinator.noteCloudFailure].
+	cloudFails int
 	// bounds holds each number point's live min/max/step from the last poll,
 	// keyed deviceID|embeddedID|topic, for the clamping spec §5.3 asks of a
 	// set. Guarded by mu.
@@ -410,21 +413,30 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 			c.deps.Logger.Debug("coordinator.scan_ignored")
 			return
 		case errors.Is(err, client.ErrRateLimited):
+			// The cloud answered, it just will not serve this request: the
+			// daily quota is spent. Like a scan-ignore skip it leaves the level
+			// alone, which is what 0.13 did with availability — the retained
+			// values stay on screen, last known, rather than a whole
+			// installation going unavailable until the quota resets.
 			c.deps.Logger.Warn("coordinator.rate_limited")
+			return
 		case errors.Is(err, auth.ErrReauthRequired):
 			c.deps.Logger.Error("coordinator.reauth_required",
 				slog.String("hint", "run `daikin2mqtt-util auth` or use the web UI to re-authorize"))
+			// Definitive: no later poll recovers without the operator.
+			c.noteCloudFailure(ctx, true)
+			return
 		default:
 			c.deps.Logger.Warn("coordinator.poll_failed", slog.String("err", err.Error()))
 		}
-		c.noteCloud(ctx, false)
+		c.noteCloudFailure(ctx, false)
 		return
 	}
 
 	devices, err := model.ParseDevices(data)
 	if err != nil {
 		c.deps.Logger.Warn("coordinator.parse_failed", slog.String("err", err.Error()))
-		c.noteCloud(ctx, false)
+		c.noteCloudFailure(ctx, false)
 		return
 	}
 	c.noteCloud(ctx, true)
@@ -493,6 +505,16 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 		if localTopics[p.Topic] && c.localActiveFor(p.DeviceID) {
 			continue
 		}
+		// A point with no value at all is a discovery-only point synthesized
+		// for an entity whose state another plane owns: the Faikin read path
+		// (localOnlyPoints) or the scheduler (schedulePoints, and
+		// publishUntargetedScheduleState below for the devices no schedule
+		// targets). Publishing it would clear that plane's retained value on
+		// every poll — which up to 0.14.0 it did. A cloud-resolved point is
+		// never nil (process decodes an absent or null value to "").
+		if p.Value == nil {
+			continue
+		}
 		topic := c.topicRoot.Slot(p.DeviceID, p.EmbeddedID, p.Topic).State()
 		w, ok := c.publishState(ctx, topic, c.statusValue(p.Topic, p.Value))
 		if !ok {
@@ -506,6 +528,7 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	c.publishHVACModes(ctx, points)
 	c.publishClimateAux(ctx, devices)
 	c.publishCloudOnline(ctx, devices)
+	c.publishUntargetedScheduleState(ctx, devices)
 	// points is what this poll had to say; written is what actually reached the
 	// broker. The gap is the state plane's dedup gate, and a steady-state
 	// installation should show written far below points — a value that has not
@@ -585,22 +608,31 @@ func (c *Coordinator) publishHVACModes(ctx context.Context, points []process.Poi
 //   - a number becomes a JSON number, rounded to the entry's precision — the
 //     same rounding the plain payload had, which stays a project concern;
 //   - an enum stays its token (the API code). The localized label is no longer
-//     published; Home Assistant gets it from discovery.
+//     published; Home Assistant gets it from discovery;
+//   - an empty reading is whatever [emptyStatus] says the item's type makes
+//     of it: "" for a plain text, nil (the item is cleared) for anything else.
 //
 // A leaf no catalogue entry backs — the climate's hvac/fan/swing/preset
-// tokens, the attributes documents — passes through unchanged.
+// tokens, the attributes documents — passes through unchanged, except that an
+// empty token is no value (nil).
 func (c *Coordinator) statusValue(leaf string, v any) any {
 	var entry *catalog.Entry
 	if c.deps.Catalog != nil {
 		entry, _ = c.deps.Catalog.ByTopic(leaf)
 	}
 	if entry == nil {
+		if s, ok := v.(string); ok {
+			return noneIfEmpty(s)
+		}
 		return v
 	}
 	switch x := v.(type) {
 	case float64:
 		return roundTo(x, entry.Precision)
 	case string:
+		if x == "" {
+			return emptyStatus(entry)
+		}
 		switch entry.Platform {
 		case "switch", "binary_sensor":
 			if b, err := (publisher.SetValue{Text: x}).Bool(); err == nil {
@@ -613,6 +645,23 @@ func (c *Coordinator) statusValue(leaf string, v any) any {
 		}
 	}
 	return v
+}
+
+// emptyStatus is what an empty reading of entry's item publishes.
+//
+// A plain text sensor — no unit, no device class, no catalogue values; the
+// error codes are the case that occurs — keeps the empty string: "" is a
+// legitimate text, the status object still carries when it changed, and Home
+// Assistant renders it unknown through hass.SensorValueTemplate. Every other
+// item has no empty spelling of its type (a number, a boolean, a timestamp, an
+// enum token), so its empty reading is no value at all, and the item is
+// cleared.
+func emptyStatus(entry *catalog.Entry) any {
+	if entry.Platform == "sensor" && entry.Unit == "" && entry.DeviceClass == "" &&
+		entry.StateClass == "" && len(entry.Values) == 0 {
+		return ""
+	}
+	return nil
 }
 
 // roundTo rounds v to prec decimals through the same formatting the plain

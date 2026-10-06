@@ -88,11 +88,12 @@ func TestEveryLibraryPublishReachesTheWireAtQoS0(t *testing.T) {
 	ctx := context.Background()
 	c.PublishOnline(ctx)                                 // the connected level, via publisher.Runtime
 	c.publishState(ctx, "daikin/status/dev1/mp/x", 21.5) // the state plane
-	c.publishState(ctx, "daikin/status/dev1/mp/y", "")   // the retained clear, via Evict
+	c.publishState(ctx, "daikin/status/dev1/mp/y", nil)  // the retained clear, via Evict
+	c.publishState(ctx, "daikin/status/dev1/mp/z", "")   // an empty text, a value
 
 	got := rec.snapshot()
-	if len(got) != 3 {
-		t.Fatalf("recorded %d publishes, want 3: %+v", len(got), got)
+	if len(got) != 4 {
+		t.Fatalf("recorded %d publishes, want 4: %+v", len(got), got)
 	}
 	for _, p := range got {
 		if p.qos != 0 {
@@ -110,6 +111,12 @@ func TestEveryLibraryPublishReachesTheWireAtQoS0(t *testing.T) {
 	// contain one.
 	if len(got[2].payload) != 0 {
 		t.Errorf("the retained clear carried %q, want no bytes", got[2].payload)
+	}
+	// An empty string is a value, not its absence: a status object whose val
+	// is "" (a cleared error code), not a clear.
+	var doc map[string]any
+	if err := json.Unmarshal(got[3].payload, &doc); err != nil || doc["val"] != "" {
+		t.Errorf("an empty text published %q, want a status object with val \"\"", got[3].payload)
 	}
 }
 
@@ -1341,4 +1348,36 @@ func equalCounts(a, b map[string]int) bool {
 		}
 	}
 	return true
+}
+
+// TestEmptyReadingsArePublishedByType pins how an empty reading reaches the
+// broker since 0.14.1 (finding 2 of the 0.14.0 review): a plain text item keeps
+// "" as its value — a cleared error code is a status object whose val is "",
+// so it still says when it changed — and every other item, which has no empty
+// spelling of its type, is cleared. Home Assistant shows both as unknown
+// through hass.SensorValueTemplate (TestTemplatesAcceptWhatThePublishPathWrites
+// renders it against both).
+func TestEmptyReadingsArePublishedByType(t *testing.T) {
+	t.Parallel()
+	c := New(Deps{
+		Cfg: testConfig(), Client: &stubCloud{}, MQTT: newStubMQTT(), Catalog: loadRealCatalog(t),
+		Logger: slog.New(slog.DiscardHandler), Clock: fixedClock(),
+	})
+	for _, tc := range []struct {
+		leaf string
+		want any
+	}{
+		{"error_code", ""},            // plain text sensor
+		{"outdoor_error_code", ""},    // plain text sensor
+		{"schedule_next_change", nil}, // timestamp
+		{"room_temperature", nil},     // numeric sensor
+		{"power", nil},                // switch
+		{"operation_mode", nil},       // select
+		{"schedule_state", nil},       // enum-mapped sensor
+		{"hvac_mode", nil},            // no catalogue entry: a token
+	} {
+		if got := c.statusValue(tc.leaf, ""); got != tc.want {
+			t.Errorf("statusValue(%s, \"\") = %#v, want %#v", tc.leaf, got, tc.want)
+		}
+	}
 }

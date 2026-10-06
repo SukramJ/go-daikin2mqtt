@@ -57,18 +57,18 @@ const goldenBundleSW = "0.0.0-golden"
 // held outside testdata so a regenerated golden cannot silently re-bless a
 // changed document set. -update-bundle-golden never writes this map.
 var bundleDigests = map[string]string{
-	"air-to-air-dx4.en":             "e8b90d659e37b08f8d51a87215d1d58e78be7620437152f62ad69ee80e84d531",
-	"air-to-air-dx4.de":             "c94afbb7a4f523592faba3b98f7af0ba46245ef17624f7e73d755c39ad0ce26c",
-	"airpurifier.en":                "a159666554e1f0c8f196b272f7b889284ff8ecd75c190475f3677b39f5f1c257",
-	"airpurifier.de":                "ff30a4cee0ea7ee31f464e64aba0c1135225a871950d048682825b92c50b1641",
-	"altherma-air-to-water-wlan.en": "005d20dd2dee556aaca0e50539787f332a85e751e7a61b68e2ceb95b51f6a5c1",
-	"altherma-air-to-water-wlan.de": "0f9e8a2b265b4918cb350d93360abe5eec1ff0da85d9dc7eebea95d400a08e7e",
-	"d2cnd-gas-boiler.en":           "d0c94cec9cfbd66baf4510defe1bce6f211fb9e341b8cc9ef132b7ce3f09fd3d",
-	"d2cnd-gas-boiler.de":           "d5518cbeecad0918f750d4d932dbabf58e19ffe537952d1791f6bc0e20c569bc",
-	"multisplit.en":                 "6c4bb9bf1f5a682f0f9fcef6fc37a967b4676098e226fb0e4c44dc7ae7fb7887",
-	"multisplit.de":                 "7811a0dd1f66b7bcf81c51cd70579d53fc22d2fa85b9372a0295da62277c0e80",
-	"multisplit.local.en":           "fc52d6c754913ff004923a2656cba751ec165b733a74c1ba124f8f89ec7ab6b7",
-	"multisplit.scheduler.en":       "48267fc94a72af8b2f044165eb8fd7635d1f9cd3e4af1d0af9a1bdd0863360c6",
+	"air-to-air-dx4.en":             "9ff2f9d006a1331133d8182bbcdec40c0f3a286bc9594564d249ae060423dfbf",
+	"air-to-air-dx4.de":             "69b1f387544527259ac3148d237691ccb4278423bbfbb6718ea4ca0e21950394",
+	"airpurifier.en":                "99098199d246f778203d8224f5b5956d3e6f0817ec467ecb5c3e52af87d1d897",
+	"airpurifier.de":                "67de2dac00f3697d6cda29ec17fb495f077d5452246273a447e1e68c691c8ff0",
+	"altherma-air-to-water-wlan.en": "3e5dcd46cfebda6afcbc9a52a555a73953e56e0d4a38470d0e24ded8922643e0",
+	"altherma-air-to-water-wlan.de": "216294b4bc1202daf36a53b5307d461db784804dc43431fe26223629ac27aabf",
+	"d2cnd-gas-boiler.en":           "56b6a2a06d5f08debc497b331b360670f4b358f57f50249c87e8c66b0857343e",
+	"d2cnd-gas-boiler.de":           "198617146d495f3f769b8f4d8b36f398c505a0e06f4d626dce36cc6c884309b6",
+	"multisplit.en":                 "228c6861a199b976e56eca5a19d825c26c4c47dbc8769772b5e8d11ad1397c26",
+	"multisplit.de":                 "9d40e73e478dce3dc602620e4494f45ed16b90ca421c2e31204af2b915263e97",
+	"multisplit.local.en":           "de43883695fb06725adfd7bd911a0d7a82d031ab718db1e029890e9c679d37a9",
+	"multisplit.scheduler.en":       "0ebf5cb99511b00a7fa3e5642e3afc76e9c8aad9f63a672b6b1c3f7f177a910b",
 }
 
 // bundleDoc is one scenario's device documents.
