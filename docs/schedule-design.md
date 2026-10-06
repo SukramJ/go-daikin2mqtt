@@ -286,11 +286,11 @@ the catch-up window for a block start due in the meantime.
 
 ### The Home Assistant switch
 
-The per-schedule switch needs no second subscription: its topic fits the
-existing `<root>/+/+/+/set` filter exactly.
+The per-schedule switch needs no second subscription: its set item fits the
+one `<name>/set/+/+/+` filter exactly (mqtt-smarthome 2.0 layout, since 0.14).
 
 ```
-daikin/scheduler/werktag/enabled/set     # root · "scheduler" · schedule id · topic · set
+daikin/set/scheduler/werktag/enabled     # name · set · "scheduler" · schedule id · item
 ```
 
 `handleWrite` recognises the reserved device id `scheduler` and forwards to
@@ -311,8 +311,9 @@ part is which is which:
 - The two per-device sensors' HA display names, via `name` / `name_de` in
   `characteristics.yaml` like every other entity.
 - The idle value of `schedule_state`, via the catalog entry's `values`
-  (`{value: idle, label: Idle, label_de: Kein Block}`) and the existing
-  `LocalizedLabel` mechanism.
+  (`{value: idle, label: No block, label_de: Kein Block}`). Since 0.14 the
+  status item carries the token `idle`; the discovery payload's value template
+  maps it to the label, so only Home Assistant's display is localized.
 - HVAC mode names shown in the editor. They are **not** new strings: the API
   serves them from the existing `operation_mode` catalog entry
   (`heating → Heizen`, …), so the scheduler shows exactly the words the
@@ -418,15 +419,19 @@ of truth for what will actually happen.
 
 ## MQTT topics & discovery
 
+Since 0.14 every topic follows mqtt-smarthome 2.0 (`<name>/<function>/<item…>`)
+and every status item is a `{"val","ts","lc"}` object; the values below are
+the `val`.
+
 ```
-daikin/scheduler/<scheduleID>/enabled/state                 # retained: ON | OFF
-daikin/scheduler/<scheduleID>/enabled/set                    # subscribed
-daikin/<deviceID>/<embeddedID>/schedule_state/state          # "Werktag · Absenkung"
-daikin/<deviceID>/<embeddedID>/schedule_state/attributes     # structured, language-independent
-daikin/<deviceID>/<embeddedID>/schedule_next_change/state    # 2026-08-13T16:30:00+02:00
-daikin/<deviceID>/<embeddedID>/outdoor_schedule_state/state       # scope: outdoor → one entity per outdoor unit
-daikin/<deviceID>/<embeddedID>/outdoor_schedule_next_change/state # published on every member (see above)
-homeassistant/switch/daikin_schedule_<scheduleID>/config     # retained
+daikin/status/scheduler/<scheduleID>/enabled                 # retained: true | false
+daikin/set/scheduler/<scheduleID>/enabled                    # subscribed (QoS 1)
+daikin/status/<deviceID>/<embeddedID>/schedule_state         # "Werktag · Absenkung", or the token "idle"
+daikin/status/<deviceID>/<embeddedID>/schedule_state/attributes   # data_source document
+daikin/status/<deviceID>/<embeddedID>/schedule_next_change   # 2026-08-13T16:30:00+02:00
+daikin/status/<deviceID>/<embeddedID>/outdoor_schedule_state       # scope: outdoor → one entity per outdoor unit
+daikin/status/<deviceID>/<embeddedID>/outdoor_schedule_next_change # published on every member (see above)
+homeassistant/device/daikin_scheduler/config                 # retained device document
 ```
 
 The two per-device sensors are synthesised like the refresh button: catalog
