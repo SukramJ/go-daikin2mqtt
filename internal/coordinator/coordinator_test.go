@@ -9,10 +9,13 @@ import (
 	"errors"
 	"log/slog"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/SukramJ/go-hamqtt/publisher"
 
 	"github.com/SukramJ/go-mqtt"
 
@@ -37,6 +40,8 @@ type patchCall struct {
 type stubCloud struct {
 	devices json.RawMessage
 	getErr  error
+	// patchErr, when set, is what every Patch returns after recording it.
+	patchErr error
 
 	mu      sync.Mutex
 	patches []patchCall
@@ -70,7 +75,7 @@ func (s *stubCloud) Patch(_ context.Context, deviceID, embeddedID, characteristi
 		value:          value,
 		path:           path,
 	})
-	return nil
+	return s.patchErr
 }
 
 func (s *stubCloud) lastPatch(t *testing.T) patchCall {
@@ -150,6 +155,35 @@ func (m *stubMQTT) countOf(topic string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.counts[topic]
+}
+
+// val returns the `val` of the status object last published to topic.
+func (m *stubMQTT) val(t *testing.T, topic string) (any, bool) {
+	t.Helper()
+	msg, ok := m.get(topic)
+	if !ok {
+		return nil, false
+	}
+	return statusVal(t, msg.payload), true
+}
+
+// statusVal decodes an mqtt-smarthome 2.0 status object and returns its `val`,
+// failing the test for a payload that is not one — `val`, `ts` and `lc` all
+// present, `lc` not after `ts`.
+func statusVal(t *testing.T, payload string) any {
+	t.Helper()
+	var obj struct {
+		Val any    `json:"val"`
+		TS  *int64 `json:"ts"`
+		LC  *int64 `json:"lc"`
+	}
+	if err := json.Unmarshal([]byte(payload), &obj); err != nil || obj.TS == nil || obj.LC == nil {
+		t.Fatalf("payload %q is not a status object", payload)
+	}
+	if *obj.LC > *obj.TS {
+		t.Errorf("payload %q: lc after ts", payload)
+	}
+	return obj.Val
 }
 
 func (m *stubMQTT) count() int {
@@ -248,6 +282,8 @@ const testCatalogYAML = `
   values:
     - {value: idle, label: No block, label_de: Kein Block}
 - {match: {managementPointType: climateControl, characteristic: daemonOutdoorScheduleNext}, topic: outdoor_schedule_next_change, name: Next outdoor schedule change, platform: sensor, device_class: timestamp, category: diagnostic, scope: outdoor}
+- {match: {managementPointType: climateControl, characteristic: powerfulMode}, topic: powerful_mode, name: Powerful mode, platform: switch, settable: true}
+- {match: {managementPointType: climateControl, characteristic: streamerMode}, topic: streamer, name: Streamer, platform: switch, settable: true}
 - {match: {managementPointType: climateControl, characteristic: outdoorSilentMode}, topic: outdoor_silent, name: Outdoor silent, platform: switch, settable: true, scope: outdoor}
 - {match: {managementPointType: climateControl, characteristic: econoMode}, topic: econo_mode, name: Econo mode, platform: switch, settable: true, scope: outdoor}
 - {match: {managementPointType: climateControl, characteristic: demandControl}, topic: demand_control, name: Demand limit, platform: number, settable: true, scope: outdoor}
@@ -327,8 +363,10 @@ func newCoordinator(t *testing.T, cloud *stubCloud, m *stubMQTT) *Coordinator {
 
 // --- tests -----------------------------------------------------------------
 
-//  1. pollOnce publishes the resolved state topics, including the localized
-//     select label (German) which is the core of the localization check.
+//  1. pollOnce publishes the resolved status items as mqtt-smarthome 2.0
+//     status objects: power as a JSON boolean, numbers as JSON numbers, and the
+//     select as its API token — not the localized label (Language=de), which
+//     lives in discovery since 0.14.
 func TestPollOncePublishesStateTopics(t *testing.T) {
 	const dev, emb = "dev1", "climateControl"
 	cloud := &stubCloud{devices: devicesJSON(dev, emb)}
@@ -338,30 +376,42 @@ func TestPollOncePublishesStateTopics(t *testing.T) {
 	c.pollOnce(context.Background())
 
 	cases := []struct {
-		suffix string
-		want   string
+		leaf string
+		want any
 	}{
-		{"power/state", "on"},
-		{"room_temperature/state", "20.0"},
-		{"temperature_setpoint/state", "22.5"},
-		{"operation_mode/state", "Kühlen"}, // localized label (Language=de)
+		{"power", true},
+		{"room_temperature", 20.0},
+		{"temperature_setpoint", 22.5},
+		{"operation_mode", "cooling"},
 	}
 	for _, tc := range cases {
-		topic := "daikin/" + dev + "/" + emb + "/" + tc.suffix
-		got, ok := m.get(topic)
+		topic := "daikin/status/" + dev + "/" + emb + "/" + tc.leaf
+		got, ok := m.val(t, topic)
 		if !ok {
 			t.Fatalf("missing publish for %q", topic)
 		}
-		if got.payload != tc.want {
-			t.Errorf("%s = %q, want %q", topic, got.payload, tc.want)
+		if got != tc.want {
+			t.Errorf("%s val = %#v, want %#v", topic, got, tc.want)
 		}
-		if !got.retain {
+		if msg, _ := m.get(topic); !msg.retain {
 			t.Errorf("%s: expected retained publish", topic)
 		}
 	}
+	// The device's reachability, from the ONECTA document (absent → up).
+	if got, ok := m.val(t, "daikin/status/"+dev+"/online"); !ok || got != true {
+		t.Errorf("online = %v (published %v), want true", got, ok)
+	}
+	// Exact bytes once: the key order and the integer milliseconds the spec
+	// asks for, from the injected clock.
+	ms := fixedClock()().UnixMilli()
+	if msg, _ := m.get("daikin/status/" + dev + "/" + emb + "/power"); msg.payload !=
+		`{"val":true,"ts":`+strconv.FormatInt(ms, 10)+`,"lc":`+strconv.FormatInt(ms, 10)+`}` {
+		t.Errorf("power payload = %s", msg.payload)
+	}
 }
 
-// 2. PublishOnline marks the bridge available (retained).
+// 2. PublishOnline announces `<name>/connected` (retained) at 1 until the
+// upstream has proved usable, and `<name>/info` when an instance is wired.
 func TestPublishOnline(t *testing.T) {
 	cloud := &stubCloud{}
 	m := newStubMQTT()
@@ -369,15 +419,18 @@ func TestPublishOnline(t *testing.T) {
 
 	c.PublishOnline(context.Background())
 
-	got, ok := m.get("daikin/bridge/status")
+	got, ok := m.get("daikin/connected")
 	if !ok {
-		t.Fatalf("missing bridge status publish")
+		t.Fatalf("missing connected publish")
 	}
-	if got.payload != "online" {
-		t.Errorf("payload = %q, want %q", got.payload, "online")
+	if got.payload != "1" {
+		t.Errorf("payload = %q, want %q", got.payload, "1")
 	}
 	if !got.retain {
-		t.Errorf("bridge status should be retained")
+		t.Errorf("connected should be retained")
+	}
+	if _, ok := m.get("daikin/bridge/status"); ok {
+		t.Error("the 0.13 bridge/status topic is still published")
 	}
 }
 
@@ -549,7 +602,7 @@ func TestSubscribeWritesDropsRetained(t *testing.T) {
 	// reconnect. The hand-written handler checked the flag; the router drops it
 	// before a handler runs (publisher.CommandConfig.DeliverRetained). The
 	// assertion is unchanged because the behaviour must be.
-	m.handler(&mqtt.Message{Topic: "daikin/dev1/climateControl/power/set", Payload: []byte("on"), Retain: true})
+	m.handler(&mqtt.Message{Topic: "daikin/set/dev1/climateControl/power", Payload: []byte("on"), Retain: true})
 	c.commands.WaitIdle()
 	select {
 	case req := <-c.writes:
@@ -558,7 +611,7 @@ func TestSubscribeWritesDropsRetained(t *testing.T) {
 	}
 
 	// A live (non-retained) command still goes through.
-	m.handler(&mqtt.Message{Topic: "daikin/dev1/climateControl/power/set", Payload: []byte("on"), Retain: false})
+	m.handler(&mqtt.Message{Topic: "daikin/set/dev1/climateControl/power", Payload: []byte("on"), Retain: false})
 	c.commands.WaitIdle()
 	select {
 	case <-c.writes:
@@ -567,30 +620,29 @@ func TestSubscribeWritesDropsRetained(t *testing.T) {
 	}
 }
 
-// parseSetTopic accepts well-formed /set topics and rejects malformed ones.
+// parseSetTopic takes the device, management point and leaf from the three
+// `+` levels of the set route, and refuses anything that did not fill them.
 func TestParseSetTopic(t *testing.T) {
 	cloud := &stubCloud{}
 	m := newStubMQTT()
 	c := newCoordinator(t, cloud, m)
 
-	req, ok := c.parseSetTopic("daikin/dev1/climateControl/power/set", "on")
+	req, ok := c.parseSetTopic(publisher.Command{
+		Topic: "daikin/set/dev1/climateControl/power", Wildcards: []string{"dev1", "climateControl", "power"},
+	})
 	if !ok {
 		t.Fatalf("expected valid topic to parse")
 	}
-	if req.deviceID != "dev1" || req.embeddedID != "climateControl" ||
-		req.topic != "power" || req.payload != "on" {
+	if req.deviceID != "dev1" || req.embeddedID != "climateControl" || req.topic != "power" {
 		t.Errorf("parsed req = %+v", req)
 	}
-
-	bad := []string{
-		"daikin/dev1/climateControl/power/state", // not /set
-		"daikin/dev1/climateControl/power",       // too few segments
-		"daikin/dev1/climateControl/power/x/set", // too many segments
-		"other/dev1/climateControl/power/set",    // wrong root
+	if got := c.setTopic(req); got != "daikin/set/dev1/climateControl/power" {
+		t.Errorf("setTopic = %q", got)
 	}
-	for _, topic := range bad {
-		if _, ok := c.parseSetTopic(topic, "v"); ok {
-			t.Errorf("topic %q unexpectedly parsed", topic)
+
+	for _, w := range [][]string{nil, {"dev1", "climateControl"}, {"a", "b", "c", "d"}} {
+		if _, ok := c.parseSetTopic(publisher.Command{Topic: "daikin/set/x", Wildcards: w}); ok {
+			t.Errorf("wildcards %v unexpectedly parsed", w)
 		}
 	}
 }
@@ -690,7 +742,7 @@ func TestDataSourceAttributesAreRepublishedEveryPoll(t *testing.T) {
 	// coordinator tests do.
 	c.collectWindow = 20 * time.Millisecond
 
-	const attrs = "daikin/dev1/climateControl/power/attributes"
+	const attrs = "daikin/status/dev1/climateControl/power/attributes"
 
 	c.pollOnce(context.Background())
 	if got := m.countOf(attrs); got != 1 {
@@ -733,8 +785,8 @@ func TestDataSourceAttributesAreRepublishedEveryPoll(t *testing.T) {
 		t.Errorf("after poll 2, %s published %d times, want 1 — "+
 			"an unchanged retained value must not be re-written (the dedup gate)", attrs, got)
 	}
-	if msg, ok := m.get(attrs); !ok || msg.payload != `{"data_source":"cloud"}` {
-		t.Errorf("%s = %q, want the data_source document", attrs, msg.payload)
+	if v, ok := m.val(t, attrs); !ok || v.(map[string]any)["data_source"] != "cloud" {
+		t.Errorf("%s val = %v, want the data_source document", attrs, v)
 	}
 
 	// And the half F13 actually protects: when the source CHANGES, the document
@@ -748,7 +800,7 @@ func TestDataSourceAttributesAreRepublishedEveryPoll(t *testing.T) {
 	if got := m.countOf(attrs); got != 2 {
 		t.Errorf("after the data source changed, %s published %d times, want 2", attrs, got)
 	}
-	if msg, ok := m.get(attrs); !ok || msg.payload != `{"data_source":"local"}` {
-		t.Errorf("%s = %q, want the local data_source document", attrs, msg.payload)
+	if v, ok := m.val(t, attrs); !ok || v.(map[string]any)["data_source"] != "local" {
+		t.Errorf("%s val = %v, want the local data_source document", attrs, v)
 	}
 }

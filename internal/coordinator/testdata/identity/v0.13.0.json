@@ -1,0 +1,1594 @@
+{
+  "air-to-air-dx4.de": {
+    "homeassistant/device/daikin_809d41d9-4d42-45fa-af6a-84b512143672/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.my_mock_a2a_hp_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.my_mock_a2a_hp_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state"
+        },
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_gateway_ip_address"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.my_mock_a2a_hp_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode"
+        },
+        "outdoor_temperature": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_outdoor_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_outdoor_temperature"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.my_mock_a2a_hp_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_powerful_mode"
+        },
+        "refresh": {
+          "default_entity_id": "button.my_mock_a2a_hp_refresh",
+          "platform": "button",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_refresh"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature"
+        }
+      },
+      "identifiers": [
+        "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+      ],
+      "via_device": ""
+    }
+  },
+  "air-to-air-dx4.en": {
+    "homeassistant/device/daikin_809d41d9-4d42-45fa-af6a-84b512143672/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.my_mock_a2a_hp_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.my_mock_a2a_hp_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state"
+        },
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_gateway_ip_address"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.my_mock_a2a_hp_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode"
+        },
+        "outdoor_temperature": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_outdoor_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_outdoor_temperature"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.my_mock_a2a_hp_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_powerful_mode"
+        },
+        "refresh": {
+          "default_entity_id": "button.my_mock_a2a_hp_refresh",
+          "platform": "button",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_refresh"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.my_mock_a2a_hp_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature"
+        }
+      },
+      "identifiers": [
+        "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+      ],
+      "via_device": ""
+    }
+  },
+  "airpurifier.de": {
+    "homeassistant/device/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5/config": {
+      "components": {
+        "air_purification_mode": {
+          "default_entity_id": "select.my_mock_air_purifier_air_purification_mode",
+          "platform": "select",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_air_purification_mode"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.my_mock_air_purifier_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.my_mock_air_purifier_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_state"
+        },
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.my_mock_air_purifier_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_gateway_ip_address"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.my_mock_air_purifier_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_holiday_mode"
+        },
+        "power": {
+          "default_entity_id": "switch.my_mock_air_purifier_power",
+          "platform": "switch",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_power"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.my_mock_air_purifier_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.my_mock_air_purifier_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_temperature"
+        }
+      },
+      "identifiers": [
+        "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5"
+      ],
+      "via_device": ""
+    }
+  },
+  "airpurifier.en": {
+    "homeassistant/device/daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5/config": {
+      "components": {
+        "air_purification_mode": {
+          "default_entity_id": "select.my_mock_air_purifier_air_purification_mode",
+          "platform": "select",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_air_purification_mode"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.my_mock_air_purifier_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.my_mock_air_purifier_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_state"
+        },
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.my_mock_air_purifier_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_gateway_ip_address"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.my_mock_air_purifier_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_holiday_mode"
+        },
+        "power": {
+          "default_entity_id": "switch.my_mock_air_purifier_power",
+          "platform": "switch",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_power"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.my_mock_air_purifier_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.my_mock_air_purifier_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_temperature"
+        }
+      },
+      "identifiers": [
+        "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5"
+      ],
+      "via_device": ""
+    }
+  },
+  "altherma-air-to-water-wlan.de": {
+    "homeassistant/device/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.my_mock_a2w_hp_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_monthly"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_weekly"
+        },
+        "dhw_error_state": {
+          "default_entity_id": "binary_sensor.my_mock_a2w_hp_dhw_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_error_state"
+        },
+        "dhw_power": {
+          "default_entity_id": "switch.my_mock_a2w_hp_dhw_power",
+          "platform": "switch",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_power"
+        },
+        "dhw_powerful_mode": {
+          "default_entity_id": "switch.my_mock_a2w_hp_dhw_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_powerful_mode"
+        },
+        "dhw_setpoint_mode": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_dhw_setpoint_mode",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_setpoint_mode"
+        },
+        "dhw_tank_temperature": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_dhw_tank_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_tank_temperature"
+        },
+        "dhw_temperature_setpoint": {
+          "default_entity_id": "number.my_mock_a2w_hp_dhw_temperature_setpoint",
+          "platform": "number",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_temperature_setpoint"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_monthly"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.my_mock_a2w_hp_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_holiday_mode"
+        },
+        "leaving_water_offset": {
+          "default_entity_id": "number.my_mock_a2w_hp_leaving_water_offset",
+          "platform": "number",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_leaving_water_offset"
+        },
+        "outdoor_temperature": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_outdoor_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_outdoor_temperature"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.my_mock_a2w_hp_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_powerful_mode"
+        },
+        "refresh": {
+          "default_entity_id": "button.my_mock_a2w_hp_refresh",
+          "platform": "button",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_refresh"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_room_temperature"
+        }
+      },
+      "identifiers": [
+        "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_gateway_ABCDEF0123456789/config": {
+      "components": {
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.gateway_my_mock_a2w_hp_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_gateway_ABCDEF0123456789_gateway_ip_address"
+        }
+      },
+      "identifiers": [
+        "daikin_gateway_ABCDEF0123456789"
+      ],
+      "via_device": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+    }
+  },
+  "altherma-air-to-water-wlan.en": {
+    "homeassistant/device/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.my_mock_a2w_hp_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_monthly"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_weekly"
+        },
+        "dhw_error_state": {
+          "default_entity_id": "binary_sensor.my_mock_a2w_hp_dhw_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_error_state"
+        },
+        "dhw_power": {
+          "default_entity_id": "switch.my_mock_a2w_hp_dhw_power",
+          "platform": "switch",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_power"
+        },
+        "dhw_powerful_mode": {
+          "default_entity_id": "switch.my_mock_a2w_hp_dhw_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_powerful_mode"
+        },
+        "dhw_setpoint_mode": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_dhw_setpoint_mode",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_setpoint_mode"
+        },
+        "dhw_tank_temperature": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_dhw_tank_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_tank_temperature"
+        },
+        "dhw_temperature_setpoint": {
+          "default_entity_id": "number.my_mock_a2w_hp_dhw_temperature_setpoint",
+          "platform": "number",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_temperature_setpoint"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_monthly"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.my_mock_a2w_hp_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_holiday_mode"
+        },
+        "leaving_water_offset": {
+          "default_entity_id": "number.my_mock_a2w_hp_leaving_water_offset",
+          "platform": "number",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_leaving_water_offset"
+        },
+        "outdoor_temperature": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_outdoor_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_outdoor_temperature"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.my_mock_a2w_hp_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_powerful_mode"
+        },
+        "refresh": {
+          "default_entity_id": "button.my_mock_a2w_hp_refresh",
+          "platform": "button",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_refresh"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.my_mock_a2w_hp_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_room_temperature"
+        }
+      },
+      "identifiers": [
+        "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_gateway_ABCDEF0123456789/config": {
+      "components": {
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.gateway_my_mock_a2w_hp_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_gateway_ABCDEF0123456789_gateway_ip_address"
+        }
+      },
+      "identifiers": [
+        "daikin_gateway_ABCDEF0123456789"
+      ],
+      "via_device": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c"
+    }
+  },
+  "d2cnd-gas-boiler.de": {
+    "homeassistant/device/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.climate_control_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_climate"
+        },
+        "dhw_error_state": {
+          "default_entity_id": "binary_sensor.climate_control_dhw_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_error_state"
+        },
+        "dhw_power": {
+          "default_entity_id": "switch.climate_control_dhw_power",
+          "platform": "switch",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_power"
+        },
+        "dhw_tank_temperature": {
+          "default_entity_id": "sensor.climate_control_dhw_tank_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_tank_temperature"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.climate_control_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.climate_control_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_error_state"
+        },
+        "gateway_error_state": {
+          "default_entity_id": "binary_sensor.climate_control_gateway_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_gateway_error_state"
+        },
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.climate_control_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_gateway_ip_address"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.climate_control_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_holiday_mode"
+        },
+        "outdoor_temperature": {
+          "default_entity_id": "sensor.climate_control_outdoor_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_outdoor_temperature"
+        },
+        "refresh": {
+          "default_entity_id": "button.climate_control_refresh",
+          "platform": "button",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_refresh"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.climate_control_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_room_temperature"
+        },
+        "warning_state": {
+          "default_entity_id": "binary_sensor.climate_control_warning_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_warning_state"
+        }
+      },
+      "identifiers": [
+        "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+      ],
+      "via_device": ""
+    }
+  },
+  "d2cnd-gas-boiler.en": {
+    "homeassistant/device/daikin_c6ab0361-e117-4048-b67f-232b7df29cb0/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.climate_control_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_climate"
+        },
+        "dhw_error_state": {
+          "default_entity_id": "binary_sensor.climate_control_dhw_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_error_state"
+        },
+        "dhw_power": {
+          "default_entity_id": "switch.climate_control_dhw_power",
+          "platform": "switch",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_power"
+        },
+        "dhw_tank_temperature": {
+          "default_entity_id": "sensor.climate_control_dhw_tank_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_dhw_tank_temperature"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.climate_control_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.climate_control_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_error_state"
+        },
+        "gateway_error_state": {
+          "default_entity_id": "binary_sensor.climate_control_gateway_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_gateway_error_state"
+        },
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.climate_control_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_gateway_ip_address"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.climate_control_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_holiday_mode"
+        },
+        "outdoor_temperature": {
+          "default_entity_id": "sensor.climate_control_outdoor_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_outdoor_temperature"
+        },
+        "refresh": {
+          "default_entity_id": "button.climate_control_refresh",
+          "platform": "button",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_refresh"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.climate_control_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_room_temperature"
+        },
+        "warning_state": {
+          "default_entity_id": "binary_sensor.climate_control_warning_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0_warning_state"
+        }
+      },
+      "identifiers": [
+        "daikin_c6ab0361-e117-4048-b67f-232b7df29cb0"
+      ],
+      "via_device": ""
+    }
+  },
+  "multisplit.de": {
+    "homeassistant/device/daikin_11112222-3333-4444-5555-666677778888/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.kuche_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.kuche_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.kuche_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_monthly"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.kuche_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_weekly"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.kuche_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.kuche_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_state"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.kuche_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.kuche_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_monthly"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.kuche_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.kuche_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_holiday_mode"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.kuche_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_powerful_mode"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.kuche_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.kuche_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_temperature"
+        }
+      },
+      "identifiers": [
+        "daikin_11112222-3333-4444-5555-666677778888"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_809d41d9-4d42-45fa-af6a-84b512143672/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.wohnzimmer_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.wohnzimmer_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.wohnzimmer_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.wohnzimmer_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.wohnzimmer_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_powerful_mode"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.wohnzimmer_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.wohnzimmer_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature"
+        }
+      },
+      "identifiers": [
+        "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_gateway_GW0000000001/config": {
+      "components": {
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.gateway_wohnzimmer_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_gateway_GW0000000001_gateway_ip_address"
+        }
+      },
+      "identifiers": [
+        "daikin_gateway_GW0000000001"
+      ],
+      "via_device": "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+    },
+    "homeassistant/device/daikin_gateway_GW0000000002/config": {
+      "components": {
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.gateway_kuche_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_gateway_GW0000000002_gateway_ip_address"
+        }
+      },
+      "identifiers": [
+        "daikin_gateway_GW0000000002"
+      ],
+      "via_device": "daikin_11112222-3333-4444-5555-666677778888"
+    },
+    "homeassistant/device/daikin_outdoor_ODU0000000001/config": {
+      "components": {
+        "outdoor_temperature": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_temperature"
+        },
+        "refresh": {
+          "default_entity_id": "button.daikin_outdoor_unit_refresh",
+          "platform": "button",
+          "unique_id": "daikin_outdoor_ODU0000000001_refresh"
+        }
+      },
+      "identifiers": [
+        "daikin_outdoor_ODU0000000001"
+      ],
+      "via_device": ""
+    }
+  },
+  "multisplit.en": {
+    "homeassistant/device/daikin_11112222-3333-4444-5555-666677778888/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.kuche_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.kuche_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.kuche_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_monthly"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.kuche_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_weekly"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.kuche_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.kuche_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_state"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.kuche_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.kuche_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_monthly"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.kuche_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.kuche_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_holiday_mode"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.kuche_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_powerful_mode"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.kuche_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.kuche_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_temperature"
+        }
+      },
+      "identifiers": [
+        "daikin_11112222-3333-4444-5555-666677778888"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_809d41d9-4d42-45fa-af6a-84b512143672/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.wohnzimmer_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.wohnzimmer_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.wohnzimmer_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.wohnzimmer_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.wohnzimmer_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_powerful_mode"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.wohnzimmer_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.wohnzimmer_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature"
+        }
+      },
+      "identifiers": [
+        "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_gateway_GW0000000001/config": {
+      "components": {
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.gateway_wohnzimmer_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_gateway_GW0000000001_gateway_ip_address"
+        }
+      },
+      "identifiers": [
+        "daikin_gateway_GW0000000001"
+      ],
+      "via_device": "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+    },
+    "homeassistant/device/daikin_gateway_GW0000000002/config": {
+      "components": {
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.gateway_kuche_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_gateway_GW0000000002_gateway_ip_address"
+        }
+      },
+      "identifiers": [
+        "daikin_gateway_GW0000000002"
+      ],
+      "via_device": "daikin_11112222-3333-4444-5555-666677778888"
+    },
+    "homeassistant/device/daikin_outdoor_ODU0000000001/config": {
+      "components": {
+        "outdoor_temperature": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_temperature"
+        },
+        "refresh": {
+          "default_entity_id": "button.daikin_outdoor_unit_refresh",
+          "platform": "button",
+          "unique_id": "daikin_outdoor_ODU0000000001_refresh"
+        }
+      },
+      "identifiers": [
+        "daikin_outdoor_ODU0000000001"
+      ],
+      "via_device": ""
+    }
+  },
+  "multisplit.local.en": {
+    "homeassistant/device/daikin_11112222-3333-4444-5555-666677778888/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.kuche_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.kuche_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.kuche_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_monthly"
+        },
+        "cooling_energy_total": {
+          "default_entity_id": "sensor.kuche_cooling_energy_total",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_total"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.kuche_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_weekly"
+        },
+        "energy_total": {
+          "default_entity_id": "sensor.kuche_energy_total",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_energy_total"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.kuche_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.kuche_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_state"
+        },
+        "fan_speed": {
+          "default_entity_id": "sensor.kuche_fan_speed",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_fan_speed"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.kuche_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.kuche_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_monthly"
+        },
+        "heating_energy_total": {
+          "default_entity_id": "sensor.kuche_heating_energy_total",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_total"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.kuche_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.kuche_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_holiday_mode"
+        },
+        "power_consumption": {
+          "default_entity_id": "sensor.kuche_power_consumption",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_power_consumption"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.kuche_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_powerful_mode"
+        },
+        "refrigerant_temperature": {
+          "default_entity_id": "sensor.kuche_refrigerant_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_refrigerant_temperature"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.kuche_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.kuche_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_temperature"
+        },
+        "streamer": {
+          "default_entity_id": "switch.kuche_streamer",
+          "platform": "switch",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_streamer"
+        }
+      },
+      "identifiers": [
+        "daikin_11112222-3333-4444-5555-666677778888"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_809d41d9-4d42-45fa-af6a-84b512143672/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.wohnzimmer_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly"
+        },
+        "cooling_energy_total": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_total",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_total"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly"
+        },
+        "energy_total": {
+          "default_entity_id": "sensor.wohnzimmer_energy_total",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_energy_total"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.wohnzimmer_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.wohnzimmer_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state"
+        },
+        "fan_speed": {
+          "default_entity_id": "sensor.wohnzimmer_fan_speed",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_fan_speed"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly"
+        },
+        "heating_energy_total": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_total",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_total"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.wohnzimmer_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode"
+        },
+        "power_consumption": {
+          "default_entity_id": "sensor.wohnzimmer_power_consumption",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_power_consumption"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.wohnzimmer_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_powerful_mode"
+        },
+        "refrigerant_temperature": {
+          "default_entity_id": "sensor.wohnzimmer_refrigerant_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_refrigerant_temperature"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.wohnzimmer_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.wohnzimmer_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature"
+        },
+        "streamer": {
+          "default_entity_id": "switch.wohnzimmer_streamer",
+          "platform": "switch",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_streamer"
+        }
+      },
+      "identifiers": [
+        "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_gateway_GW0000000001/config": {
+      "components": {
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.gateway_wohnzimmer_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_gateway_GW0000000001_gateway_ip_address"
+        }
+      },
+      "identifiers": [
+        "daikin_gateway_GW0000000001"
+      ],
+      "via_device": "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+    },
+    "homeassistant/device/daikin_gateway_GW0000000002/config": {
+      "components": {
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.gateway_kuche_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_gateway_GW0000000002_gateway_ip_address"
+        }
+      },
+      "identifiers": [
+        "daikin_gateway_GW0000000002"
+      ],
+      "via_device": "daikin_11112222-3333-4444-5555-666677778888"
+    },
+    "homeassistant/device/daikin_outdoor_ODU0000000001/config": {
+      "components": {
+        "compressor_frequency": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_compressor_frequency",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_compressor_frequency"
+        },
+        "demand_control": {
+          "default_entity_id": "number.daikin_outdoor_unit_demand_control",
+          "platform": "number",
+          "unique_id": "daikin_outdoor_ODU0000000001_demand_control"
+        },
+        "econo_mode": {
+          "default_entity_id": "switch.daikin_outdoor_unit_econo_mode",
+          "platform": "switch",
+          "unique_id": "daikin_outdoor_ODU0000000001_econo_mode"
+        },
+        "outdoor_cooling_energy_total": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_cooling_energy_total",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_cooling_energy_total"
+        },
+        "outdoor_energy_total": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_energy_total",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_energy_total"
+        },
+        "outdoor_heating_energy_total": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_heating_energy_total",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_heating_energy_total"
+        },
+        "outdoor_power": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_power",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_power"
+        },
+        "outdoor_silent": {
+          "default_entity_id": "switch.daikin_outdoor_unit_outdoor_silent",
+          "platform": "switch",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_silent"
+        },
+        "outdoor_temperature": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_temperature"
+        },
+        "refresh": {
+          "default_entity_id": "button.daikin_outdoor_unit_refresh",
+          "platform": "button",
+          "unique_id": "daikin_outdoor_ODU0000000001_refresh"
+        }
+      },
+      "identifiers": [
+        "daikin_outdoor_ODU0000000001"
+      ],
+      "via_device": ""
+    }
+  },
+  "multisplit.scheduler.en": {
+    "homeassistant/device/daikin_11112222-3333-4444-5555-666677778888/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.kuche_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.kuche_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.kuche_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_monthly"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.kuche_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_cooling_energy_weekly"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.kuche_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.kuche_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_state"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.kuche_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.kuche_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_monthly"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.kuche_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.kuche_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_holiday_mode"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.kuche_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_powerful_mode"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.kuche_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.kuche_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_room_temperature"
+        },
+        "schedule_next_change": {
+          "default_entity_id": "sensor.kuche_schedule_next_change",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_schedule_next_change"
+        },
+        "schedule_state": {
+          "default_entity_id": "sensor.kuche_schedule_state",
+          "platform": "sensor",
+          "unique_id": "daikin_11112222-3333-4444-5555-666677778888_schedule_state"
+        }
+      },
+      "identifiers": [
+        "daikin_11112222-3333-4444-5555-666677778888"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_809d41d9-4d42-45fa-af6a-84b512143672/config": {
+      "components": {
+        "climate": {
+          "default_entity_id": "climate.wohnzimmer_thermostat",
+          "platform": "climate",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate"
+        },
+        "cooling_energy_daily": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily"
+        },
+        "cooling_energy_monthly": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly"
+        },
+        "cooling_energy_weekly": {
+          "default_entity_id": "sensor.wohnzimmer_cooling_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_weekly"
+        },
+        "error_code": {
+          "default_entity_id": "sensor.wohnzimmer_error_code",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_code"
+        },
+        "error_state": {
+          "default_entity_id": "binary_sensor.wohnzimmer_error_state",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state"
+        },
+        "heating_energy_daily": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_daily",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_daily"
+        },
+        "heating_energy_monthly": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_monthly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_monthly"
+        },
+        "heating_energy_weekly": {
+          "default_entity_id": "sensor.wohnzimmer_heating_energy_weekly",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_heating_energy_weekly"
+        },
+        "holiday_mode": {
+          "default_entity_id": "binary_sensor.wohnzimmer_holiday_mode",
+          "platform": "binary_sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode"
+        },
+        "powerful_mode": {
+          "default_entity_id": "switch.wohnzimmer_powerful_mode",
+          "platform": "switch",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_powerful_mode"
+        },
+        "room_humidity": {
+          "default_entity_id": "sensor.wohnzimmer_room_humidity",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_humidity"
+        },
+        "room_temperature": {
+          "default_entity_id": "sensor.wohnzimmer_room_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_room_temperature"
+        },
+        "schedule_next_change": {
+          "default_entity_id": "sensor.wohnzimmer_schedule_next_change",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_schedule_next_change"
+        },
+        "schedule_state": {
+          "default_entity_id": "sensor.wohnzimmer_schedule_state",
+          "platform": "sensor",
+          "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_schedule_state"
+        }
+      },
+      "identifiers": [
+        "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_gateway_GW0000000001/config": {
+      "components": {
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.gateway_wohnzimmer_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_gateway_GW0000000001_gateway_ip_address"
+        }
+      },
+      "identifiers": [
+        "daikin_gateway_GW0000000001"
+      ],
+      "via_device": "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+    },
+    "homeassistant/device/daikin_gateway_GW0000000002/config": {
+      "components": {
+        "gateway_ip_address": {
+          "default_entity_id": "sensor.gateway_kuche_gateway_ip_address",
+          "platform": "sensor",
+          "unique_id": "daikin_gateway_GW0000000002_gateway_ip_address"
+        }
+      },
+      "identifiers": [
+        "daikin_gateway_GW0000000002"
+      ],
+      "via_device": "daikin_11112222-3333-4444-5555-666677778888"
+    },
+    "homeassistant/device/daikin_outdoor_ODU0000000001/config": {
+      "components": {
+        "outdoor_schedule_next_change": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_schedule_next_change",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_schedule_next_change"
+        },
+        "outdoor_schedule_state": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_schedule_state",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_schedule_state"
+        },
+        "outdoor_temperature": {
+          "default_entity_id": "sensor.daikin_outdoor_unit_outdoor_temperature",
+          "platform": "sensor",
+          "unique_id": "daikin_outdoor_ODU0000000001_outdoor_temperature"
+        },
+        "refresh": {
+          "default_entity_id": "button.daikin_outdoor_unit_refresh",
+          "platform": "button",
+          "unique_id": "daikin_outdoor_ODU0000000001_refresh"
+        }
+      },
+      "identifiers": [
+        "daikin_outdoor_ODU0000000001"
+      ],
+      "via_device": ""
+    },
+    "homeassistant/device/daikin_scheduler/config": {
+      "components": {
+        "nacht_leise": {
+          "default_entity_id": "switch.daikin_schedule_nacht_leise",
+          "platform": "switch",
+          "unique_id": "daikin_schedule_nacht_leise"
+        },
+        "werktag": {
+          "default_entity_id": "switch.daikin_schedule_werktag",
+          "platform": "switch",
+          "unique_id": "daikin_schedule_werktag"
+        }
+      },
+      "identifiers": [
+        "daikin_scheduler"
+      ],
+      "via_device": ""
+    }
+  }
+}

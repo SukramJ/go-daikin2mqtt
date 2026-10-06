@@ -2,340 +2,544 @@
   "scenario": "altherma-air-to-water-wlan.de",
   "messages": [
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/climate/attributes",
+      "topic": "daikin/connected",
+      "qos": 0,
+      "retain": true,
+      "text": "1"
+    },
+    {
+      "topic": "daikin/connected",
+      "qos": 0,
+      "retain": true,
+      "text": "2"
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/climate/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 26
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily/state",
-      "qos": 0,
-      "retain": true,
-      "text": "26.000"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.000"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "260.000"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily/state",
-      "qos": 0,
-      "retain": true,
-      "text": "26.000"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 260
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.000"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly/state",
-      "qos": 0,
-      "retain": true,
-      "text": "260.000"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 26
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "true"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/hvac_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "heat"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/state",
-      "qos": 0,
-      "retain": true,
-      "text": "0.0"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint/state",
-      "qos": 0,
-      "retain": true,
-      "text": "21.0"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/operation_mode/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/operation_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "Heizen"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 260
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "25.0"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/power/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/power/state",
-      "qos": 0,
-      "retain": true,
-      "text": "on"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "on"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/preset_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "Boost"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "20.0"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/climate/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/hvac_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "heat"
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 0
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/state",
-      "qos": 0,
-      "retain": true,
-      "text": "off"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 21
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "off"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "fixed"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/operation_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "heating"
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "53.0"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/operation_mode/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/state",
-      "qos": 0,
-      "retain": true,
-      "text": "45.0"
-    },
-    {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/refresh/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 25
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address/attributes",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address/state",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/power",
       "qos": 0,
       "retain": true,
-      "text": "192.168.0.2"
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
+      }
     },
     {
-      "topic": "daikin/bridge/status",
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/power/attributes",
       "qos": 0,
       "retain": true,
-      "text": "online"
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/preset_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "boost"
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 20
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "fixed"
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 53
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 45
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/refresh/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "192.168.0.2"
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
+      }
     },
     {
       "topic": "homeassistant/binary_sensor/daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_error_state/config",

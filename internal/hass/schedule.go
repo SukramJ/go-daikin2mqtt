@@ -60,14 +60,15 @@ func schedulerDevice(configURL string) device {
 	}
 }
 
-// ScheduleStateTopic returns the retained enable-state topic of a schedule.
+// ScheduleStateTopic returns the retained enable status item of a schedule,
+// `<name>/status/scheduler/<id>/enabled`.
 func (d *Discovery) ScheduleStateTopic(scheduleID string) string {
 	return d.state.Schedule(scheduleID).State()
 }
 
-// ScheduleCommandTopic returns the enable command topic of a schedule. It fits
-// the coordinator's existing <root>/+/+/+/set subscription, so toggling a
-// schedule from Home Assistant needs no extra subscription.
+// ScheduleCommandTopic returns the enable set item of a schedule. It fits the
+// coordinator's one <name>/set/+/+/+ subscription, so toggling a schedule from
+// Home Assistant needs no extra subscription.
 func (d *Discovery) ScheduleCommandTopic(scheduleID string) string {
 	return d.state.Schedule(scheduleID).Command()
 }
@@ -94,7 +95,8 @@ func (d *Discovery) PublishSchedules(ctx context.Context, schedules []ScheduleIn
 	return published, firstErr
 }
 
-// buildScheduleConfig renders one schedule's switch config.
+// buildScheduleConfig renders one schedule's switch config, on the frozen 0.13
+// layout like every builder [Discovery.Publish] keeps.
 //
 // The entity id is seeded from the schedule's slug, not from its display name:
 // the slug is frozen at creation, so renaming a schedule leaves
@@ -111,13 +113,13 @@ func (d *Discovery) buildScheduleConfig(s ScheduleInfo, dev device) (topic strin
 		UniqueID:            uid,
 		Icon:                "mdi:calendar-check",
 		EntityCategory:      "config",
-		StateTopic:          d.ScheduleStateTopic(s.ID),
-		CommandTopic:        d.ScheduleCommandTopic(s.ID),
+		StateTopic:          d.legacy.Schedule(s.ID).State(),
+		CommandTopic:        d.legacy.Schedule(s.ID).Command(),
 		PayloadOn:           "on",
 		PayloadOff:          "off",
 		StateOn:             "on",
 		StateOff:            "off",
-		AvailabilityTopic:   d.BridgeStatusTopic(),
+		AvailabilityTopic:   d.legacy.BridgeStatus(),
 		PayloadAvailable:    "online",
 		PayloadNotAvailable: "offline",
 		Device:              dev,

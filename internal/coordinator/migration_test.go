@@ -653,8 +653,8 @@ func TestTheTwoPlanesAgreeOnTheDiscoveryPrefix(t *testing.T) {
 			// availability topic every component names is the one the will
 			// writes. publisher.New panics on a disagreement; reaching here is
 			// the assertion.
-			if rt.BridgeTopic() != d.BridgeStatusTopic() {
-				t.Errorf("runtime bridge topic %q, discovery %q", rt.BridgeTopic(), d.BridgeStatusTopic())
+			if rt.BridgeTopic() != d.ConnectedTopic() {
+				t.Errorf("runtime bridge topic %q, discovery %q", rt.BridgeTopic(), d.ConnectedTopic())
 			}
 		})
 	}

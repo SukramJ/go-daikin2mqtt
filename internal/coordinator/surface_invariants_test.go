@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
@@ -67,6 +68,77 @@ func str(m map[string]any, key string) string {
 	return ""
 }
 
+// surfaceCache and bundleCache memoize one scenario's surface and device
+// documents for the invariants added with the mqtt-smarthome layout, which
+// read the same renderings several times over. Both are deterministic, and the
+// readers below only read them.
+var (
+	surfaceCacheMu sync.Mutex
+	surfaceCache   = map[string][]recordedMsg{}
+	bundleCache    = map[string]bundleDoc{}
+)
+
+// cachedSurface is buildSurface, built once per scenario.
+func cachedSurface(t *testing.T, sc surfaceScenario) []recordedMsg {
+	t.Helper()
+	surfaceCacheMu.Lock()
+	msgs, ok := surfaceCache[sc.name]
+	surfaceCacheMu.Unlock()
+	if ok {
+		return msgs
+	}
+	msgs = buildSurface(t, sc)
+	surfaceCacheMu.Lock()
+	surfaceCache[sc.name] = msgs
+	surfaceCacheMu.Unlock()
+	return msgs
+}
+
+// cachedBundleSurface is buildBundleSurface, built once per scenario.
+func cachedBundleSurface(t *testing.T, sc surfaceScenario) bundleDoc {
+	t.Helper()
+	surfaceCacheMu.Lock()
+	doc, ok := bundleCache[sc.name]
+	surfaceCacheMu.Unlock()
+	if ok {
+		return doc
+	}
+	doc = buildBundleSurface(t, sc)
+	surfaceCacheMu.Lock()
+	bundleCache[sc.name] = doc
+	surfaceCacheMu.Unlock()
+	return doc
+}
+
+// componentsOf returns the components of the device documents a scenario
+// publishes — what Home Assistant actually reads since ADR 0070 step 6 —
+// keyed "<document topic>#<component key>".
+func componentsOf(t *testing.T, sc surfaceScenario) map[string]map[string]any {
+	t.Helper()
+	out := map[string]map[string]any{}
+	for _, d := range cachedBundleSurface(t, sc).Documents {
+		comps, _ := d.Document["components"].(map[string]any)
+		for key, raw := range comps {
+			if comp, ok := raw.(map[string]any); ok {
+				out[d.Topic+"#"+key] = comp
+			}
+		}
+	}
+	return out
+}
+
+// availabilityTopics returns the topics of a component's availability list.
+func availabilityTopics(comp map[string]any) []string {
+	list, _ := comp["availability"].([]any)
+	out := make([]string, 0, len(list))
+	for _, e := range list {
+		if entry, ok := e.(map[string]any); ok {
+			out = append(out, str(entry, "topic"))
+		}
+	}
+	return out
+}
+
 // stateTopicKeys are every key in a discovery config that names a topic this
 // daemon is expected to publish to.
 var stateTopicKeys = []string{
@@ -109,18 +181,19 @@ var knownAdvertisedButUnpublished = map[string][]string{}
 // are a pair that compose the same topic in two packages from two different
 // "scheduler" constants, one of them beside a bare "enabled" literal.
 //
-// They are now all internal/layout, so this test compares what the retained
-// configs advertise against what the publish path writes rather than comparing
-// twelve expressions. A drift still leaves entities pointing at a topic nobody
-// writes: permanently unknown, nothing in the log, nothing in Home Assistant's
-// registry to notice — so the pin stays, and it is what catches a change to the
-// layout that only one side of the tree is updated for.
+// They are now all internal/layout, so this test compares what the published
+// device documents advertise — every role topic and every availability entry —
+// against what the publish path writes rather than comparing twelve
+// expressions. A drift still leaves entities pointing at a topic nobody writes:
+// permanently unknown or unavailable, nothing in the log, nothing in Home
+// Assistant's registry to notice — so the pin stays, and it is what catches a
+// change to the layout that only one side of the tree is updated for.
 func TestStateTopicBuildersAgree(t *testing.T) {
 	t.Parallel()
 	for _, sc := range surfaceScenarios() {
 		t.Run(sc.name, func(t *testing.T) {
 			t.Parallel()
-			msgs := buildSurface(t, sc)
+			msgs := cachedSurface(t, sc)
 			published := topicsOf(msgs)
 			allowed := map[string]bool{}
 			for _, a := range knownAdvertisedButUnpublished[sc.name] {
@@ -128,12 +201,17 @@ func TestStateTopicBuildersAgree(t *testing.T) {
 			}
 
 			advertised := 0
-			for cfgTopic, cfg := range configsOf(msgs) {
+			for cfgTopic, cfg := range componentsOf(t, sc) {
+				topics := map[string]string{}
 				for _, key := range stateTopicKeys {
-					st := str(cfg, key)
-					if st == "" {
-						continue
+					if st := str(cfg, key); st != "" {
+						topics[key] = st
 					}
+				}
+				for i, at := range availabilityTopics(cfg) {
+					topics[fmt.Sprintf("availability[%d]", i)] = at
+				}
+				for key, st := range topics {
 					advertised++
 					if published[st] || allowed[st] {
 						continue
@@ -160,8 +238,8 @@ func TestStateTopicBuildersAgree(t *testing.T) {
 }
 
 // TestCommandTopicsAreSubscribed pins the inbound half: every command topic a
-// config advertises must be matched by the one filter the coordinator
-// subscribes to, `<root>/+/+/+/set`.
+// published document advertises must be matched by the one filter the
+// coordinator subscribes to, `<name>/set/+/+/+`.
 //
 // The filter is read from the layout the coordinator actually subscribes with,
 // not written out as a literal here, so narrowing the filter fails this test
@@ -171,12 +249,12 @@ func TestStateTopicBuildersAgree(t *testing.T) {
 func TestCommandTopicsAreSubscribed(t *testing.T) {
 	t.Parallel()
 	filter := layout.New(config.TopicRoot).CommandFilter()
-	if filter != "daikin/+/+/+/set" {
-		t.Fatalf("command filter = %q, want %q — the installed base's subscription", filter, "daikin/+/+/+/set")
+	if filter != "daikin/set/+/+/+" {
+		t.Fatalf("command filter = %q, want %q — the mqtt-smarthome set items", filter, "daikin/set/+/+/+")
 	}
 	total := 0
 	for _, sc := range surfaceScenarios() {
-		for cfgTopic, cfg := range configsOf(buildSurface(t, sc)) {
+		for cfgTopic, cfg := range componentsOf(t, sc) {
 			for _, key := range commandTopicKeys {
 				ct := str(cfg, key)
 				if ct == "" {
@@ -288,36 +366,49 @@ func TestNoDuplicateEntityRegistryKeys(t *testing.T) {
 	}
 }
 
-// TestAvailabilityModelIsBridgeOnly pins the availability model: one level,
-// the bridge LWT, expressed with the singular availability_topic and top-level
-// payloads, no availability_mode, on every entity of every platform.
-//
-// This is mtec's shape, not homeconnect's: go-hamqtt's default
-// {LevelBridge, LevelDevice} with mode "all" would name a per-device
-// availability topic this bridge never publishes, leaving every entity
-// permanently unavailable. model.BridgeOnly() is the setting the phase needs.
-func TestAvailabilityModelIsBridgeOnly(t *testing.T) {
+// TestAvailabilityIsConnectedAndDeviceOnline pins openccu-loom ADR 0083's
+// availability model on every component of every published document:
+// `<name>/connected` at ≥ 2 first, then the online item of the ONECTA device
+// whose topics the component reads, with `availability_mode: all` — and for
+// the daemon's own scheduler switches, `<name>/connected` alone. No entry
+// carries more than the four keys spec §8 allows, and no component carries the
+// single-topic `availability_topic` spelling beside the list.
+func TestAvailabilityIsConnectedAndDeviceOnline(t *testing.T) {
 	t.Parallel()
-	const want = "daikin/bridge/status"
+	const connected = "daikin/connected"
 	for _, sc := range surfaceScenarios() {
-		msgs := buildSurface(t, sc)
-		published := topicsOf(msgs)
-		if !published[want] {
-			t.Errorf("%s: the bridge status topic %q is never published", sc.name, want)
+		msgs := cachedSurface(t, sc)
+		if !topicsOf(msgs)[connected] {
+			t.Errorf("%s: %q is never published", sc.name, connected)
 		}
-		for topic, cfg := range configsOf(msgs) {
-			if got := str(cfg, "availability_topic"); got != want {
-				t.Errorf("%s: availability_topic %q, want %q", topic, got, want)
+		for key, comp := range componentsOf(t, sc) {
+			if str(comp, "unique_id") == "" {
+				continue // a tombstone carries a platform only
 			}
-			if got := str(cfg, "payload_available"); got != "online" {
-				t.Errorf("%s: payload_available %q, want \"online\"", topic, got)
+			topics := availabilityTopics(comp)
+			if len(topics) == 0 || topics[0] != connected {
+				t.Errorf("%s: availability %v, want %q first", key, topics, connected)
+				continue
 			}
-			if got := str(cfg, "payload_not_available"); got != "offline" {
-				t.Errorf("%s: payload_not_available %q, want \"offline\"", topic, got)
+			list, _ := comp["availability"].([]any)
+			for i, e := range list {
+				if entry, _ := e.(map[string]any); len(entry) != 4 {
+					t.Errorf("%s: availability[%d] has keys %v, want exactly topic/value_template/payload_(not_)available", key, i, entry)
+				}
 			}
-			for _, absent := range []string{"availability", "availability_mode", "availability_template"} {
-				if _, ok := cfg[absent]; ok {
-					t.Errorf("%s: unexpected %q key", topic, absent)
+			scheduler := strings.Contains(key, "/daikin_scheduler/")
+			switch {
+			case scheduler && len(topics) != 1:
+				t.Errorf("%s: scheduler switch availability %v, want connected alone", key, topics)
+			case !scheduler && (len(topics) != 2 || !strings.HasPrefix(topics[1], "daikin/status/") ||
+				!strings.HasSuffix(topics[1], "/online")):
+				t.Errorf("%s: availability %v, want connected plus a device online item", key, topics)
+			case !scheduler && str(comp, "availability_mode") != "all":
+				t.Errorf("%s: availability_mode %q, want all", key, str(comp, "availability_mode"))
+			}
+			for _, absent := range []string{"availability_topic", "availability_template", "payload_available"} {
+				if _, ok := comp[absent]; ok {
+					t.Errorf("%s: unexpected %q key", key, absent)
 				}
 			}
 		}
@@ -637,18 +728,18 @@ func TestSurfaceCensus(t *testing.T) {
 		entities, messages int
 		platforms          string
 	}{
-		"airpurifier.en":                {8, 26, "binary_sensor=2 select=1 sensor=4 switch=1"},
-		"airpurifier.de":                {8, 26, "binary_sensor=2 select=1 sensor=4 switch=1"},
-		"air-to-air-dx4.en":             {16, 58, "binary_sensor=2 button=1 climate=1 sensor=11 switch=1"},
-		"air-to-air-dx4.de":             {16, 58, "binary_sensor=2 button=1 climate=1 sensor=11 switch=1"},
-		"altherma-air-to-water-wlan.en": {20, 68, "binary_sensor=2 button=1 climate=1 number=2 sensor=11 switch=3"},
-		"altherma-air-to-water-wlan.de": {20, 68, "binary_sensor=2 button=1 climate=1 number=2 sensor=11 switch=3"},
-		"d2cnd-gas-boiler.en":           {13, 46, "binary_sensor=5 button=1 climate=1 sensor=5 switch=1"},
-		"d2cnd-gas-boiler.de":           {13, 46, "binary_sensor=5 button=1 climate=1 sensor=5 switch=1"},
-		"multisplit.en":                 {30, 113, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
-		"multisplit.de":                 {30, 113, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
-		"multisplit.local.en":           {52, 221, "binary_sensor=4 button=1 climate=2 number=1 sensor=38 switch=6"},
-		"multisplit.scheduler.en":       {38, 142, "binary_sensor=4 button=1 climate=2 sensor=27 switch=4"},
+		"airpurifier.en":                {8, 28, "binary_sensor=2 select=1 sensor=4 switch=1"},
+		"airpurifier.de":                {8, 28, "binary_sensor=2 select=1 sensor=4 switch=1"},
+		"air-to-air-dx4.en":             {16, 60, "binary_sensor=2 button=1 climate=1 sensor=11 switch=1"},
+		"air-to-air-dx4.de":             {16, 60, "binary_sensor=2 button=1 climate=1 sensor=11 switch=1"},
+		"altherma-air-to-water-wlan.en": {20, 70, "binary_sensor=2 button=1 climate=1 number=2 sensor=11 switch=3"},
+		"altherma-air-to-water-wlan.de": {20, 70, "binary_sensor=2 button=1 climate=1 number=2 sensor=11 switch=3"},
+		"d2cnd-gas-boiler.en":           {13, 48, "binary_sensor=5 button=1 climate=1 sensor=5 switch=1"},
+		"d2cnd-gas-boiler.de":           {13, 48, "binary_sensor=5 button=1 climate=1 sensor=5 switch=1"},
+		"multisplit.en":                 {30, 116, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
+		"multisplit.de":                 {30, 116, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
+		"multisplit.local.en":           {52, 224, "binary_sensor=4 button=1 climate=2 number=1 sensor=38 switch=6"},
+		"multisplit.scheduler.en":       {38, 145, "binary_sensor=4 button=1 climate=2 sensor=27 switch=4"},
 	}
 	for _, sc := range surfaceScenarios() {
 		msgs := buildSurface(t, sc)

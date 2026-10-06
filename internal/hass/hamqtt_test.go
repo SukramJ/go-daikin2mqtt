@@ -64,8 +64,18 @@ func TestHamqttLayoutMatchesInternalLayout(t *testing.T) {
 			t.Errorf("Attributes: layout %q, Discovery.AttributesTopic %q", got, want)
 		}
 	}
-	if got, want := lay.Bridge(), d.BridgeStatusTopic(); got != want {
-		t.Errorf("Bridge: layout %q, Discovery.BridgeStatusTopic %q", got, want)
+	if got, want := lay.Bridge(), d.ConnectedTopic(); got != want {
+		t.Errorf("Bridge: layout %q, Discovery.ConnectedTopic %q", got, want)
+	}
+	// SmartHomeLayout's three instance topics, against internal/layout.
+	if lay.Connected() != lay.Bridge() {
+		t.Errorf("Connected %q differs from Bridge %q; the publisher refuses such a layout", lay.Connected(), lay.Bridge())
+	}
+	if got, want := lay.Info(), d.state.Info(); got != want {
+		t.Errorf("Info: layout %q, internal/layout %q", got, want)
+	}
+	if got, want := lay.Maintenance("set", "loglevel"), "daikin/maintenance/set/loglevel"; got != want {
+		t.Errorf("Maintenance = %q, want %q", got, want)
 	}
 	// The schedule pair — one topic composed in two packages from two
 	// constants, which is the shape the phase-8 step-2 corrections found F3
@@ -106,11 +116,11 @@ func TestHamqttLayoutIgnoresOnlyWhatItDeclares(t *testing.T) {
 			t.Errorf("bucket %v changed the state topic: %q, want %q", b, got, want)
 		}
 	}
-	// Availability renders nothing at all: this bridge has no per-device
-	// reachability topic, and naming one would grey out every entity that
-	// listed it (decision F8).
+	// Availability renders nothing at all: the library would address it by
+	// the Home Assistant device's UID, which is not the ONECTA device id the
+	// online item is keyed by, so the entity appends its online entry itself.
 	if got := lay.Availability(base); got != "" {
-		t.Errorf("Availability rendered %q; this bridge publishes no per-device availability topic", got)
+		t.Errorf("Availability rendered %q; the online entry is the entity's, not the layout's", got)
 	}
 	// hamqttSlot is the only constructor, and it is the reason the two
 	// ignored fields are safe to ignore.
@@ -140,6 +150,12 @@ func TestHamqttLayoutIsNotTheLibraryDefault(t *testing.T) {
 	}
 	if def.Availability(s) == "" {
 		t.Error("topic.Default renders no per-device availability topic; F8's trap would not exist")
+	}
+	// Nor is the library's own SmartHome State usable: it puts the slot's
+	// bucket into the item path.
+	sh := layout.New("daikin").SmartHome()
+	if lay.State(s) == sh.State(s) {
+		t.Error("topic.SmartHome reproduces this bridge's status item; the override would be unnecessary")
 	}
 }
 
@@ -223,69 +239,161 @@ func TestHamqttContextUsesThisBridgesNormalisers(t *testing.T) {
 	}
 }
 
-// TestHamqttEncodingIsRaw pins the second setting that would have been a silent
-// 264-row diff: the zero discovery.Encoding attaches a value_template to every
-// entity with a state topic, and this bridge publishes bare scalars.
-func TestHamqttEncodingIsRaw(t *testing.T) {
-	if got := testDiscovery("en").HamqttContext().Encoding(); got != discovery.RawEncoding {
-		t.Errorf("Encoding = %v, want discovery.RawEncoding", got)
+// TestHamqttEncodingIsStatusObject pins the encoding every status item is read
+// with: mqtt-smarthome 2.0's `{"val","ts","lc"}` object (openccu-loom ADR 0083).
+func TestHamqttEncodingIsStatusObject(t *testing.T) {
+	if got := testDiscovery("en").HamqttContext().Encoding(); got != discovery.StatusObjectEncoding {
+		t.Errorf("Encoding = %v, want discovery.StatusObjectEncoding", got)
 	}
 }
 
-// TestHamqttAvailabilityIsBridgeOnlyAndSingular is decision F8 asserted from
-// both ends.
+// TestHamqttAvailabilityIsConnectedAndOnline pins ADR 0083's availability:
+// `<name>/connected` read at ≥ 2, plus the device's own `online` item, combined
+// with `availability_mode: all`, each entry carrying only the four keys spec §8
+// allows.
 //
-// The library's zero model.Availability resolves to {LevelBridge, LevelDevice}
-// with mode "all". LevelDevice names a topic this bridge never writes, and
-// under mode "all" Home Assistant requires every listed source to say online —
-// so accepting the default leaves all 264 entities permanently unavailable,
-// with nothing in any log. go-mtec2mqtt shipped exactly that.
-//
-// singularAvailability is what makes the default loud instead of silent: it
-// refuses any component whose availability is not exactly one plain
-// bridge-level source. This asserts the refusal, the resolved level, and the
-// singular spelling the 264 payloads carry.
-func TestHamqttAvailabilityIsBridgeOnlyAndSingular(t *testing.T) {
+// The library's zero model.Availability resolves to {LevelBridge,
+// LevelDevice}, and LevelDevice would be addressed by the Home Assistant
+// device's UID — `daikin_<uuid>` — rather than the ONECTA device id the online
+// item is keyed by. smartHomeAvailability refuses that shape loudly; this
+// asserts the refusal too.
+func TestHamqttAvailabilityIsConnectedAndOnline(t *testing.T) {
 	d := testDiscovery("en")
 	ctx := d.HamqttContext()
 	dev := hamqttDevice(device{Identifiers: []string{"daikin_x"}, Name: "Probe"})
 
-	e, ok := d.pointEntity(hamqttLayout{root: d.state}, testPoint("room_temperature", "sensor"), "daikin_x", "Probe")
+	p := testPoint("room_temperature", "sensor")
+	e, ok := d.pointEntity(hamqttLayout{root: d.state}, p, "daikin_x", "Probe")
 	if !ok {
 		t.Fatal("pointEntity declined a sensor")
 	}
-	levels, mode := e.Desc().Availability.Resolved()
+	levels, _ := e.Desc().Availability.Resolved()
 	if len(levels) != 1 || levels[0] != hamodel.LevelBridge {
 		t.Errorf("availability levels = %v, want exactly {LevelBridge}", levels)
 	}
-	if mode != hamodel.AvailabilityAll {
-		t.Errorf("availability mode = %q, want %q", mode, hamodel.AvailabilityAll)
-	}
-	entries := ctx.Availability(dev, e)
-	if len(entries) != 1 || entries[0].Topic != d.BridgeStatusTopic() {
-		t.Fatalf("resolved availability = %+v, want one entry naming %q", entries, d.BridgeStatusTopic())
-	}
 
-	comp, err := discovery.RenderComponent(ctx, dev, e, discovery.Origin{})
-	if err != nil {
-		t.Fatalf("RenderComponent: %v", err)
+	body := renderBody(t, d, e)
+	list, ok := body["availability"].([]any)
+	if !ok || len(list) != 2 {
+		t.Fatalf("availability = %v, want a two-entry list", body["availability"])
 	}
-	if comp.AvailabilityTopic != d.BridgeStatusTopic() ||
-		comp.PayloadAvailable != "online" || comp.PayloadNotAvail != "offline" {
-		t.Errorf("singular availability keys wrong: %q/%q/%q",
-			comp.AvailabilityTopic, comp.PayloadAvailable, comp.PayloadNotAvail)
+	want := []map[string]any{
+		{
+			"topic": "daikin/connected", "value_template": "{{ 'online' if value | int(0) >= 2 else 'offline' }}",
+			"payload_available": "online", "payload_not_available": "offline",
+		},
+		{
+			"topic": "daikin/status/" + p.DeviceID + "/online", "value_template": "{{ value_json.val | lower }}",
+			"payload_available": "true", "payload_not_available": "false",
+		},
 	}
-	if len(comp.Availability) != 0 || comp.AvailabilityMode != "" {
-		t.Errorf("the list form survived: %+v mode %q", comp.Availability, comp.AvailabilityMode)
+	for i, w := range want {
+		got, _ := list[i].(map[string]any)
+		if len(got) != len(w) {
+			t.Errorf("entry %d has keys %v, want exactly %v", i, got, w)
+		}
+		for k, v := range w {
+			if got[k] != v {
+				t.Errorf("entry %d: %s = %v, want %v", i, k, got[k], v)
+			}
+		}
+	}
+	if body["availability_mode"] != "all" {
+		t.Errorf("availability_mode = %v, want all", body["availability_mode"])
+	}
+	for _, k := range []string{"availability_topic", "payload_available", "payload_not_available", "availability_template"} {
+		if _, present := body[k]; present {
+			t.Errorf("the single-topic key %q survived beside the list", k)
+		}
+	}
+	if got := d.OnlineTopic(p.DeviceID); got != "daikin/status/"+p.DeviceID+"/online" {
+		t.Errorf("OnlineTopic = %q", got)
 	}
 
 	// The default is refused, loudly, rather than published.
 	e.Description.Availability = hamodel.Availability{}
 	if _, err := discovery.RenderComponent(ctx, dev, e, discovery.Origin{}); err == nil {
-		t.Error("the library's default availability rendered without complaint; " +
-			"it would have made all 264 entities permanently unavailable")
+		t.Error("the library's default availability rendered without complaint")
 	} else if !strings.Contains(err.Error(), "model.BridgeOnly") {
 		t.Errorf("refusal does not name the setting: %v", err)
+	}
+}
+
+// TestHamqttStatusTemplates pins how each platform reads a status object, the
+// one place a wrong template is invisible until an entity shows `unknown` or
+// the whole `{"val":…}` document.
+func TestHamqttStatusTemplates(t *testing.T) {
+	for _, lang := range []string{"en", "de"} {
+		d := testDiscovery(lang)
+		lay := hamqttLayout{root: d.state}
+		render := func(p process.Point) map[string]any {
+			t.Helper()
+			e, ok := d.pointEntity(lay, p, "daikin_x", "Probe")
+			if !ok {
+				t.Fatalf("pointEntity declined %s", p.Entry.Platform)
+			}
+			return renderBody(t, d, e)
+		}
+
+		sensor := render(testPoint("room_temperature", "sensor"))
+		if sensor["value_template"] != "{{ value_json.val }}" {
+			t.Errorf("%s sensor value_template = %v", lang, sensor["value_template"])
+		}
+		if sensor["json_attributes_template"] != AttributesTemplate {
+			t.Errorf("%s json_attributes_template = %v, want %q", lang, sensor["json_attributes_template"], AttributesTemplate)
+		}
+		if sensor["json_attributes_topic"] != "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/room_temperature/attributes" {
+			t.Errorf("%s json_attributes_topic = %v", lang, sensor["json_attributes_topic"])
+		}
+
+		for _, platform := range []string{"switch", "binary_sensor"} {
+			body := render(testPoint("power", platform))
+			if body["value_template"] != "{{ value_json.val | lower }}" {
+				t.Errorf("%s %s value_template = %v", lang, platform, body["value_template"])
+			}
+			if body["payload_on"] != "true" || body["payload_off"] != "false" {
+				t.Errorf("%s %s payloads = %v/%v, want true/false", lang, platform, body["payload_on"], body["payload_off"])
+			}
+			for _, k := range []string{"state_on", "state_off"} {
+				if _, present := body[k]; present {
+					t.Errorf("%s %s carries %s; it defaults to the payload", lang, platform, k)
+				}
+			}
+		}
+
+		sel := testPoint("operation_mode", "select")
+		sel.Entry.Values = []catalog.ValueLabel{
+			{Value: "heating", Label: "Heating", LabelDE: "Heizen"},
+			{Value: "fanOnly", Label: "Fan only", LabelDE: "Nur Lüfter"},
+		}
+		body := render(sel)
+		label := map[string]string{"en": "Heating", "de": "Heizen"}[lang]
+		vt, _ := body["value_template"].(string)
+		ct, _ := body["command_template"].(string)
+		if !strings.Contains(vt, "'heating': '"+label+"'") || !strings.Contains(vt, "value_json.val") {
+			t.Errorf("%s select value_template does not map the token to %q: %q", lang, label, vt)
+		}
+		if !strings.Contains(ct, "'"+label+"': 'heating'") {
+			t.Errorf("%s select command_template does not map %q back to the token: %q", lang, label, ct)
+		}
+		opts, _ := body["options"].([]any)
+		if len(opts) != 2 || opts[0] != label {
+			t.Errorf("%s select options = %v, want the labels", lang, opts)
+		}
+
+		// The scheduler's sensor: token on the wire, label in Home Assistant,
+		// and no options list (its other states are free text).
+		sched := testPoint("schedule_state", "sensor")
+		sched.Entry.Values = []catalog.ValueLabel{{Value: "idle", Label: "No block", LabelDE: "Kein Block"}}
+		body = render(sched)
+		idle := map[string]string{"en": "No block", "de": "Kein Block"}[lang]
+		if vt, _ := body["value_template"].(string); !strings.Contains(vt, "'idle': '"+idle+"'") ||
+			!strings.Contains(vt, "m.get(value_json.val, value_json.val)") {
+			t.Errorf("%s schedule_state value_template = %q", lang, vt)
+		}
+		if _, present := body["options"]; present {
+			t.Errorf("%s schedule_state carries options; a free-text sensor would be refused", lang)
+		}
 	}
 }
 
@@ -336,7 +444,14 @@ func TestHamqttCompositeClimateIsBindingsAndABuilder(t *testing.T) {
 		deviceID: power.DeviceID, embeddedID: power.EmbeddedID,
 		power: &power, mode: &mode, setpoint: &setpoint, current: &current,
 	}
-	ci := ClimateInfo{FanModes: []string{"auto"}, SwingModes: []string{"off"}, SwingHorizontalModes: []string{"off"}, PresetModes: []string{"none"}}
+	ci := ClimateInfo{
+		FanModes: &hamodel.Enum{Codes: []string{"auto", "quiet", "3"}, Labels: map[string]hamodel.Localized{
+			"auto": {Lang: map[string]string{"de": "Automatik"}},
+		}},
+		SwingModes:           &hamodel.Enum{Codes: []string{"stop", "swing"}},
+		SwingHorizontalModes: &hamodel.Enum{Codes: []string{"stop"}},
+		PresetModes:          &hamodel.Enum{Codes: []string{"boost"}},
+	}
 	e := d.climateEntity(lay, g, DeviceInfo{Name: "Küche"}, ci)
 
 	// Suppression, not filtering: the composite names what it replaces and the
@@ -413,6 +528,57 @@ func TestHamqttCompositeClimateIsBindingsAndABuilder(t *testing.T) {
 	if body["default_entity_id"] != "climate.kuche_thermostat" {
 		t.Errorf("default_entity_id = %v, want climate.kuche_thermostat", body["default_entity_id"])
 	}
+	// Every role topic of Home Assistant's MQTT climate schema reads the
+	// status object through its own template — the platform has no shared
+	// value_template — and the mode/temperature commands carry the plain
+	// token or number, so they need no command template.
+	for key, want := range map[string]string{
+		"mode_state_template":                  "{{ value_json.val }}",
+		"temperature_state_template":           "{{ value_json.val }}",
+		"current_temperature_template":         "{{ value_json.val }}",
+		"fan_mode_state_template":              "{{ value_json.val }}",
+		"swing_mode_state_template":            "{{ value_json.val }}",
+		"swing_horizontal_mode_state_template": "{{ value_json.val }}",
+		"preset_mode_value_template":           "{{ value_json.val }}",
+	} {
+		if body[key] != want {
+			t.Errorf("%s = %v, want %q", key, body[key], want)
+		}
+	}
+	for _, key := range []string{
+		"mode_command_template", "temperature_command_template", "fan_mode_command_template",
+		"swing_mode_command_template", "swing_horizontal_mode_command_template", "preset_mode_command_template",
+		"value_template",
+	} {
+		if _, present := body[key]; present {
+			t.Errorf("English climate carries %s = %v; its options already are the tokens", key, body[key])
+		}
+	}
+	if body["json_attributes_template"] != AttributesTemplate {
+		t.Errorf("climate json_attributes_template = %v", body["json_attributes_template"])
+	}
+	if list, _ := body["availability"].([]any); len(list) != 2 {
+		t.Errorf("climate availability = %v, want connected + online", body["availability"])
+	}
+
+	// In German the fan option lists the label, and the pair maps it both
+	// ways; an unlabelled code (a numeric speed) passes through both.
+	de := testDiscovery("de")
+	body = renderBody(t, de, de.climateEntity(hamqttLayout{root: de.state}, g, DeviceInfo{Name: "Küche"}, ci))
+	if fans, _ := body["fan_modes"].([]any); len(fans) != 3 || fans[0] != "Automatik" || fans[2] != "3" {
+		t.Errorf("German fan_modes = %v, want [Automatik quiet 3]", body["fan_modes"])
+	}
+	st, _ := body["fan_mode_state_template"].(string)
+	ct, _ := body["fan_mode_command_template"].(string)
+	if !strings.Contains(st, "'auto': 'Automatik'") || !strings.Contains(st, "value_json.val") {
+		t.Errorf("German fan_mode_state_template = %q", st)
+	}
+	if !strings.Contains(ct, "'Automatik': 'auto'") {
+		t.Errorf("German fan_mode_command_template = %q", ct)
+	}
+	if body["swing_mode_state_template"] != "{{ value_json.val }}" {
+		t.Errorf("an unlabelled swing list grew a mapping: %v", body["swing_mode_state_template"])
+	}
 	if body["unique_id"] != "daikin_"+g.deviceID+"_climate" {
 		t.Errorf("unique_id = %v", body["unique_id"])
 	}
@@ -443,6 +609,17 @@ func TestHamqttScheduleEntityIDIsTheUniqueID(t *testing.T) {
 	}
 	if body["json_attributes_topic"] != nil {
 		t.Errorf("schedule switch gained a json_attributes_topic: %v", body["json_attributes_topic"])
+	}
+	// The daemon's own switch depends on `<name>/connected` alone: there is no
+	// device whose online item it could read.
+	if list, _ := body["availability"].([]any); len(list) != 1 {
+		t.Errorf("schedule availability = %v, want connected alone", body["availability"])
+	}
+	if _, present := body["availability_mode"]; present {
+		t.Errorf("one availability entry carries a mode: %v", body["availability_mode"])
+	}
+	if body["state_topic"] != "daikin/status/scheduler/mo-fr/enabled" || body["command_topic"] != "daikin/set/scheduler/mo-fr/enabled" {
+		t.Errorf("schedule topics = %v / %v", body["state_topic"], body["command_topic"])
 	}
 }
 

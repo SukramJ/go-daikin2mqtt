@@ -67,18 +67,18 @@ var updateSurfaceGolden = flag.Bool("update-surface-golden", false,
 // deliberately OUTSIDE testdata so that regenerating a golden cannot silently
 // re-bless a changed surface. -update-surface-golden never writes this map.
 var goldenDigests = map[string]string{
-	"air-to-air-dx4.en":             "d883f6e9ab20085ee3aca056f917cc05b16ca0fe86a0006df2e25f9187f3b2f4",
-	"air-to-air-dx4.de":             "cb5a0071429d696479892f364f6bed1d8579fa4767739d5fe79c951a60004a19",
-	"airpurifier.en":                "9232bf061598ea96a7f59d4eb7467a3cd618679e1e672ddd7fc8f8e531a8056f",
-	"airpurifier.de":                "7c43bb3b324c081b819d8a6412daec7c970a1531c18a46439086f45751919732",
-	"altherma-air-to-water-wlan.en": "d97e6bfb90b073a0a84347d2a66bb719a2dd89c8951704b111169e1abe5a5d4d",
-	"altherma-air-to-water-wlan.de": "dc81ae70db58df36f4690333eae968b8a295fb00eeb2c5d3f4163264b714105b",
-	"d2cnd-gas-boiler.en":           "6b483b00cc3f220b3bcbc3251377f67161338a7a9646210cd8206292b2ad9d86",
-	"d2cnd-gas-boiler.de":           "5139888de2ac08f7c03175c209010608780e51a375f59a86a4c35922d905f55e",
-	"multisplit.en":                 "b46353dc72c65b4cead5c39b89c0883f7446b2c918c406bd09ebb13c9f4fd0a4",
-	"multisplit.de":                 "b1c90994c510dc4f0e56fa5824a54ba067f71c52b394c0b445cafcc21c9d9280",
-	"multisplit.local.en":           "ebfcd2fe59abd22a9d4551f687a91a365e0a7e1b6520b0b9f8457ea930b4728c",
-	"multisplit.scheduler.en":       "07ce4f79e89988edfb8d1bb0916ab3b046659fadb2505542f464e137bdd04ee2",
+	"air-to-air-dx4.en":             "41c73ad692a5407577bf5cd4eefdc7586890bb81d8eb68fcc53febeb6ad319ae",
+	"air-to-air-dx4.de":             "44533421b58f0a78ce58a06c4a53fd92a35c96a42b7026bb47016f2216b0cbde",
+	"airpurifier.en":                "b3e460e51b9f44736108c47d285eb77a255e233a332fedadb64d9ef719b4edbb",
+	"airpurifier.de":                "e0951559d94d714a5b14b541833579453ffa8a08f6a7281831d2f30ce15b993d",
+	"altherma-air-to-water-wlan.en": "fe25651a85eabcd857a688323b18035d64aa8cfdc7abc6644a0c17e9457253c2",
+	"altherma-air-to-water-wlan.de": "4061f53e0a5ae4d01d0e05bb4477c6eec28fa8c222488fabee89b75941a03caa",
+	"d2cnd-gas-boiler.en":           "d6213707a6475ca1f91f4edb927f381f386380b5d2bf43ec00a2db27d382b9ec",
+	"d2cnd-gas-boiler.de":           "e2dc26dba9923bc40f1993ea2b35b905531b10c35ff9ca3d5acf0ec7b218b4b1",
+	"multisplit.en":                 "e28b49c84e585fdba04f08817a140dd3133f71f05b4d9122c2d2fbfe6fcc11c8",
+	"multisplit.de":                 "7e4b338a6279de5dacf52d988d828f61bd3ebb76e3cddb2318ba1012426e24f6",
+	"multisplit.local.en":           "57fbff7f6eff2de1e80e2fa75a28a99eca034828694e773c7656a7cadef40532",
+	"multisplit.scheduler.en":       "a6934ff49aeb685ccd04396fe8b0a229962db4cca66c78cefebfefd9b39810e3",
 }
 
 // --- recording broker ------------------------------------------------------

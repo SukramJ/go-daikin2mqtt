@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 
+	hatopic "github.com/SukramJ/go-hamqtt/topic"
+
 	"github.com/SukramJ/go-mqtt"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
@@ -21,9 +23,12 @@ import (
 // Discovery publishes retained HA MQTT discovery configs.
 type Discovery struct {
 	baseTopic string      // e.g. "homeassistant"
-	state     layout.Root // the state-plane topic layout, rooted at e.g. "daikin"
-	lang      string
-	pub       mqtt.Publisher
+	state     layout.Root // the state-plane topic layout, named e.g. "daikin"
+	// legacy is the 0.13 layout under the same root. Only the frozen
+	// per-entity builders ([Discovery.Publish]) render it; see their comment.
+	legacy layout.Legacy
+	lang   string
+	pub    mqtt.Publisher
 
 	mu sync.RWMutex
 	// owned is the set of state-plane device segments this instance writes —
@@ -35,7 +40,10 @@ type Discovery struct {
 // New returns a Discovery publisher. baseTopic is the HA discovery prefix,
 // stateRoot the MQTT topic root the daemon publishes state under.
 func New(baseTopic, stateRoot, lang string, pub mqtt.Publisher) *Discovery {
-	return &Discovery{baseTopic: baseTopic, state: layout.New(stateRoot), lang: lang, pub: pub}
+	return &Discovery{
+		baseTopic: baseTopic, state: layout.New(stateRoot), legacy: layout.NewLegacy(stateRoot),
+		lang: lang, pub: pub,
+	}
 }
 
 // SubDevice is the metadata for an auxiliary Daikin component (gateway or
@@ -90,8 +98,9 @@ const configurationURL = "https://onecta.daikineurope.com"
 
 // RefreshTopic is the synthetic topic of the manual cloud-refresh button. It is
 // not a device characteristic: a press on
-// <root>/<deviceID>/<embeddedID>/refresh/set makes the coordinator run a poll
-// cycle immediately instead of waiting for the next scheduled one.
+// <name>/set/<deviceID>/<embeddedID>/refresh — an action item, any non-empty
+// payload — makes the coordinator run a poll cycle immediately instead of
+// waiting for the next scheduled one.
 const RefreshTopic = "refresh"
 
 // mainIdentifier returns the HA identifier of a device's main entry.
@@ -301,30 +310,41 @@ type configPayload struct {
 	Device device `json:"device"`
 }
 
-// BridgeStatusTopic returns the LWT/availability topic.
-func (d *Discovery) BridgeStatusTopic() string { return d.state.BridgeStatus() }
+// ConnectedTopic returns `<name>/connected`, the Last Will and the bridge level
+// of every entity's availability.
+func (d *Discovery) ConnectedTopic() string { return d.state.Connected() }
 
-// slot is the point's topic family. Every state / command / attributes topic
-// this package advertises goes through it, so the retained config can only
-// name topics composed exactly the way the coordinator composes them (F3).
+// OnlineTopic returns a device's reachability item, `<name>/status/<id>/online`.
+func (d *Discovery) OnlineTopic(deviceID string) string { return d.state.Online(deviceID) }
+
+// slot is the point's item. Every state / command / attributes topic this
+// package advertises goes through it, so the retained config can only name
+// topics composed exactly the way the coordinator composes them (F3).
 func (d *Discovery) slot(p process.Point) layout.Slot {
 	return d.state.Slot(p.DeviceID, p.EmbeddedID, p.Topic)
 }
 
-// AttributesTopic returns the per-entity JSON-attributes topic (a sibling of the
-// state topic), used to expose the entity's data source (cloud vs local Faikin).
+// AttributesTopic returns the per-entity JSON-attributes status item (below
+// the entity's own item), used to expose the entity's data source (cloud vs
+// local Faikin).
 func (d *Discovery) AttributesTopic(p process.Point) string {
 	return d.slot(p).Attributes()
 }
 
-// StateTopic returns the state topic for a point.
+// StateTopic returns the status item for a point.
 func (d *Discovery) StateTopic(p process.Point) string {
 	return d.slot(p).State()
 }
 
-// CommandTopic returns the /set topic for a point.
+// CommandTopic returns the set item for a point.
 func (d *Discovery) CommandTopic(p process.Point) string {
 	return d.slot(p).Command()
+}
+
+// legacySlot is the point's 0.13 topic family, rendered only by the frozen
+// per-entity builders below.
+func (d *Discovery) legacySlot(p process.Point) layout.LegacySlot {
+	return d.legacy.Slot(p.DeviceID, p.EmbeddedID, p.Topic)
 }
 
 // Publish emits a retained per-entity discovery config for every point.
@@ -336,6 +356,11 @@ func (d *Discovery) CommandTopic(p process.Point) string {
 // device document must supersede before it lands
 // (TestTheRetractionCoversTheWholePinnedFleet). It is removed when that pin is,
 // and not before.
+//
+// It is FROZEN on the 0.13 topic layout ([layout.Legacy]): it describes what an
+// older installed base has retained, not what this release publishes, and the
+// identity strings it renders are the ones the device documents must keep
+// (TestHAIdentityUnchangedByTheTopicMigration).
 //
 // Points that map to an unsupported platform are skipped. infos maps a device ID to its
 // rich device metadata (may be absent; a fallback name is used). It returns the
@@ -507,8 +532,10 @@ func (d *Discovery) ClaimedDevices() []string {
 // taken on state the daemon has not learned yet is a deletion it cannot undo.
 //
 // availability_topic is excluded from the check because it is bridge-level by
-// construction (`<root>/bridge/status`, the same string on every config); the
-// root half is still checked, by every other topic key.
+// construction (0.13's `<root>/bridge/status`, the same string on every
+// config); the root half is still checked, by every other topic key. Since
+// 0.14 availability is an `availability` list, which is no `*_topic` key and is
+// not judged either.
 func (d *Discovery) IsOwnConfig(payload []byte) bool {
 	var body map[string]any
 	if json.Unmarshal(payload, &body) != nil || body == nil {
@@ -567,11 +594,20 @@ func (d *Discovery) ownsNamedTopics(owned map[string]bool, body map[string]any) 
 	return true, named
 }
 
-// ownsTopic reports whether t is "<our root>/<a claimed device segment>/…".
+// ownsTopic reports whether t is "<our root>/{status,set}/<a claimed device
+// segment>/…", or the 0.13 shape "<our root>/<a claimed device segment>/…".
+//
+// Both shapes, because the documents and configs this predicate judges were
+// retained by whichever release published them: the read-back before the first
+// publish after an upgrade sees 0.13's topics. A device id cannot spell a
+// function name, so the two shapes cannot be confused for each other.
 func (d *Discovery) ownsTopic(owned map[string]bool, t string) bool {
 	rest, ok := strings.CutPrefix(t, d.state.String()+"/")
 	if !ok {
 		return false
+	}
+	if fn, after, ok := strings.Cut(rest, "/"); ok && (fn == hatopic.FunctionStatus || fn == hatopic.FunctionSet) {
+		rest = after
 	}
 	seg, _, ok := strings.Cut(rest, "/")
 	return ok && owned[seg]
@@ -632,11 +668,11 @@ func (d *Discovery) buildConfig(p process.Point, uid string, dev device, seed st
 		UniqueID:            uid,
 		EntityCategory:      p.Entry.Category,
 		Icon:                p.Entry.Icon,
-		StateTopic:          d.StateTopic(p),
-		AvailabilityTopic:   d.BridgeStatusTopic(),
+		StateTopic:          d.legacySlot(p).State(),
+		AvailabilityTopic:   d.legacy.BridgeStatus(),
 		PayloadAvailable:    "online",
 		PayloadNotAvailable: "offline",
-		JSONAttributesTopic: d.AttributesTopic(p),
+		JSONAttributesTopic: d.legacySlot(p).Attributes(),
 		Device:              dev,
 	}
 
@@ -650,11 +686,11 @@ func (d *Discovery) buildConfig(p process.Point, uid string, dev device, seed st
 		cfg.PayloadOn = "true"
 		cfg.PayloadOff = "false"
 	case "switch":
-		cfg.CommandTopic = d.CommandTopic(p)
+		cfg.CommandTopic = d.legacySlot(p).Command()
 		cfg.PayloadOn, cfg.PayloadOff = "on", "off"
 		cfg.StateOn, cfg.StateOff = "on", "off"
 	case "select":
-		cfg.CommandTopic = d.CommandTopic(p)
+		cfg.CommandTopic = d.legacySlot(p).Command()
 		// Options are localized labels; state is published as the localized
 		// label too, and the write path maps the chosen label back to the raw
 		// API code via the catalog (CodeForLabel).
@@ -662,7 +698,7 @@ func (d *Discovery) buildConfig(p process.Point, uid string, dev device, seed st
 			cfg.Options = append(cfg.Options, p.Entry.LocalizedLabel(v.Value, d.lang))
 		}
 	case "number":
-		cfg.CommandTopic = d.CommandTopic(p)
+		cfg.CommandTopic = d.legacySlot(p).Command()
 		cfg.UnitOfMeasurement = p.Unit
 		cfg.DeviceClass = p.Entry.DeviceClass
 		cfg.Min, cfg.Max, cfg.Step = p.Min, p.Max, p.Step
@@ -670,7 +706,7 @@ func (d *Discovery) buildConfig(p process.Point, uid string, dev device, seed st
 		// A button is command-only: HA's MQTT button schema has no state_topic
 		// and rejects the config if one is present.
 		cfg.StateTopic = ""
-		cfg.CommandTopic = d.CommandTopic(p)
+		cfg.CommandTopic = d.legacySlot(p).Command()
 		cfg.PayloadPress = "PRESS"
 	default:
 		return "", nil, false

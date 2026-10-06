@@ -36,7 +36,7 @@ const (
 const SchemaVersion = 1
 
 // SchedulerDeviceID is the reserved device id the per-schedule enable switch
-// is published under (`<root>/scheduler/<scheduleID>/enabled/…`). It can never
+// is published under (`<name>/{status,set}/scheduler/<scheduleID>/enabled`). It can never
 // be a real ONECTA device id, and validation rejects it as a schedule id.
 const SchedulerDeviceID = "scheduler"
 

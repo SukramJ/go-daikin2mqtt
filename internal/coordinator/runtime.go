@@ -47,38 +47,33 @@ func (c *Coordinator) resetHAPlane() {
 	}
 }
 
-// publishState writes one retained state or attributes payload through the
-// go-hamqtt state plane.
+// publishState writes one retained status item through the go-hamqtt state
+// plane, as an mqtt-smarthome 2.0 status object with value as its `val`.
 //
-// Every retained topic this daemon owns except the bridge availability marker
-// goes through here — the per-point cloud publish, the synthetic hvac/fan/swing/
-// preset slots, the Faikin read path, the optimistic write-through, the
-// scheduler's own plane and the data_source attributes documents. Before this
-// step those were nine separate mqtt.Publish calls with four different log
-// keys; the delivery guarantee was stated nine times.
+// Every retained topic this daemon owns except `<name>/connected`, `<name>/info`
+// and the maintenance stats goes through here — the per-point cloud publish,
+// the synthetic hvac/fan/swing/preset slots, the devices' online items, the
+// Faikin read path, the optimistic write-through, the scheduler's own plane and
+// the data_source attributes documents. The delivery guarantee is stated once,
+// in [NewStatePlane].
 //
 // written reports that the payload actually reached the broker; ok reports that
 // the plane accepted it. The two differ because of the library's dedup gate: a
-// byte-identical repeat of a value already on the topic is suppressed, which on
-// this bridge is most of a poll — every sensor that did not move. That is the
-// gap the coordinator.published log line now reports, and it is the one
-// behaviour of this step a broker capture can see: strictly fewer messages,
-// never different ones. [publisher.StatePublisher.Reset] re-opens the gate on
-// every reconnect, because a broker back without its retained store holds
-// nothing the cache still believes is there.
+// repeat of a `val` already on the topic is suppressed, which on this bridge is
+// most of a poll — every sensor that did not move (spec §3.2: publish on change
+// and on reconnect, never on every poll). That is the gap the
+// coordinator.published log line reports. [Coordinator.PublishOnline]
+// re-sends the cached objects on every reconnect.
 //
-// An empty payload routes to Evict rather than Publish. The two produce the
-// same three wire values — no bytes, retained, QoS 0, which is how MQTT clears
-// a retained topic — but Publish refuses zero bytes with ErrEmptyStatePayload
-// on purpose, and Evict also drops the topic from the dedup index so the next
-// real value is not compared against a retraction. This bridge does publish
-// empty state: an unscheduled device's schedule_next_change is "" in four of
-// the twelve pinned scenarios.
-func (c *Coordinator) publishState(ctx context.Context, topic, payload string) (written, ok bool) {
+// A nil or empty value routes to Evict rather than PublishStatus: the plane
+// refuses a nil `val`, and an empty retained payload is how MQTT clears a topic
+// (spec §5.1). This bridge does clear status: an unscheduled device's
+// schedule_next_change is "" in four of the twelve pinned scenarios.
+func (c *Coordinator) publishState(ctx context.Context, topic string, value any) (written, ok bool) {
 	if c.deps.StatePlane == nil {
 		return false, false
 	}
-	if payload == "" {
+	if s, isStr := value.(string); value == nil || (isStr && s == "") {
 		if err := c.deps.StatePlane.Evict(ctx, topic); err != nil {
 			c.deps.Logger.Warn("coordinator.state_publish_failed",
 				slog.String("topic", topic), slog.String("err", err.Error()))
@@ -86,7 +81,7 @@ func (c *Coordinator) publishState(ctx context.Context, topic, payload string) (
 		}
 		return true, true
 	}
-	written, err := c.deps.StatePlane.Publish(ctx, topic, []byte(payload))
+	written, err := c.deps.StatePlane.PublishStatus(ctx, topic, publisher.Observation{Value: value})
 	if err != nil {
 		c.deps.Logger.Warn("coordinator.state_publish_failed",
 			slog.String("topic", topic), slog.String("err", err.Error()))

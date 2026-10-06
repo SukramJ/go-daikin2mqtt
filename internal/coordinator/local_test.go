@@ -49,39 +49,74 @@ func TestPublishLocalState(t *testing.T) {
 	}
 	c.publishLocalState(context.Background(), "dev1", st)
 
-	want := map[string]string{
-		"power/state":                "on",
-		"hvac_mode/state":            "cool",
-		"room_temperature/state":     "21.0",
-		"temperature_setpoint/state": "22.5",
-		"operation_mode/state":       "Kühlen", // localized (Language=de)
-		"powerful_mode/state":        "off",
-		"econo_mode/state":           "on",  // econo:true in the payload
-		"streamer/state":             "off", // streamer:false
-		"outdoor_silent/state":       "off", // quiet:false
-		"demand_control/state":       "100", // demand:100
+	// The same vocabulary as the cloud path: booleans, numbers, API tokens.
+	want := map[string]any{
+		"power":                true,
+		"hvac_mode":            "cool",
+		"room_temperature":     21.0,
+		"temperature_setpoint": 22.5,
+		"operation_mode":       "cooling", // the token, not the label (Language=de)
+		"powerful_mode":        false,
+		"econo_mode":           true,  // econo:true in the payload
+		"streamer":             false, // streamer:false
+		"outdoor_silent":       false, // quiet:false
+		"demand_control":       100.0, // demand:100
 		// Local-only telemetry; energy Wh -> kWh.
-		"energy_total/state":            "772.600",
-		"heating_energy_total/state":    "71.000",
-		"cooling_energy_total/state":    "117.300",
-		"power_consumption/state":       "120",
-		"compressor_frequency/state":    "25.0",
-		"fan_speed/state":               "570", // fanfreq 9.5 Hz × 60 = rpm
-		"refrigerant_temperature/state": "13.0",
+		"energy_total":            772.6,
+		"heating_energy_total":    71.0,
+		"cooling_energy_total":    117.3,
+		"power_consumption":       120.0,
+		"compressor_frequency":    25.0,
+		"fan_speed":               570.0, // fanfreq 9.5 Hz × 60 = rpm
+		"refrigerant_temperature": 13.0,
 	}
-	for suffix, exp := range want {
-		topic := "daikin/dev1/climateControl/" + suffix
-		got, ok := main.get(topic)
+	for leaf, exp := range want {
+		topic := "daikin/status/dev1/climateControl/" + leaf
+		got, ok := main.val(t, topic)
 		if !ok {
 			t.Errorf("missing local publish %q", topic)
 			continue
 		}
-		if got.payload != exp {
-			t.Errorf("%s = %q, want %q", suffix, got.payload, exp)
+		if got != exp {
+			t.Errorf("%s = %#v, want %#v", leaf, got, exp)
 		}
-		if !got.retain {
-			t.Errorf("%s should be retained", suffix)
+		if msg, _ := main.get(topic); !msg.retain {
+			t.Errorf("%s should be retained", leaf)
 		}
+	}
+	// The module's own report of the serial link is the device's reachability.
+	if got, ok := main.val(t, "daikin/status/dev1/online"); !ok || got != true {
+		t.Errorf("online = %v (published %v), want true", got, ok)
+	}
+}
+
+// TestFaikinLastWillMarksTheDeviceOffline pins the one thing an OS document
+// may change: the firmware's `{"up":false}` will on state/<host> takes the
+// device's online item to false, and leaves every value alone.
+func TestFaikinLastWillMarksTheDeviceOffline(t *testing.T) {
+	main := newStubMQTT()
+	c := localReadCoordinator(t, newStubMQTT(), main)
+	c.climateEmbedded["dev1"] = "climateControl"
+	st, err := faikin.ParseState("Klima SZ", []byte(realFaikinState))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.publishLocalState(context.Background(), "dev1", st)
+	before := main.count()
+
+	will, err := faikin.ParseState("Klima SZ", []byte(`{"up":false}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.publishLocalState(context.Background(), "dev1", will)
+	if got, _ := main.val(t, "daikin/status/dev1/online"); got != false {
+		t.Errorf("online after the module's will = %v, want false", got)
+	}
+	if got, _ := main.val(t, "daikin/status/dev1/climateControl/power"); got != true {
+		t.Errorf("the will reset a value: power = %v", got)
+	}
+	if main.count() != before {
+		t.Errorf("the will published %d new topics, want only the online item rewritten", main.count()-before)
 	}
 }
 
@@ -116,7 +151,7 @@ func TestSubscribeLocalRoutesStateMessages(t *testing.T) {
 	default:
 		t.Fatal("inbound Faikin state was not queued for the drain goroutine")
 	}
-	if _, ok := main.get("daikin/dev1/climateControl/hvac_mode/state"); !ok {
+	if _, ok := main.get("daikin/status/dev1/climateControl/hvac_mode"); !ok {
 		t.Error("inbound Faikin state was not republished to the main broker")
 	}
 }
@@ -213,7 +248,7 @@ func TestFlushLocalStatesAfterEmbeddedID(t *testing.T) {
 	// After the cloud poll populates the embeddedID, the flush publishes it.
 	c.climateEmbedded["dev1"] = "climateControl"
 	c.flushLocalStates(context.Background())
-	if _, ok := main.get("daikin/dev1/climateControl/room_temperature/state"); !ok {
+	if _, ok := main.get("daikin/status/dev1/climateControl/room_temperature"); !ok {
 		t.Error("flush did not publish the cached Faikin state once embeddedID was known")
 	}
 }
@@ -242,14 +277,14 @@ func TestPublishOutdoorSharedAggregates(t *testing.T) {
 	// The aggregate (any-on / most-restrictive) is published to BOTH members,
 	// so the single HA entity reflects it whichever member it reads.
 	for _, dev := range []string{"a", "b"} {
-		if got, _ := main.get("daikin/" + dev + "/climateControl/outdoor_silent/state"); got.payload != "on" {
-			t.Errorf("%s outdoor_silent = %q, want on (OR across group)", dev, got.payload)
+		if got, _ := main.val(t, "daikin/status/"+dev+"/climateControl/outdoor_silent"); got != true {
+			t.Errorf("%s outdoor_silent = %v, want true (OR across group)", dev, got)
 		}
-		if got, _ := main.get("daikin/" + dev + "/climateControl/econo_mode/state"); got.payload != "on" {
-			t.Errorf("%s econo_mode = %q, want on (OR across group)", dev, got.payload)
+		if got, _ := main.val(t, "daikin/status/"+dev+"/climateControl/econo_mode"); got != true {
+			t.Errorf("%s econo_mode = %v, want true (OR across group)", dev, got)
 		}
-		if got, _ := main.get("daikin/" + dev + "/climateControl/demand_control/state"); got.payload != "80" {
-			t.Errorf("%s demand_control = %q, want 80 (min across group)", dev, got.payload)
+		if got, _ := main.val(t, "daikin/status/"+dev+"/climateControl/demand_control"); got != 80.0 {
+			t.Errorf("%s demand_control = %v, want 80 (min across group)", dev, got)
 		}
 	}
 }
@@ -317,8 +352,8 @@ func TestEconoLatchHoldsWriteWhileGroupOff(t *testing.T) {
 	// written value is what's actually in effect (the Daikin app shows eco on).
 	c.publishOutdoorShared(context.Background(), "a")
 	for _, dev := range []string{"a", "b"} {
-		if got, _ := main.get("daikin/" + dev + "/climateControl/econo_mode/state"); got.payload != "on" {
-			t.Errorf("%s econo_mode = %q, want on (latched while group off)", dev, got.payload)
+		if got, _ := main.val(t, "daikin/status/"+dev+"/climateControl/econo_mode"); got != true {
+			t.Errorf("%s econo_mode = %v, want true (latched while group off)", dev, got)
 		}
 	}
 }
@@ -377,30 +412,30 @@ func TestOutdoorTelemetryAggregate(t *testing.T) {
 		&faikin.State{HasAC: true, Power: true, Demand: 100, Consumption: 90, Comp: 22, Energy: 785500, EnergyHeat: 164000, EnergyCool: 197200})
 
 	// Per indoor unit: each shows its OWN energy/power.
-	perUnit := map[string]map[string]string{
-		"a": {"energy_total": "778.300", "power_consumption": "80"},
-		"b": {"energy_total": "785.500", "power_consumption": "90"},
+	perUnit := map[string]map[string]any{
+		"a": {"energy_total": 778.3, "power_consumption": 80.0},
+		"b": {"energy_total": 785.5, "power_consumption": 90.0},
 	}
 	for dev, want := range perUnit {
 		for suffix, exp := range want {
-			if got, ok := main.get("daikin/" + dev + "/climateControl/" + suffix + "/state"); !ok || got.payload != exp {
-				t.Errorf("per-unit %s %s = %q (ok=%v), want %q", dev, suffix, got.payload, ok, exp)
+			if got, ok := main.val(t, "daikin/status/"+dev+"/climateControl/"+suffix); !ok || got != exp {
+				t.Errorf("per-unit %s %s = %v (ok=%v), want %v", dev, suffix, got, ok, exp)
 			}
 		}
 	}
 	// At the outdoor unit: power/energy SUMMED (system total), compressor shared.
 	// Published identically to every member (discovery dedups to one entity).
-	outdoor := map[string]string{
-		"outdoor_power":                "170",      // 80 + 90
-		"compressor_frequency":         "22.0",     // shared
-		"outdoor_energy_total":         "1563.800", // 778.300 + 785.500
-		"outdoor_heating_energy_total": "235.000",  // 71.000 + 164.000
-		"outdoor_cooling_energy_total": "315.900",  // 118.700 + 197.200
+	outdoor := map[string]any{
+		"outdoor_power":                170.0,  // 80 + 90
+		"compressor_frequency":         22.0,   // shared
+		"outdoor_energy_total":         1563.8, // 778.300 + 785.500
+		"outdoor_heating_energy_total": 235.0,  // 71.000 + 164.000
+		"outdoor_cooling_energy_total": 315.9,  // 118.700 + 197.200
 	}
 	for _, dev := range []string{"a", "b"} {
 		for suffix, exp := range outdoor {
-			if got, ok := main.get("daikin/" + dev + "/climateControl/" + suffix + "/state"); !ok || got.payload != exp {
-				t.Errorf("outdoor %s %s = %q (ok=%v), want %q", dev, suffix, got.payload, ok, exp)
+			if got, ok := main.val(t, "daikin/status/"+dev+"/climateControl/"+suffix); !ok || got != exp {
+				t.Errorf("outdoor %s %s = %v (ok=%v), want %v", dev, suffix, got, ok, exp)
 			}
 		}
 	}
@@ -418,13 +453,13 @@ func TestOutdoorEnergyNotResetToZero(t *testing.T) {
 	c.publishOutdoorShared(context.Background(), "dev1")
 
 	for _, suffix := range []string{"outdoor_energy_total", "outdoor_heating_energy_total", "outdoor_cooling_energy_total"} {
-		if _, ok := main.get("daikin/dev1/climateControl/" + suffix + "/state"); ok {
+		if _, ok := main.get("daikin/status/dev1/climateControl/" + suffix); ok {
 			t.Errorf("%s should not be published when aggregate is 0", suffix)
 		}
 	}
 	// System power (0 W is a valid reading) is still published.
-	if got, ok := main.get("daikin/dev1/climateControl/outdoor_power/state"); !ok || got.payload != "0" {
-		t.Errorf("outdoor_power = %q (ok=%v), want 0", got.payload, ok)
+	if got, ok := main.val(t, "daikin/status/dev1/climateControl/outdoor_power"); !ok || got != 0.0 {
+		t.Errorf("outdoor_power = %v (ok=%v), want 0", got, ok)
 	}
 }
 
@@ -446,16 +481,16 @@ func TestOutdoorEnergyHoldAcrossIdle(t *testing.T) {
 		&faikin.State{HasAC: true, Power: true, Demand: 100, Energy: 100000})
 	c.publishLocalState(context.Background(), "b",
 		&faikin.State{HasAC: true, Power: true, Demand: 100, Energy: 50000})
-	if got, _ := main.get("daikin/a/climateControl/outdoor_energy_total/state"); got.payload != "150.000" {
-		t.Fatalf("outdoor_energy_total = %q, want 150.000 (100+50)", got.payload)
+	if got, _ := main.val(t, "daikin/status/a/climateControl/outdoor_energy_total"); got != 150.0 {
+		t.Fatalf("outdoor_energy_total = %v, want 150 (100+50)", got)
 	}
 
 	// b goes idle and stops reporting energy (0). The held 50 kWh must persist,
 	// so the total stays 150 — not drop to 100.
 	c.publishLocalState(context.Background(), "b",
 		&faikin.State{HasAC: true, Power: false, Demand: 100, Energy: 0})
-	if got, _ := main.get("daikin/a/climateControl/outdoor_energy_total/state"); got.payload != "150.000" {
-		t.Errorf("outdoor_energy_total after b idle = %q, want 150.000 (held, no reset)", got.payload)
+	if got, _ := main.val(t, "daikin/status/a/climateControl/outdoor_energy_total"); got != 150.0 {
+		t.Errorf("outdoor_energy_total after b idle = %v, want 150 (held, no reset)", got)
 	}
 }
 
@@ -503,17 +538,18 @@ func TestLocalPresetMirrorsPowerful(t *testing.T) {
 
 	// Powerful on → climate preset must read "boost" (so it stays toggleable).
 	c.publishLocalState(context.Background(), "dev1", &faikin.State{HasAC: true, Power: true, Powerful: true})
-	if got, _ := main.get("daikin/dev1/climateControl/preset_mode/state"); got.payload != "Boost" {
-		t.Errorf("preset with powerful on = %q, want Boost", got.payload)
+	// The token, in every language — Home Assistant shows the label.
+	if got, _ := main.val(t, "daikin/status/dev1/climateControl/preset_mode"); got != "boost" {
+		t.Errorf("preset with powerful on = %v, want boost", got)
 	}
-	if got, _ := main.get("daikin/dev1/climateControl/powerful_mode/state"); got.payload != "on" {
-		t.Errorf("powerful switch = %q, want on", got.payload)
+	if got, _ := main.val(t, "daikin/status/dev1/climateControl/powerful_mode"); got != true {
+		t.Errorf("powerful switch = %v, want true", got)
 	}
 
 	// Powerful off → preset "none".
 	c.publishLocalState(context.Background(), "dev1", &faikin.State{HasAC: true, Power: true, Powerful: false})
-	if got, _ := main.get("daikin/dev1/climateControl/preset_mode/state"); got.payload != "none" {
-		t.Errorf("preset with powerful off = %q, want none", got.payload)
+	if got, _ := main.val(t, "daikin/status/dev1/climateControl/preset_mode"); got != "none" {
+		t.Errorf("preset with powerful off = %v, want none", got)
 	}
 }
 

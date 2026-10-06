@@ -270,14 +270,19 @@ func (c *Coordinator) reconcileEconoSuspendCloud(ctx context.Context, devices []
 // flicker before the sparse Faikin status confirms it. Mirrors the optimistic
 // path of the generic scope:outdoor write in handleWrite.
 func (c *Coordinator) setGroupEcono(ctx context.Context, deviceID, value string) {
+	written := false
 	if emb, ok := c.climateEmbeddedID(deviceID); ok {
 		if err := c.setCharacteristic(ctx, deviceID, emb, "econoMode", value, ""); err != nil {
 			c.deps.Logger.Warn("coordinator.econo_set_failed",
 				slog.String("device", deviceID), slog.String("err", err.Error()))
+		} else {
+			written = true
 		}
 	}
 	c.fanOutToGroup(ctx, deviceID, "econoMode", value, "")
-	if c.localActiveFor(deviceID) {
+	// Reflected only once the origin write succeeded: the status follows the
+	// adapter's own state after the action, never the request (spec §3.3).
+	if written && c.localActiveFor(deviceID) {
 		c.holdOutdoor(deviceID, "econo_mode", value)
 		c.publishOptimistic(ctx, deviceID, "econo_mode", value)
 	}

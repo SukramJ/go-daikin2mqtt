@@ -44,6 +44,18 @@ export DAIKIN_MQTT_TOPIC="$(bashio::config 'mqtt_topic')"
 if bashio::config.has_value 'mqtt_client_id'; then
   export DAIKIN_MQTT_CLIENT_ID="$(bashio::config 'mqtt_client_id')"
 fi
+# mqtt-smarthome maintenance topics (loglevel, restart, stats). Unset options
+# (an install saved before 0.14) leave the daemon's defaults: on, every 60 s.
+if bashio::config.has_value 'mqtt_maintenance'; then
+  export DAIKIN_MQTT_MAINTENANCE="$(bashio::config 'mqtt_maintenance')"
+fi
+if bashio::config.has_value 'mqtt_stats_interval'; then
+  export DAIKIN_MQTT_STATS_INTERVAL="$(bashio::config 'mqtt_stats_interval')"
+fi
+# The Supervisor does not restart an add-on that exits cleanly, so the
+# maintenance restart would simply stop it: refuse it (logged at warn). The
+# daemon's own detection would read the container as supervised.
+export DAIKIN_SUPERVISED="0"
 
 # --- Home Assistant discovery ---
 export DAIKIN_HASS_ENABLE="$(bashio::config 'hass_enable')"

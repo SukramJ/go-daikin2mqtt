@@ -16,10 +16,26 @@
       "document": {
         "components": {
           "air_purification_mode": {
-            "availability_topic": "daikin/bridge/status",
-            "command_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/set",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "command_template": "{% set m = {'Manual fan': 'manualFan', 'Auto fan': 'autoFan', 'Econo': 'econo', 'Anti-pollen': 'antiPollen', 'Circulator': 'circulator'} %}{{ m.get(value, value) }}",
+            "command_topic": "daikin/set/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode",
             "default_entity_id": "select.my_mock_air_purifier_air_purification_mode",
-            "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/attributes",
             "name": "Air purification mode",
             "options": [
               "Manual fan",
@@ -28,108 +44,203 @@
               "Anti-pollen",
               "Circulator"
             ],
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "select",
-            "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode/state",
-            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_air_purification_mode"
+            "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/air_purification_mode",
+            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_air_purification_mode",
+            "value_template": "{% set m = {'manualFan': 'Manual fan', 'autoFan': 'Auto fan', 'econo': 'Econo', 'antiPollen': 'Anti-pollen', 'circulator': 'Circulator'} %}{% if value_json is defined and value_json.val is not none %}{{ m.get(value_json.val, value_json.val) }}{% endif %}"
           },
           "error_code": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_air_purifier_error_code",
             "entity_category": "diagnostic",
-            "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code/attributes",
             "name": "Error code",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
-            "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code/state",
-            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_code"
+            "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_code",
+            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_code",
+            "value_template": "{{ value_json.val }}"
           },
           "error_state": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "binary_sensor.my_mock_air_purifier_error_state",
             "device_class": "problem",
             "entity_category": "diagnostic",
-            "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state/attributes",
             "name": "Error",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "payload_off": "false",
             "payload_on": "true",
             "platform": "binary_sensor",
-            "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state/state",
-            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_state"
+            "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/error_state",
+            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_error_state",
+            "value_template": "{{ value_json.val | lower }}"
           },
           "gateway_ip_address": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_air_purifier_gateway_ip_address",
             "entity_category": "diagnostic",
-            "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address/attributes",
             "name": "Gateway IP address",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
-            "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address/state",
-            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_gateway_ip_address"
+            "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/gateway/gateway_ip_address",
+            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_gateway_ip_address",
+            "value_template": "{{ value_json.val }}"
           },
           "holiday_mode": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "binary_sensor.my_mock_air_purifier_holiday_mode",
             "entity_category": "diagnostic",
-            "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode/attributes",
             "name": "Holiday mode",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "payload_off": "false",
             "payload_on": "true",
             "platform": "binary_sensor",
-            "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode/state",
-            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_holiday_mode"
+            "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/holiday_mode",
+            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_holiday_mode",
+            "value_template": "{{ value_json.val | lower }}"
           },
           "power": {
-            "availability_topic": "daikin/bridge/status",
-            "command_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/set",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "command_topic": "daikin/set/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power",
             "default_entity_id": "switch.my_mock_air_purifier_power",
-            "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/attributes",
             "name": "Power",
-            "payload_available": "online",
-            "payload_not_available": "offline",
-            "payload_off": "off",
-            "payload_on": "on",
+            "payload_off": "false",
+            "payload_on": "true",
             "platform": "switch",
-            "state_off": "off",
-            "state_on": "on",
-            "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power/state",
-            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_power"
+            "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/power",
+            "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_power",
+            "value_template": "{{ value_json.val | lower }}"
           },
           "room_humidity": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_air_purifier_room_humidity",
             "device_class": "humidity",
-            "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity/attributes",
             "name": "Room humidity",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "measurement",
-            "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity/state",
+            "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_humidity",
             "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_humidity",
-            "unit_of_measurement": "%"
+            "unit_of_measurement": "%",
+            "value_template": "{{ value_json.val }}"
           },
           "room_temperature": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_air_purifier_room_temperature",
             "device_class": "temperature",
-            "json_attributes_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature/attributes",
             "name": "Room temperature",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "measurement",
-            "state_topic": "daikin/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature/state",
+            "state_topic": "daikin/status/f0d7de82-57d9-42d5-83ee-63680045aaf5/climateControl/room_temperature",
             "unique_id": "daikin_f0d7de82-57d9-42d5-83ee-63680045aaf5_room_temperature",
-            "unit_of_measurement": "°C"
+            "unit_of_measurement": "°C",
+            "value_template": "{{ value_json.val }}"
           }
         },
         "device": {

@@ -2,235 +2,375 @@
   "scenario": "d2cnd-gas-boiler.en",
   "messages": [
     {
-      "topic": "daikin/bridge/status",
+      "topic": "daikin/connected",
       "qos": 0,
       "retain": true,
-      "text": "online"
+      "text": "1"
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_error_state/attributes",
+      "topic": "daikin/connected",
       "qos": 0,
       "retain": true,
-      "json": {
-        "data_source": "cloud"
-      }
+      "text": "2"
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_error_state/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_ip_address/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_error_state",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_ip_address/state",
-      "qos": 0,
-      "retain": true,
-      "text": "10.32.4.10"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/climate/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_error_state/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_ip_address",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "10.32.4.10"
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code/state",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/0/gateway_ip_address/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code",
       "qos": 0,
       "retain": true,
       "empty": true
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_state/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_code/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_state/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/holiday_mode/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_state",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/holiday_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/hvac_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "off"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/operation_mode/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/error_state/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/operation_mode/state",
-      "qos": 0,
-      "retain": true,
-      "text": "heatingNight"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/outdoor_temperature/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/holiday_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/outdoor_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "9.5"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/power/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/holiday_mode/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/power/state",
-      "qos": 0,
-      "retain": true,
-      "text": "on"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/room_temperature/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/hvac_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "off"
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/room_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "23.0"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/temperature_setpoint/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/operation_mode",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": "heatingNight"
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/temperature_setpoint/state",
-      "qos": 0,
-      "retain": true,
-      "text": "25.0"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/warning_state/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/operation_mode/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/1/warning_state/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/climate/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/outdoor_temperature",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 9.5
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_error_state/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/outdoor_temperature/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_error_state/state",
-      "qos": 0,
-      "retain": true,
-      "text": "false"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_power/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/power",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": true
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_power/state",
-      "qos": 0,
-      "retain": true,
-      "text": "off"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_tank_temperature/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/power/attributes",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
       }
     },
     {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_tank_temperature/state",
-      "qos": 0,
-      "retain": true,
-      "text": "45.0"
-    },
-    {
-      "topic": "daikin/c6ab0361-e117-4048-b67f-232b7df29cb0/2/refresh/attributes",
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/room_temperature",
       "qos": 0,
       "retain": true,
       "json": {
-        "data_source": "cloud"
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 23
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/room_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/temperature_setpoint",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 25
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/temperature_setpoint/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/warning_state",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/1/warning_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/2/climate/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_error_state",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_error_state/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_power",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_power/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_tank_temperature",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": 45
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/2/dhw_tank_temperature/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/2/refresh/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "cloud"
+        }
+      }
+    },
+    {
+      "topic": "daikin/status/c6ab0361-e117-4048-b67f-232b7df29cb0/online",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": false
       }
     },
     {

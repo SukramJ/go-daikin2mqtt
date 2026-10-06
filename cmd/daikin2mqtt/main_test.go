@@ -131,8 +131,8 @@ func TestClientIDsComeFromTheConfig(t *testing.T) {
 // TestTheWillWritesTheTopicEveryEntityReads is the cross-package half of F3.
 //
 // The bridge's availability topic is composed by three different packages: the
-// Last Will here, Coordinator.PublishOnline's "online", and the
-// availability_topic of all 264 discovery payloads. Nothing compared them. If
+// Last Will here, Coordinator.PublishOnline's connected level, and the bridge
+// availability entry of every discovery payload. Nothing compared them. If
 // the will names a topic the payloads do not, entities never grey out when the
 // daemon dies; if the payloads name a topic nobody writes, they never come up
 // at all. Both failures are silent — there is no log line and no registry
@@ -148,17 +148,17 @@ func TestTheWillWritesTheTopicEveryEntityReads(t *testing.T) {
 		t.Fatalf("Will: %v", err)
 	}
 
-	// The literal an installed base already has retained on its broker.
-	if will.Topic != "daikin/bridge/status" {
-		t.Errorf("will topic = %q, want %q", will.Topic, "daikin/bridge/status")
+	// mqtt-smarthome 2.0 §3.1: the will is `<name>/connected`.
+	if will.Topic != "daikin/connected" {
+		t.Errorf("will topic = %q, want %q", will.Topic, "daikin/connected")
 	}
-	// What every discovery payload names as its availability_topic. Since step
-	// 5 these cannot drift: publisher.Config takes the Layout rather than a
-	// status-topic literal, derives the topic from Layout.Bridge() and PANICS
+	// What every discovery payload's bridge availability entry names. Since
+	// step 5 these cannot drift: publisher.Config takes the Layout rather than
+	// a status-topic literal, derives the topic from Layout.Bridge() and PANICS
 	// on a StatusTopic that disagrees with it — so this assertion is now a
 	// statement about the layout rather than about two hand-kept copies.
-	if adv := hass.New(cfg.HASSBaseTopic, cfg.MQTTTopic, cfg.Language, nil).BridgeStatusTopic(); adv != will.Topic {
-		t.Errorf("discovery advertises availability_topic %q, the will writes %q", adv, will.Topic)
+	if adv := hass.New(cfg.HASSBaseTopic, cfg.MQTTTopic, cfg.Language, nil).ConnectedTopic(); adv != will.Topic {
+		t.Errorf("discovery advertises availability %q, the will writes %q", adv, will.Topic)
 	}
 	// And a non-default root must move both together.
 	other := &config.Config{MQTTTopic: "haus/klima", HASSBaseTopic: "homeassistant", Language: "en"}
@@ -168,7 +168,7 @@ func TestTheWillWritesTheTopicEveryEntityReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Will: %v", err)
 	}
-	if adv := hass.New(other.HASSBaseTopic, other.MQTTTopic, other.Language, nil).BridgeStatusTopic(); adv != otherWill.Topic {
+	if adv := hass.New(other.HASSBaseTopic, other.MQTTTopic, other.Language, nil).ConnectedTopic(); adv != otherWill.Topic {
 		t.Errorf("with a custom root, discovery advertises %q but the will writes %q", adv, otherWill.Topic)
 	}
 
@@ -179,14 +179,13 @@ func TestTheWillWritesTheTopicEveryEntityReads(t *testing.T) {
 		t.Errorf("the CONNECT will %+v does not carry the runtime's will %+v", connect, will)
 	}
 
-	// The three wire values of the will itself, unchanged by the migration:
-	// "offline", retained, QoS 0. Retained because a marker that is not
-	// retained tells nothing to a Home Assistant that subscribes after the
-	// crash — which is exactly when it needs to be told. QoS 0 because that is
-	// what this bridge has always connected with, and publisher.QoS's zero
-	// value would have made it 1 (F9).
-	if string(will.Payload) != "offline" {
-		t.Errorf("will payload = %q, want %q", will.Payload, "offline")
+	// The three wire values of the will itself: "0" (spec §3.1), retained,
+	// QoS 0. Retained because a marker that is not retained tells nothing to
+	// a Home Assistant that subscribes after the crash — which is exactly when
+	// it needs to be told. QoS 0 because that is what this bridge has always
+	// connected with, and publisher.QoS's zero value would have made it 1 (F9).
+	if string(will.Payload) != "0" {
+		t.Errorf("will payload = %q, want %q", will.Payload, "0")
 	}
 	if !will.Retain {
 		t.Error("the will must be retained")
@@ -237,3 +236,20 @@ func (r *recordTransport) Subscribe(context.Context, string, byte, publisher.Han
 	return nil
 }
 func (r *recordTransport) Unsubscribe(context.Context, string) error { return nil }
+
+// TestUpstreamModeNamesTheActivePath pins the `mode` project field of
+// `<name>/info`.
+func TestUpstreamModeNamesTheActivePath(t *testing.T) {
+	t.Parallel()
+	if got := upstreamMode(&config.Config{}); got != "cloud" {
+		t.Errorf("cloud config: mode = %q, want cloud", got)
+	}
+	local := &config.Config{LocalMode: true, LocalDeviceMap: config.DeviceMap{"dev": "host"}}
+	if got := upstreamMode(local); got != "local" {
+		t.Errorf("local config: mode = %q, want local", got)
+	}
+	// LOCAL_MODE without a mapped device is not local: nothing is read over Faikin.
+	if got := upstreamMode(&config.Config{LocalMode: true}); got != "cloud" {
+		t.Errorf("LOCAL_MODE without a map: mode = %q, want cloud", got)
+	}
+}

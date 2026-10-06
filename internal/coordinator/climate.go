@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	hamodel "github.com/SukramJ/go-hamqtt/model"
+
 	"github.com/SukramJ/go-mqtt"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
@@ -146,15 +148,17 @@ type climateAux struct {
 const langDE = "de"
 
 // German display labels for the climate fan/swing/preset dropdowns, keyed by
-// the canonical (lower-cased) Daikin value used internally. These are this
-// project's own German renderings of the underlying technical concepts; values
-// not listed here pass through unchanged (numeric fan speeds, unmapped modes).
+// the canonical (lower-cased) Daikin value. These are this project's own German
+// renderings of the underlying technical concepts; values not listed here show
+// as themselves (numeric fan speeds, unmapped modes).
 //
-// A native HA integration keeps the raw value and localizes only the displayed
-// state via integration translations. MQTT discovery has no separate label
-// field — the list entry is both the displayed option and the command value —
-// so the German label is emitted directly and reversed back to the raw value
-// on write (see [canonicalAux] and the aux write handlers).
+// They are DISPLAY labels only. The status item carries the token
+// (mqtt-smarthome 2.0 / openccu-loom ADR 0083), the discovery payload lists the
+// label and maps one onto the other in both directions through the role's
+// state and command templates, and the set path reverses a label that still
+// arrives (see [canonicalAux]). Before 0.14 the label itself travelled on the
+// wire, because MQTT discovery's option list is both the displayed text and
+// the command value.
 var (
 	fanModeDE = map[string]string{
 		"auto":  "Automatik",
@@ -171,53 +175,42 @@ var (
 	}
 )
 
-// localizeAux returns the German display label for a canonical climate aux
-// value, or the value unchanged for other languages and for unmapped values
-// (numeric fan speeds, unknown modes).
-func localizeAux(value, lang string, table map[string]string) string {
-	if lang == langDE {
-		if de, ok := table[value]; ok {
-			return de
+// auxEnum is one option list as the token/label pairing discovery renders: the
+// tokens in API order, with a German label where the table has one.
+func auxEnum(codes []string, de map[string]string) *hamodel.Enum {
+	if len(codes) == 0 {
+		return nil
+	}
+	e := &hamodel.Enum{Codes: codes, Labels: map[string]hamodel.Localized{}}
+	for _, code := range codes {
+		if label, ok := de[code]; ok {
+			e.Labels[code] = hamodel.Localized{Lang: map[string]string{langDE: label}}
 		}
 	}
-	return value
+	return e
 }
 
-// localizeAuxList localizes every entry of an option list (see [localizeAux]).
-func localizeAuxList(values []string, lang string, table map[string]string) []string {
-	if lang != langDE || len(values) == 0 {
-		return values
-	}
-	out := make([]string, len(values))
-	for i, v := range values {
-		out[i] = localizeAux(v, lang, table)
-	}
-	return out
-}
-
-// canonicalAux reverses a (possibly localized) label back to the canonical
-// lower-cased Daikin value. Unmapped labels — English values, numeric fan
-// speeds — pass through unchanged so the existing write logic still applies.
-func canonicalAux(label, lang string, table map[string]string) string {
-	if lang == langDE {
-		for canon, de := range table {
-			if de == label {
-				return canon
-			}
+// canonicalAux reverses a (possibly localized) value back to the canonical
+// lower-cased Daikin token: a German label from the table in any language
+// (a consumer written against 0.13's labels keeps working — spec §5.3's MAY),
+// and any other value lower-cased, which is the case-insensitive token match
+// §5.3 asks for. Numeric fan speeds pass through.
+func canonicalAux(value string, table map[string]string) string {
+	for canon, de := range table {
+		if strings.EqualFold(de, value) {
+			return canon
 		}
 	}
-	return label
+	return strings.ToLower(value)
 }
 
-// info converts the option lists into the discovery-facing [hass.ClimateInfo],
-// localizing the option labels for lang. The raw API values are recovered on
-// the write path via [canonicalAux].
-func (a climateAux) info(lang string) hass.ClimateInfo {
+// info converts the option lists into the discovery-facing [hass.ClimateInfo].
+func (a climateAux) info() hass.ClimateInfo {
 	return hass.ClimateInfo{
-		FanModes:             localizeAuxList(a.fanModes, lang, fanModeDE),
-		SwingModes:           localizeAuxList(a.swingModes, lang, swingModeDE),
-		SwingHorizontalModes: localizeAuxList(a.swingHModes, lang, swingModeDE),
-		PresetModes:          localizeAuxList(a.presetModes, lang, presetModeDE),
+		FanModes:             auxEnum(a.fanModes, fanModeDE),
+		SwingModes:           auxEnum(a.swingModes, swingModeDE),
+		SwingHorizontalModes: auxEnum(a.swingHModes, swingModeDE),
+		PresetModes:          auxEnum(a.presetModes, presetModeDE),
 	}
 }
 
@@ -315,7 +308,7 @@ func parseFanDirection(modeObj json.RawMessage, a *climateAux) {
 
 // climateInfos builds the discovery climate option lists keyed by
 // deviceID|embeddedID.
-func climateInfos(devices []model.Device, lang string) map[string]hass.ClimateInfo {
+func climateInfos(devices []model.Device) map[string]hass.ClimateInfo {
 	out := map[string]hass.ClimateInfo{}
 	for _, d := range devices {
 		for _, mp := range d.ManagementPoints {
@@ -323,7 +316,7 @@ func climateInfos(devices []model.Device, lang string) map[string]hass.ClimateIn
 				continue
 			}
 			a := parseClimateAux(mp, currentMode(mp))
-			out[d.ID+"|"+mp.EmbeddedID] = a.info(lang)
+			out[d.ID+"|"+mp.EmbeddedID] = a.info()
 		}
 	}
 	return out
@@ -337,30 +330,28 @@ func (c *Coordinator) publishClimateAux(ctx context.Context, devices []model.Dev
 				continue
 			}
 			a := parseClimateAux(mp, currentMode(mp))
-			lang := c.deps.Cfg.Language
 			pub := func(suffix, val string) {
 				c.publishState(ctx, c.topicRoot.Slot(d.ID, mp.EmbeddedID, suffix).State(), val)
 			}
 			// In local mode the Faikin read path owns fan/swing (the cloud poll's
 			// values are stale for a locally-controlled unit), so skip them here.
 			localFanSwing := c.localActiveFor(d.ID)
-			// State payloads carry the localized label so the HA dropdown (whose
-			// options are localized) highlights the current selection; the write
-			// path reverses the label back to the raw value.
+			// The status items carry the token; discovery maps it onto the
+			// localized option Home Assistant lists.
 			if len(a.fanModes) > 0 && !localFanSwing {
-				pub(hass.FanModeTopic, localizeAux(a.fanMode, lang, fanModeDE))
+				pub(hass.FanModeTopic, a.fanMode)
 			}
 			if len(a.swingModes) > 0 && !localFanSwing {
-				pub(hass.SwingModeTopic, localizeAux(a.swing, lang, swingModeDE))
+				pub(hass.SwingModeTopic, a.swing)
 			}
 			if len(a.swingHModes) > 0 && !localFanSwing {
-				pub(hass.SwingHModeTopic, localizeAux(a.swingH, lang, swingModeDE))
+				pub(hass.SwingHModeTopic, a.swingH)
 			}
 			// In local mode the Faikin read path owns preset (mirrors powerful),
 			// so skip the cloud value here — it is stale for a local unit and
 			// would snap the preset back, making boost untoggleable.
 			if len(a.presetModes) > 0 && !localFanSwing {
-				pub(hass.PresetModeTopic, localizeAux(a.preset, lang, presetModeDE))
+				pub(hass.PresetModeTopic, a.preset)
 			}
 		}
 	}
@@ -381,15 +372,13 @@ func currentMode(mp model.ManagementPoint) string {
 // handleFanModeWrite sets the fan speed. A numeric mode switches fanSpeed to
 // "fixed" and sets the fixed value; named modes (auto/quiet) set currentMode.
 func (c *Coordinator) handleFanModeWrite(ctx context.Context, req writeReq) {
-	// Reverse a localized label back to the raw value; numeric speeds and
-	// English values pass through unchanged.
-	payload := canonicalAux(strings.TrimSpace(req.payload), c.deps.Cfg.Language, fanModeDE)
+	// The token, in any case; a localized label is reversed to it.
+	payload := canonicalAux(strings.TrimSpace(req.payload), fanModeDE)
 	// Local-first: route to Faikin's command/<host>/fan when mapped.
 	if host, ok := c.localHost(req.deviceID); ok {
 		if fv, ok := cloudFanToFaikin(payload); ok {
 			if err := c.faikinAux(ctx, host, "fan", fv); err != nil {
-				c.deps.Logger.Warn("coordinator.local_fan_failed",
-					slog.String("topic", req.topic), slog.String("err", err.Error()))
+				c.rejectWrite("coordinator.local_fan_failed", req, slog.String("err", err.Error()))
 			}
 			return
 		}
@@ -410,8 +399,8 @@ func (c *Coordinator) handleFanModeWrite(ctx context.Context, req writeReq) {
 
 // handleSwingWrite sets a swing direction (vertical / horizontal).
 func (c *Coordinator) handleSwingWrite(ctx context.Context, req writeReq, direction string) {
-	// Reverse a localized label to the canonical lower-cased value.
-	daikinVal := canonicalAux(req.payload, c.deps.Cfg.Language, swingModeDE)
+	// The token, in any case; a localized label is reversed to it.
+	daikinVal := canonicalAux(strings.TrimSpace(req.payload), swingModeDE)
 	// Local-first: combine this axis with the other axis's current state into
 	// Faikin's single `swing` command. floorheatingairflow has no Faikin
 	// equivalent, so it still goes to the cloud.
@@ -423,8 +412,7 @@ func (c *Coordinator) handleSwingWrite(ctx context.Context, req writeReq, direct
 			h = daikinVal
 		}
 		if err := c.faikinAux(ctx, host, "swing", faikinSwingCombine(v, h)); err != nil {
-			c.deps.Logger.Warn("coordinator.local_swing_failed",
-				slog.String("topic", req.topic), slog.String("err", err.Error()))
+			c.rejectWrite("coordinator.local_swing_failed", req, slog.String("err", err.Error()))
 		}
 		return
 	}
@@ -456,14 +444,13 @@ func (c *Coordinator) currentFaikinSwing(deviceID string) string {
 
 // handlePresetWrite maps the HA preset to powerfulMode (boost/none).
 func (c *Coordinator) handlePresetWrite(ctx context.Context, req writeReq) {
-	switch canonicalAux(strings.TrimSpace(req.payload), c.deps.Cfg.Language, presetModeDE) {
+	switch canonicalAux(strings.TrimSpace(req.payload), presetModeDE) {
 	case "boost":
 		c.patchClimate(ctx, req, "powerfulMode", "", "on")
 	case "none":
 		c.patchClimate(ctx, req, "powerfulMode", "", "off")
 	default:
-		c.deps.Logger.Warn("coordinator.write_bad_preset",
-			slog.String("topic", req.topic), slog.String("payload", req.payload))
+		c.rejectWrite("coordinator.write_bad_preset", req)
 	}
 }
 
@@ -473,7 +460,8 @@ func (c *Coordinator) mode(req writeReq) string {
 	defer c.mu.Unlock()
 	m := c.modeCache[req.deviceID+"/"+req.embeddedID]
 	if m == "" {
-		c.deps.Logger.Warn("coordinator.write_no_mode", slog.String("topic", req.topic))
+		c.deps.Logger.Warn("coordinator.write_no_mode",
+			slog.String("topic", c.setTopic(req)), slog.String("payload", req.payload))
 	}
 	return m
 }
@@ -482,9 +470,8 @@ func (c *Coordinator) mode(req writeReq) string {
 // Faikin or cloud) and logs the outcome.
 func (c *Coordinator) patchClimate(ctx context.Context, req writeReq, characteristic, path string, value any) {
 	if err := c.setCharacteristic(ctx, req.deviceID, req.embeddedID, characteristic, value, path); err != nil {
-		c.deps.Logger.Warn("coordinator.patch_failed",
-			slog.String("topic", req.topic), slog.String("characteristic", characteristic),
-			slog.String("err", err.Error()))
+		c.rejectWrite("coordinator.patch_failed", req,
+			slog.String("characteristic", characteristic), slog.String("err", err.Error()))
 		return
 	}
 	c.deps.Logger.Info("coordinator.patched",

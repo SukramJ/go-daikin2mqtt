@@ -27,14 +27,31 @@
       "document": {
         "components": {
           "climate": {
-            "availability_topic": "daikin/bridge/status",
-            "current_temperature_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/state",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "current_temperature_template": "{{ value_json.val }}",
+            "current_temperature_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature",
             "default_entity_id": "climate.my_mock_a2w_hp_thermostat",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/climate/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/climate/attributes",
             "max_temp": 30,
             "min_temp": 20,
-            "mode_command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/hvac_mode/set",
-            "mode_state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/hvac_mode/state",
+            "mode_command_topic": "daikin/set/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/hvac_mode",
+            "mode_state_template": "{{ value_json.val }}",
+            "mode_state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/hvac_mode",
             "modes": [
               "off",
               "heat",
@@ -44,277 +61,522 @@
               "fan_only"
             ],
             "name": "Thermostat",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "climate",
-            "preset_mode_command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/preset_mode/set",
-            "preset_mode_state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/preset_mode/state",
+            "preset_mode_command_topic": "daikin/set/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/preset_mode",
+            "preset_mode_state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/preset_mode",
+            "preset_mode_value_template": "{{ value_json.val }}",
             "preset_modes": [
               "boost"
             ],
-            "temperature_command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint/set",
-            "temperature_state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint/state",
+            "temperature_command_topic": "daikin/set/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint",
+            "temperature_state_template": "{{ value_json.val }}",
+            "temperature_state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_setpoint",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_climate"
           },
           "cooling_energy_daily": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_daily",
             "device_class": "energy",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily/attributes",
             "name": "Cooling energy today",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "total_increasing",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_daily",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_daily",
-            "unit_of_measurement": "kWh"
+            "unit_of_measurement": "kWh",
+            "value_template": "{{ value_json.val }}"
           },
           "cooling_energy_monthly": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_monthly",
             "device_class": "energy",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly/attributes",
             "name": "Cooling energy this month",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "total_increasing",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_monthly",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_monthly",
-            "unit_of_measurement": "kWh"
+            "unit_of_measurement": "kWh",
+            "value_template": "{{ value_json.val }}"
           },
           "cooling_energy_weekly": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_a2w_hp_cooling_energy_weekly",
             "device_class": "energy",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly/attributes",
             "name": "Cooling energy this week",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "total_increasing",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/cooling_energy_weekly",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_cooling_energy_weekly",
-            "unit_of_measurement": "kWh"
+            "unit_of_measurement": "kWh",
+            "value_template": "{{ value_json.val }}"
           },
           "dhw_error_state": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "binary_sensor.my_mock_a2w_hp_dhw_error_state",
             "device_class": "problem",
             "entity_category": "diagnostic",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state/attributes",
             "name": "Domestic hot water error",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "payload_off": "false",
             "payload_on": "true",
             "platform": "binary_sensor",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state/state",
-            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_error_state"
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_error_state",
+            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_error_state",
+            "value_template": "{{ value_json.val | lower }}"
           },
           "dhw_power": {
-            "availability_topic": "daikin/bridge/status",
-            "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/set",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "command_topic": "daikin/set/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power",
             "default_entity_id": "switch.my_mock_a2w_hp_dhw_power",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/attributes",
             "name": "Domestic hot water",
-            "payload_available": "online",
-            "payload_not_available": "offline",
-            "payload_off": "off",
-            "payload_on": "on",
+            "payload_off": "false",
+            "payload_on": "true",
             "platform": "switch",
-            "state_off": "off",
-            "state_on": "on",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power/state",
-            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_power"
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_power",
+            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_power",
+            "value_template": "{{ value_json.val | lower }}"
           },
           "dhw_powerful_mode": {
-            "availability_topic": "daikin/bridge/status",
-            "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/set",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "command_topic": "daikin/set/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode",
             "default_entity_id": "switch.my_mock_a2w_hp_dhw_powerful_mode",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/attributes",
             "name": "Domestic hot water powerful mode",
-            "payload_available": "online",
-            "payload_not_available": "offline",
-            "payload_off": "off",
-            "payload_on": "on",
+            "payload_off": "false",
+            "payload_on": "true",
             "platform": "switch",
-            "state_off": "off",
-            "state_on": "on",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode/state",
-            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_powerful_mode"
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_powerful_mode",
+            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_powerful_mode",
+            "value_template": "{{ value_json.val | lower }}"
           },
           "dhw_setpoint_mode": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_a2w_hp_dhw_setpoint_mode",
             "entity_category": "diagnostic",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode/attributes",
             "name": "Domestic hot water setpoint mode",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode/state",
-            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_setpoint_mode"
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_setpoint_mode",
+            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_setpoint_mode",
+            "value_template": "{{ value_json.val }}"
           },
           "dhw_tank_temperature": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_a2w_hp_dhw_tank_temperature",
             "device_class": "temperature",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature/attributes",
             "name": "Tank temperature",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "measurement",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_tank_temperature",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_tank_temperature",
-            "unit_of_measurement": "°C"
+            "unit_of_measurement": "°C",
+            "value_template": "{{ value_json.val }}"
           },
           "dhw_temperature_setpoint": {
-            "availability_topic": "daikin/bridge/status",
-            "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/set",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "command_topic": "daikin/set/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint",
             "default_entity_id": "number.my_mock_a2w_hp_dhw_temperature_setpoint",
             "device_class": "temperature",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/attributes",
             "max": 60,
             "min": 30,
             "name": "Domestic hot water setpoint",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "number",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/dhw_temperature_setpoint",
             "step": 1,
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_dhw_temperature_setpoint",
-            "unit_of_measurement": "°C"
+            "unit_of_measurement": "°C",
+            "value_template": "{{ value_json.val }}"
           },
           "heating_energy_daily": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_daily",
             "device_class": "energy",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily/attributes",
             "name": "Heating energy today",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "total_increasing",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_daily",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_daily",
-            "unit_of_measurement": "kWh"
+            "unit_of_measurement": "kWh",
+            "value_template": "{{ value_json.val }}"
           },
           "heating_energy_monthly": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_monthly",
             "device_class": "energy",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly/attributes",
             "name": "Heating energy this month",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "total_increasing",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_monthly",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_monthly",
-            "unit_of_measurement": "kWh"
+            "unit_of_measurement": "kWh",
+            "value_template": "{{ value_json.val }}"
           },
           "heating_energy_weekly": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_a2w_hp_heating_energy_weekly",
             "device_class": "energy",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly/attributes",
             "name": "Heating energy this week",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "total_increasing",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/heating_energy_weekly",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_heating_energy_weekly",
-            "unit_of_measurement": "kWh"
+            "unit_of_measurement": "kWh",
+            "value_template": "{{ value_json.val }}"
           },
           "holiday_mode": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "binary_sensor.my_mock_a2w_hp_holiday_mode",
             "entity_category": "diagnostic",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode/attributes",
             "name": "Holiday mode",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "payload_off": "false",
             "payload_on": "true",
             "platform": "binary_sensor",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode/state",
-            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_holiday_mode"
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/holiday_mode",
+            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_holiday_mode",
+            "value_template": "{{ value_json.val | lower }}"
           },
           "leaving_water_offset": {
-            "availability_topic": "daikin/bridge/status",
-            "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/set",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "command_topic": "daikin/set/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset",
             "default_entity_id": "number.my_mock_a2w_hp_leaving_water_offset",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/attributes",
             "max": 10,
             "min": -10,
             "name": "Leaving water offset",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "number",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/leaving_water_offset",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_leaving_water_offset",
-            "unit_of_measurement": "°C"
+            "unit_of_measurement": "°C",
+            "value_template": "{{ value_json.val }}"
           },
           "outdoor_temperature": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_a2w_hp_outdoor_temperature",
             "device_class": "temperature",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature/attributes",
             "name": "Outdoor temperature",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "measurement",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/outdoor_temperature",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_outdoor_temperature",
-            "unit_of_measurement": "°C"
+            "unit_of_measurement": "°C",
+            "value_template": "{{ value_json.val }}"
           },
           "powerful_mode": {
-            "availability_topic": "daikin/bridge/status",
-            "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/set",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "command_topic": "daikin/set/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode",
             "default_entity_id": "switch.my_mock_a2w_hp_powerful_mode",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/attributes",
             "name": "Powerful mode",
-            "payload_available": "online",
-            "payload_not_available": "offline",
-            "payload_off": "off",
-            "payload_on": "on",
+            "payload_off": "false",
+            "payload_on": "true",
             "platform": "switch",
-            "state_off": "off",
-            "state_on": "on",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode/state",
-            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_powerful_mode"
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/powerful_mode",
+            "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_powerful_mode",
+            "value_template": "{{ value_json.val | lower }}"
           },
           "refresh": {
-            "availability_topic": "daikin/bridge/status",
-            "command_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/refresh/set",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "command_topic": "daikin/set/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/refresh",
             "default_entity_id": "button.my_mock_a2w_hp_refresh",
             "icon": "mdi:cloud-refresh",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/refresh/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/2/refresh/attributes",
             "name": "Refresh from cloud",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "payload_press": "PRESS",
             "platform": "button",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_refresh"
           },
           "room_temperature": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.my_mock_a2w_hp_room_temperature",
             "device_class": "temperature",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/attributes",
             "name": "Room temperature",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
             "state_class": "measurement",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature/state",
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/1/room_temperature",
             "unique_id": "daikin_63731cd9-3240-476c-9d2b-7c41dc94d82c_room_temperature",
-            "unit_of_measurement": "°C"
+            "unit_of_measurement": "°C",
+            "value_template": "{{ value_json.val }}"
           }
         },
         "device": {
@@ -343,16 +605,30 @@
       "document": {
         "components": {
           "gateway_ip_address": {
-            "availability_topic": "daikin/bridge/status",
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
             "default_entity_id": "sensor.gateway_my_mock_a2w_hp_gateway_ip_address",
             "entity_category": "diagnostic",
-            "json_attributes_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address/attributes",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address/attributes",
             "name": "Gateway IP address",
-            "payload_available": "online",
-            "payload_not_available": "offline",
             "platform": "sensor",
-            "state_topic": "daikin/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address/state",
-            "unique_id": "daikin_gateway_ABCDEF0123456789_gateway_ip_address"
+            "state_topic": "daikin/status/63731cd9-3240-476c-9d2b-7c41dc94d82c/gateway/gateway_ip_address",
+            "unique_id": "daikin_gateway_ABCDEF0123456789_gateway_ip_address",
+            "value_template": "{{ value_json.val }}"
           }
         },
         "device": {

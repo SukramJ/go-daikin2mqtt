@@ -37,8 +37,8 @@ var localOnlyTopics = []string{
 }
 
 // faikinToDaikinMode is the inverse of [daikinToFaikinMode]: it maps a Faikin
-// app mode back to the ONECTA operationMode code, so a local state update can
-// reuse the catalog's localized select label.
+// app mode back to the ONECTA operationMode code, so a local state update
+// publishes the same token the cloud path does.
 var faikinToDaikinMode = map[string]string{
 	"cool": "cooling",
 	"heat": "heating",
@@ -230,7 +230,13 @@ func (c *Coordinator) drainLocalStates(ctx context.Context) error {
 func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st *faikin.State) {
 	// Faikin interleaves OS/heartbeat documents (no AC fields) on state/<host>;
 	// processing them would reset every entity to its zero value, so skip them.
+	// The one thing such a document can say is that the module itself is gone
+	// — the firmware's Last Will is `{"up":false}` — and that is the device's
+	// reachability.
 	if !st.HasAC {
+		if st.Up != nil && !*st.Up {
+			c.publishState(ctx, c.topicRoot.Online(deviceID), false)
+		}
 		return
 	}
 	// Remember the latest AC state so it can be (re)published once the embeddedID
@@ -264,9 +270,13 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 		c.modeCache[deviceID+"/"+emb] = dk
 		c.mu.Unlock()
 	}
-	for suffix, payload := range c.localStateMessages(deviceID, st) {
-		c.publishState(ctx, c.topicRoot.Slot(deviceID, emb, suffix).State(), payload)
+	for suffix, v := range c.localStateMessages(deviceID, st) {
+		c.publishState(ctx, c.topicRoot.Slot(deviceID, emb, suffix).State(), c.statusValue(suffix, v))
 	}
+	// The Faikin module owns this device's reachability in local mode: it is
+	// what reads and writes it. `online` is the firmware's own report that the
+	// serial link to the indoor unit is up.
+	c.publishState(ctx, c.topicRoot.Online(deviceID), st.Online)
 	// React to a powerful change before publishing the shared econo state, so a
 	// suspend/restore write sets the optimistic hold that publishOutdoorShared
 	// then reads through. agg.powerful/econo are the group OR.
@@ -285,35 +295,35 @@ func (c *Coordinator) publishLocalState(ctx context.Context, deviceID string, st
 func (c *Coordinator) publishOutdoorShared(ctx context.Context, deviceID string) {
 	agg := c.localOutdoorAgg(deviceID)
 	group := c.groupKey(deviceID)
-	vals := map[string]string{
+	vals := map[string]any{
 		"outdoor_silent": c.heldOutdoorValue(group, "outdoor_silent", onOff(agg.quiet)),
 		"econo_mode":     c.heldOutdoorValue(group, "econo_mode", onOff(agg.econo)),
 		"demand_control": c.heldOutdoorValue(group, "demand_control", strconv.Itoa(agg.demand)),
 		// System total (sum across the indoor units).
-		"outdoor_power": strconv.Itoa(agg.powerW),
+		"outdoor_power": agg.powerW,
 		// Shared outdoor values (identical on every unit) → one entity.
-		"compressor_frequency": c.fmtFloat("compressor_frequency", agg.compHz),
-		"outdoor_temperature":  c.fmtFloat("outdoor_temperature", agg.outsideC),
+		"compressor_frequency": agg.compHz,
+		"outdoor_temperature":  agg.outsideC,
 	}
 	// Energy is a lifetime total (total_increasing); never publish 0 — when no
 	// member currently reports it (all idle), keep the retained last value
 	// instead of resetting the counter.
 	if agg.energyWh > 0 {
-		vals["outdoor_energy_total"] = c.fmtFloat("outdoor_energy_total", float64(agg.energyWh)/1000)
+		vals["outdoor_energy_total"] = float64(agg.energyWh) / 1000
 	}
 	if agg.energyHeatWh > 0 {
-		vals["outdoor_heating_energy_total"] = c.fmtFloat("outdoor_heating_energy_total", float64(agg.energyHeatWh)/1000)
+		vals["outdoor_heating_energy_total"] = float64(agg.energyHeatWh) / 1000
 	}
 	if agg.energyCoolWh > 0 {
-		vals["outdoor_cooling_energy_total"] = c.fmtFloat("outdoor_cooling_energy_total", float64(agg.energyCoolWh)/1000)
+		vals["outdoor_cooling_energy_total"] = float64(agg.energyCoolWh) / 1000
 	}
 	for _, member := range c.groupMembers(deviceID) {
 		emb, ok := c.climateEmbeddedID(member)
 		if !ok {
 			continue
 		}
-		for suffix, payload := range vals {
-			c.publishState(ctx, c.topicRoot.Slot(member, emb, suffix).State(), payload)
+		for suffix, v := range vals {
+			c.publishState(ctx, c.topicRoot.Slot(member, emb, suffix).State(), c.statusValue(suffix, v))
 		}
 	}
 }
@@ -321,13 +331,16 @@ func (c *Coordinator) publishOutdoorShared(ctx context.Context, deviceID string)
 // publishOptimistic immediately reflects a just-written value on every member of
 // the device's outdoor unit, so the single HA entity updates at once instead of
 // snapping back while waiting for the sparse Faikin status.
+//
+// Callers reach it only after the write itself succeeded, which is what makes
+// it the adapter's own state rather than an echo of the request (spec §3.3).
 func (c *Coordinator) publishOptimistic(ctx context.Context, deviceID, topic, value string) {
 	for _, member := range c.groupMembers(deviceID) {
 		emb, ok := c.climateEmbeddedID(member)
 		if !ok {
 			continue
 		}
-		c.publishState(ctx, c.topicRoot.Slot(member, emb, topic).State(), value)
+		c.publishState(ctx, c.topicRoot.Slot(member, emb, topic).State(), c.statusValue(topic, value))
 	}
 }
 
@@ -516,85 +529,62 @@ func (c *Coordinator) flushLocalStates(ctx context.Context) {
 	}
 }
 
-// localStateMessages maps a Faikin state to {topic-suffix: payload}, matching
-// the cloud path's topics and value formats so HA sees identical entities
-// whichever backend is active.
-func (c *Coordinator) localStateMessages(deviceID string, st *faikin.State) map[string]string {
-	out := map[string]string{
+// localStateMessages maps a Faikin state to {topic-suffix: value}, in the same
+// vocabulary as the cloud path's points — "on"/"off", operationMode codes,
+// numbers — so [Coordinator.statusValue] renders both the same way and HA sees
+// identical entities whichever backend is active.
+func (c *Coordinator) localStateMessages(deviceID string, st *faikin.State) map[string]any {
+	out := map[string]any{
 		"power":                onOff(st.Power),
 		hass.HVACModeTopic:     st.HAMode(),
-		"room_temperature":     c.fmtFloat("room_temperature", st.Temp),
-		"room_humidity":        c.fmtFloat("room_humidity", st.Hum),
-		"temperature_setpoint": c.fmtFloat("temperature_setpoint", st.Target),
+		"room_temperature":     st.Temp,
+		"room_humidity":        st.Hum,
+		"temperature_setpoint": st.Target,
 		"powerful_mode":        onOff(st.Powerful),
 		"streamer":             onOff(st.Streamer),
 		// Per-indoor-unit telemetry (own value). Power is instantaneous; energy
 		// uses the per-unit held value so an idle unit reporting 0 does not reset
 		// the total_increasing counter.
-		"power_consumption": strconv.Itoa(st.Consumption),
+		"power_consumption": st.Consumption,
 		// Faikin reports the unit's own fan as rpm/60 (Hz, firmware default
 		// ha.fanrpm off); convert back to rpm for the fan_speed sensor.
-		"fan_speed": c.fmtFloat("fan_speed", st.FanFreq*60),
+		"fan_speed": st.FanFreq * 60,
 		// The unit's own liquid-line (coil) temperature — per member, not shared.
-		"refrigerant_temperature": c.fmtFloat("refrigerant_temperature", st.Liquid),
+		"refrigerant_temperature": st.Liquid,
 	}
 	e := c.heldEnergy(deviceID)
 	if e.total > 0 {
-		out["energy_total"] = c.fmtFloat("energy_total", float64(e.total)/1000)
+		out["energy_total"] = float64(e.total) / 1000
 	}
 	if e.heat > 0 {
-		out["heating_energy_total"] = c.fmtFloat("heating_energy_total", float64(e.heat)/1000)
+		out["heating_energy_total"] = float64(e.heat) / 1000
 	}
 	if e.cool > 0 {
-		out["cooling_energy_total"] = c.fmtFloat("cooling_energy_total", float64(e.cool)/1000)
+		out["cooling_energy_total"] = float64(e.cool) / 1000
 	}
 	// outdoor_silent, econo_mode, demand_control, the outdoor-unit sums
 	// (outdoor_power, outdoor_*_energy_total) and the shared outdoor values
 	// (compressor frequency, outdoor temperature) are scope: outdoor and
 	// published group-aggregated by publishOutdoorShared, not per unit.
-	if label, ok := c.localOperationModeLabel(st.Mode); ok {
-		out["operation_mode"] = label
+	if dk, ok := faikinToDaikinMode[st.Mode]; ok {
+		out["operation_mode"] = dk
 	}
-	// Synthetic climate fan/swing topics (localized labels, like publishClimateAux),
-	// translated from Faikin's vocabulary to the cloud values HA's lists use.
-	lang := c.deps.Cfg.Language
+	// Synthetic climate fan/swing tokens, translated from Faikin's vocabulary
+	// to the cloud values HA's lists are built from.
 	if cloud, ok := faikinFanToCloud(st.Fan); ok {
-		out[hass.FanModeTopic] = localizeAux(cloud, lang, fanModeDE)
+		out[hass.FanModeTopic] = cloud
 	}
 	v, h := faikinSwingAxes(st.Swing)
-	out[hass.SwingModeTopic] = localizeAux(v, lang, swingModeDE)
-	out[hass.SwingHModeTopic] = localizeAux(h, lang, swingModeDE)
+	out[hass.SwingModeTopic] = v
+	out[hass.SwingHModeTopic] = h
 	// Climate preset mirrors powerful (boost) from the local state, so the
 	// preset stays in sync with the powerful switch instead of the stale cloud.
 	preset := "none"
 	if st.Powerful {
 		preset = "boost"
 	}
-	out[hass.PresetModeTopic] = localizeAux(preset, lang, presetModeDE)
+	out[hass.PresetModeTopic] = preset
 	return out
-}
-
-// localOperationModeLabel maps a Faikin mode to the localized select label the
-// cloud path publishes for the operation_mode entity (e.g. "cool" → "Kühlen").
-func (c *Coordinator) localOperationModeLabel(faikinMode string) (string, bool) {
-	dk, ok := faikinToDaikinMode[faikinMode]
-	if !ok {
-		return "", false
-	}
-	if e, ok := c.deps.Catalog.ByTopic("operation_mode"); ok {
-		return e.LocalizedLabel(dk, c.deps.Cfg.Language), true
-	}
-	return dk, true
-}
-
-// fmtFloat formats v with the precision the catalog entry for topic declares,
-// so local values render exactly like the cloud path's.
-func (c *Coordinator) fmtFloat(topic string, v float64) string {
-	prec := 1
-	if e, ok := c.deps.Catalog.ByTopic(topic); ok {
-		prec = e.Precision
-	}
-	return strconv.FormatFloat(v, 'f', prec, 64)
 }
 
 // climateEmbeddedID returns the cached climateControl embeddedID for a device.

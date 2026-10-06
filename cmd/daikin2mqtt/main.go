@@ -53,18 +53,22 @@ func main() {
 		return
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	// One level variable behind the one handler, so DEBUG and the
+	// maintenance loglevel command change the level of the logger every
+	// component already holds instead of building a second one.
+	level := new(slog.LevelVar)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
 
-	if err := run(*configPath, *catalogPath, logger); err != nil {
+	if err := run(*configPath, *catalogPath, logger, level); err != nil {
 		logger.Error("daikin2mqtt.fatal", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
 }
 
 // run wires dependencies and blocks until the context is cancelled
-// (SIGINT/SIGTERM) or a component fails.
-func run(configPath, catalogPath string, logger *slog.Logger) error {
+// (SIGINT/SIGTERM, or the maintenance restart command) or a component fails.
+func run(configPath, catalogPath string, logger *slog.Logger, level *slog.LevelVar) error {
 	logger.Info("daikin2mqtt.boot", slog.String("build", version.String()))
 
 	cfg, err := loadConfig(configPath, logger)
@@ -72,8 +76,12 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 		return err
 	}
 	if cfg.Debug {
-		logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
-		slog.SetDefault(logger)
+		level.Set(slog.LevelDebug)
+	}
+	if !layout.New(cfg.MQTTTopic).Conformant() {
+		logger.Warn("daikin2mqtt.topic_not_conformant",
+			slog.String("mqtt_topic", cfg.MQTTTopic),
+			slog.String("effect", "a name containing / runs outside mqtt-smarthome 2.0 §3; tools scanning +/info will not see this instance"))
 	}
 
 	// Missing client credentials are not fatal so a fresh add-on install does
@@ -125,12 +133,12 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 
 	bootRuntime := newHARuntime()
 	defer bootRuntime.Close()
-	// One function for both halves of the availability policy: this will and
-	// the retained "online" the coordinator announces on every connect are the
-	// same topic and the same two words, and that topic is the one all 264
-	// discovery payloads name (RuntimeConfig's Layout derives it from
-	// internal/layout). Three literals in three packages is how a sibling
-	// bridge ended up with a will no entity reads.
+	// One function for both halves of the availability policy: this will ("0")
+	// and the level the coordinator announces on every connect are the same
+	// topic, `<name>/connected`, and that topic is the one every discovery
+	// payload's bridge availability entry names (RuntimeConfig's Layout derives
+	// it from internal/layout). Three literals in three packages is how a
+	// sibling bridge ended up with a will no entity reads.
 	will, err := bootRuntime.Will()
 	if err != nil {
 		return fmt.Errorf("mqtt will: %w", err)
@@ -173,7 +181,7 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	// client — the same split the coordinator gets, so the library planes and
 	// the daemon's own calls cannot end up on different policies.
 	haLink.wire(hagomqtt.Split(breaker, mqttClient))
-	statePlane := coordinator.NewStatePlane(haLink, layout.New(cfg.MQTTTopic), logger)
+	statePlane := coordinator.NewStatePlane(haLink, layout.New(cfg.MQTTTopic), nil, logger)
 	defer func() {
 		stopCtx, stop := context.WithTimeout(context.Background(), 3*time.Second)
 		defer stop()
@@ -186,9 +194,11 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	// (the common case) the existing connection is reused; otherwise a second
 	// connection is opened.
 	var faikinClient mqtt.Client
+	var faikinConnected func() bool
 	if cfg.LocalEnabled() {
 		if cfg.FaikinSharesMainBroker() {
 			faikinClient = mqttClient
+			faikinConnected = mqttClient.IsConnected
 			logger.Info("daikin2mqtt.local_mode",
 				slog.String("faikin_broker", cfg.FaikinBrokerAddress()), slog.Bool("shared_connection", true))
 		} else {
@@ -210,6 +220,7 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 				_ = flife.Stop(stopCtx)
 			}()
 			faikinClient = fc
+			faikinConnected = fc.IsConnected
 			logger.Info("daikin2mqtt.local_mode",
 				slog.String("faikin_broker", cfg.FaikinBrokerAddress()), slog.Bool("shared_connection", false))
 		}
@@ -220,6 +231,27 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 	if cfg.HASSEnable {
 		discovery = hass.New(cfg.HASSBaseTopic, cfg.MQTTTopic, cfg.Language, session)
 	}
+
+	// --- mqtt-smarthome instance plane ---
+	// `<name>/info` on every connect and, unless MQTT_MAINTENANCE is off, the
+	// maintenance topics: the log level goes to the one LevelVar behind the
+	// daemon's handler, and a restart is this process's own graceful
+	// shutdown — the same cancel SIGTERM triggers, after which run publishes
+	// `<name>/connected` = 0 and returns nil, so the process exits 0. It is
+	// refused unless something will start it again (DAIKIN_SUPERVISED, else
+	// systemd, Kubernetes or a container marker).
+	instance := publisher.NewInstance(haLink, publisher.InstanceConfig{
+		Layout:              hass.Layout(cfg.MQTTTopic),
+		Name:                hass.OriginName,
+		Version:             version.Version,
+		Extra:               map[string]any{"mode": upstreamMode(cfg)},
+		MaintenanceDisabled: !cfg.MaintenanceEnabled(),
+		SetLogLevel:         publisher.LevelVarSetter(level),
+		Supervised:          publisher.DetectSupervised("DAIKIN_SUPERVISED"),
+		Shutdown:            cancel,
+		StatsInterval:       publisher.StatsInterval(cfg.StatsIntervalSeconds()),
+		Logger:              logger,
+	})
 
 	// --- Coordinator ---
 	// FaikinMQTT deliberately stays ungated: it carries low-rate,
@@ -236,6 +268,10 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 		Logger:       logger,
 		NewHARuntime: newHARuntime,
 		StatePlane:   statePlane,
+		Instance:     instance,
+		// Half of `<name>/connected` in local mode: the link the Faikin
+		// modules are reached over.
+		FaikinConnected: faikinConnected,
 		// The broker's own outbound limit, renegotiated on every connect. The
 		// device document is preflighted against it BEFORE the retraction —
 		// go-mqtt refuses an oversized packet from its write path, by which
@@ -251,7 +287,8 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 			return res.MaximumPacketSize, true
 		},
 	})
-	// Re-announce availability after every (re)connect.
+	// Re-announce the connected level, the info and the retained status
+	// after every (re)connect.
 	lifecycle.OnConnect(func(cctx context.Context) { coord.PublishOnline(cctx) })
 
 	// --- Weekly schedules (optional) ---
@@ -306,7 +343,23 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 		g.Go(func() error { return srv.Run(gctx) })
 	}
 
-	return g.Wait()
+	err = g.Wait()
+	// A normal DISCONNECT discards the Last Will, so a graceful stop states
+	// `<name>/connected` = 0 itself (spec §3.1) before the deferred stop of
+	// the MQTT lifecycle closes the connection.
+	offCtx, offStop := context.WithTimeout(context.Background(), 2*time.Second)
+	coord.PublishOffline(offCtx)
+	offStop()
+	return err
+}
+
+// upstreamMode is the `mode` project field of `<name>/info`: whether the
+// mapped indoor units are read and written over Faikin or the ONECTA cloud.
+func upstreamMode(cfg *config.Config) string {
+	if cfg.LocalEnabled() {
+		return "local"
+	}
+	return "cloud"
 }
 
 // bridgeWill copies publisher.Will onto the client's own will type, field for
@@ -314,10 +367,10 @@ func run(configPath, catalogPath string, logger *slog.Logger) error {
 //
 // A function rather than an inline literal because run() is a composition root
 // that dials a broker and blocks, so nothing can assert what it passed; this can
-// be asserted, and what it asserts is that the CONNECT will and the retained
-// "online" the coordinator announces come from one object. Two literals in two
+// be asserted, and what it asserts is that the CONNECT will and the connected
+// level the coordinator announces come from one object. Two literals in two
 // packages is how a sibling bridge ended up with a will no entity reads — the
-// broker dutifully writes "offline" on a crash and every entity stays available
+// broker dutifully writes its will on a crash and every entity stays available
 // forever, showing the last value it ever saw.
 func bridgeWill(w publisher.Will) *mqtt.Will {
 	return &mqtt.Will{
