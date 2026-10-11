@@ -80,6 +80,12 @@ With `topic.ha = homeassistant_disabled`:
   entities.**
 - go-daikin2mqtt remains the single entity owner: localized names, stable English
   `entity_id`s, cloud-enriched device info, and multi-split outdoor aggregation.
+- The one Faikin-only control you lose with the redirect — the firmware's
+  **Restart** button (`<topic.ha>/button/<chip id>restart/config`, command
+  topic `command/<host>/restart`) — is provided by go-daikin2mqtt itself since
+  0.15: every mapped unit gets a *Restart Faikin module* button
+  (`button.<room>_faikin_restart`, entity category *config*) that publishes the
+  same command to the module.
 
 ### How to set it
 

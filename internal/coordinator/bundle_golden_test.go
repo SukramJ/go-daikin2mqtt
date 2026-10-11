@@ -67,7 +67,7 @@ var bundleDigests = map[string]string{
 	"d2cnd-gas-boiler.de":           "198617146d495f3f769b8f4d8b36f398c505a0e06f4d626dce36cc6c884309b6",
 	"multisplit.en":                 "228c6861a199b976e56eca5a19d825c26c4c47dbc8769772b5e8d11ad1397c26",
 	"multisplit.de":                 "9d40e73e478dce3dc602620e4494f45ed16b90ca421c2e31204af2b915263e97",
-	"multisplit.local.en":           "de43883695fb06725adfd7bd911a0d7a82d031ab718db1e029890e9c679d37a9",
+	"multisplit.local.en":           "d97390b0af8bcbbd957925587b2965dd2d8ebc02c359473b581e4c7a62aba53f",
 	"multisplit.scheduler.en":       "0ebf5cb99511b00a7fa3e5642e3afc76e9c8aad9f63a672b6b1c3f7f177a910b",
 }
 

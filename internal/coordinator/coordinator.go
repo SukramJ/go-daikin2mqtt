@@ -951,6 +951,13 @@ func (c *Coordinator) handleWrite(ctx context.Context, req writeReq) {
 		// the device — it re-reads the cloud.
 		c.requestRefresh()
 		return
+	case FaikinRestartTopic:
+		// An action item on the local path: restarts the unit's Faikin module.
+		// Branched before the catalog lookup because its entry is settable
+		// only in the sense that a press exists — there is no value to
+		// coerce and no cloud characteristic behind it.
+		c.handleFaikinRestart(ctx, req)
+		return
 	case hass.HVACModeTopic:
 		c.handleHVACModeWrite(ctx, req)
 		return

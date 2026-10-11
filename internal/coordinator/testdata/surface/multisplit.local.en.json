@@ -246,6 +246,18 @@
       }
     },
     {
+      "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/faikin_restart/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "local"
+        }
+      }
+    },
+    {
       "topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/fan_mode",
       "qos": 0,
       "retain": true,
@@ -1054,6 +1066,18 @@
       }
     },
     {
+      "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/faikin_restart/attributes",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "lc": 1771156800000,
+        "ts": 1771156800000,
+        "val": {
+          "data_source": "local"
+        }
+      }
+    },
+    {
       "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/fan_mode",
       "qos": 0,
       "retain": true,
@@ -1749,6 +1773,66 @@
         "payload_on": "true",
         "state_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/holiday_mode/state",
         "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode"
+      }
+    },
+    {
+      "topic": "homeassistant/button/daikin_11112222-3333-4444-5555-666677778888_faikin_restart/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/faikin_restart/set",
+        "default_entity_id": "button.kuche_faikin_restart",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_11112222-3333-4444-5555-666677778888"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Küche",
+          "serial_number": "IDU0000000002",
+          "sw_version": "2100AA00"
+        },
+        "entity_category": "config",
+        "icon": "mdi:restart",
+        "json_attributes_topic": "daikin/11112222-3333-4444-5555-666677778888/climateControl/faikin_restart/attributes",
+        "name": "Restart Faikin module",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_press": "PRESS",
+        "unique_id": "daikin_11112222-3333-4444-5555-666677778888_faikin_restart"
+      }
+    },
+    {
+      "topic": "homeassistant/button/daikin_809d41d9-4d42-45fa-af6a-84b512143672_faikin_restart/config",
+      "qos": 0,
+      "retain": true,
+      "json": {
+        "availability_topic": "daikin/bridge/status",
+        "command_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/faikin_restart/set",
+        "default_entity_id": "button.wohnzimmer_faikin_restart",
+        "device": {
+          "configuration_url": "https://onecta.daikineurope.com",
+          "identifiers": [
+            "daikin_809d41d9-4d42-45fa-af6a-84b512143672"
+          ],
+          "manufacturer": "Daikin",
+          "model": "FTXTA30C2V1BW",
+          "model_id": "dx4",
+          "name": "Wohnzimmer",
+          "serial_number": "IDU0000000001",
+          "sw_version": "2100AA00"
+        },
+        "entity_category": "config",
+        "icon": "mdi:restart",
+        "json_attributes_topic": "daikin/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/faikin_restart/attributes",
+        "name": "Restart Faikin module",
+        "payload_available": "online",
+        "payload_not_available": "offline",
+        "payload_press": "PRESS",
+        "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_faikin_restart"
       }
     },
     {

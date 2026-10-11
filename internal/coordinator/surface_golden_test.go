@@ -77,7 +77,7 @@ var goldenDigests = map[string]string{
 	"d2cnd-gas-boiler.de":           "3c66372409056bb7c4305b9696b2b32064ce8b76109065f78c6695175ee72a36",
 	"multisplit.en":                 "e28b49c84e585fdba04f08817a140dd3133f71f05b4d9122c2d2fbfe6fcc11c8",
 	"multisplit.de":                 "7e4b338a6279de5dacf52d988d828f61bd3ebb76e3cddb2318ba1012426e24f6",
-	"multisplit.local.en":           "9f7f5903d814311f9c6f8b9e50760d90c96e8002a9f103f536d7952d8db7b742",
+	"multisplit.local.en":           "7523165453829d3932ec8ecdf6f59897276d2f40597a087346afcbe11a706767",
 	"multisplit.scheduler.en":       "3e2e63618fceefdbffc93bb523187d4f978fbbd719ddf1685d9fdd8405f34a30",
 }
 

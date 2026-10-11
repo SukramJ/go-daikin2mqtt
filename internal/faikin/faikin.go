@@ -114,6 +114,23 @@ func CommandTopic(host, suffix string) string {
 	return "command/" + host + "/" + suffix
 }
 
+// RestartSuffix is the command suffix the revk firmware reserves for restarting
+// the module itself: `command/<host>/restart` reaches revk_command("restart"),
+// which calls revk_restart(3, "Restart command") (ESP32-RevK revk.c) — the
+// payload is not read. It is the command topic of the restart button the
+// firmware's own HA discovery publishes (Faikout.c send_ha_config:
+// `<topic.ha>/button/<id>restart/config`, cmd_t = command/<host>/restart).
+const RestartSuffix = "restart"
+
+// RestartPayload is the press payload Home Assistant's MQTT button sends when
+// a discovery names no payload_press. The firmware's own restart button names
+// none, so this is byte-for-byte the press the module already accepts from HA;
+// the daemon sends the same rather than inventing a second form.
+const RestartPayload = "PRESS"
+
+// RestartTopic returns the module's restart command topic, `command/<host>/restart`.
+func RestartTopic(host string) string { return CommandTopic(host, RestartSuffix) }
+
 // HAMode maps the Faikin power flag + app mode to an HA climate hvac_mode.
 func (s *State) HAMode() string {
 	if !s.Power {

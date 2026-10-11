@@ -56,7 +56,10 @@ write-back commands from Home Assistant.
   and the boost preset. Surfaces settings the cloud does not expose for a unit
   (econo, streamer, outdoor silent, demand) plus local-only telemetry (energy,
   power, compressor / fan frequency, refrigerant / outdoor temperature). Each
-  mapped device's HA link points at its Faikin web UI. See
+  mapped device's HA link points at its Faikin web UI, and a per-unit
+  **Restart Faikin module** button presses the firmware's own restart
+  command (`command/<host>/restart`), so the module stays restartable from
+  Home Assistant with its own discovery redirected away. See
   [`docs/design.md`](./docs/design.md) and
   [`docs/faikin-home-assistant.md`](./docs/faikin-home-assistant.md).
 - **Multi-split aware**: settings shared across one outdoor unit (operation
@@ -232,7 +235,9 @@ the label); numbers are rounded to the device's step and clamped to its
 range. Empty and retained payloads are ignored; a rejected or failed command
 is logged at `warn` with its topic and payload. The daemon subscribes at
 QoS 1 — publish at QoS 0 if a duplicate must never happen. `refresh` is an
-action: any non-empty payload runs a cloud poll now. A command is never
+action: any non-empty payload runs a cloud poll now. `faikin_restart` (local
+mode, mapped devices only) is an action too: the press is forwarded to the
+module's `command/<host>/restart`, never to the cloud. A command is never
 echoed as a status; the status follows from the device.
 
 ```bash

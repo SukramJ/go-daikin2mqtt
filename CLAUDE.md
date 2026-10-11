@@ -159,7 +159,11 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   expose for a unit (econo/streamer/outdoor silent/demand on the FTXA range, plus local-only
   telemetry), `localOnlyPoints` **synthesizes discovery points** so the entities still appear (state
   fed from Faikin). These catalog entries match a synthetic characteristic (`faikinLocal`) the cloud
-  never reports, so they are only ever published via the local path. Telemetry placement follows the
+  never reports, so they are only ever published via the local path. The same mechanism carries the
+  per-unit **`faikin_restart` button**: not an AC setting but the firmware's own restart command
+  (`command/<host>/restart`, revk `revk_command("restart")`, payload ignored) — `handleWrite` branches
+  on the topic before the catalog lookup (`handleFaikinRestart`), forwards the `PRESS` payload to the
+  module and never touches the cloud; unmapped devices are rejected. Telemetry placement follows the
   physics (verified on a live multi-split): power and lifetime energy are each indoor unit's **own**
   reading → published **per indoor unit** (`energy_total`, `power_consumption`; energy **held** per
   unit in `lastEnergy` so an idle unit reading 0 doesn't reset its `total_increasing` counter) **and**

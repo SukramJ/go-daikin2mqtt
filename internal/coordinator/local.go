@@ -26,6 +26,9 @@ import (
 // in Home Assistant even though the cloud poll cannot resolve them.
 var localOnlyTopics = []string{
 	"econo_mode", "streamer", "outdoor_silent", "demand_control",
+	// The module's own restart button (an action on the Faikin, not an AC
+	// setting; see handleFaikinRestart).
+	FaikinRestartTopic,
 	// Telemetry the cloud does not expose, read straight off the Faikin state.
 	// Per indoor unit (own value):
 	"energy_total", "heating_energy_total", "cooling_energy_total", "power_consumption",
@@ -34,6 +37,38 @@ var localOnlyTopics = []string{
 	"outdoor_energy_total", "outdoor_heating_energy_total", "outdoor_cooling_energy_total", "outdoor_power",
 	// Shared outdoor values (identical per unit) → one per outdoor unit:
 	"compressor_frequency",
+}
+
+// FaikinRestartTopic is the catalog topic of the per-unit button that restarts
+// the unit's Faikin/Faikout module. Its catalog entry matches the synthetic
+// faikinLocal characteristic, so the point exists only for a mapped device in
+// local mode (localOnlyPoints). A press is forwarded to the firmware's own
+// restart command and nothing else happens: no cloud PATCH, no cache update.
+const FaikinRestartTopic = "faikin_restart"
+
+// handleFaikinRestart presses the Faikin module's restart. The revk firmware
+// handles `command/<host>/restart` itself (revk_command → revk_restart(3,
+// "Restart command")) and ignores the payload, so the daemon publishes the same
+// bytes Home Assistant sends to the firmware's own discovery button (PRESS).
+// The module counts down on `state/<host>`, publishes a last document with
+// up:false (still carrying the AC fields, so the online item keeps following
+// its own `online` flag), is silent for about six seconds and comes back on its
+// own; nothing needs restoring. A device not mapped to a Faikin host — or local
+// mode off — has no module to restart, so the press is rejected rather than
+// sent to the cloud.
+func (c *Coordinator) handleFaikinRestart(ctx context.Context, req writeReq) {
+	host, ok := c.localHost(req.deviceID)
+	if !ok {
+		c.rejectWrite("coordinator.write_not_local", req)
+		return
+	}
+	topic := faikin.RestartTopic(host)
+	if err := c.deps.FaikinMQTT.Publish(ctx, topic, []byte(faikin.RestartPayload), mqtt.QoS0, false); err != nil {
+		c.rejectWrite("coordinator.faikin_restart_failed", req, slog.String("err", err.Error()))
+		return
+	}
+	c.deps.Logger.Info("coordinator.faikin_restart",
+		slog.String("device", req.deviceID), slog.String("host", host), slog.String("topic", topic))
 }
 
 // faikinToDaikinMode is the inverse of [daikinToFaikinMode]: it maps a Faikin

@@ -1163,12 +1163,12 @@ func TestTheSweepIsArmedOnlyOverAPopulatedClaimSet(t *testing.T) {
 //
 // and the escape hatch is the whole defect: when a config carries no
 // `state_topic` the rule collapses to the `daikin_` namespace, which EVERY
-// instance of this bridge shares. 24 of the 264 pinned configs carry no
+// instance of this bridge shares. 26 of the 266 pinned configs carry no
 // `state_topic` — the 14 composite climate entities, which name
 // mode_state_topic / temperature_state_topic / current_temperature_topic and
-// never a plain one, and the 10 refresh buttons, which are stateless by
-// definition. Those 24 are exactly this bridge's flagship entity and its one
-// daemon action.
+// never a plain one, and the 12 buttons (10 cloud refresh, 2 Faikin restart in
+// the local scenario), which are stateless by definition. Those 26 are exactly
+// this bridge's flagship entity and its two actions.
 //
 // So a second instance — a second ONECTA account, a holiday home, a staging
 // daemon — had its climate cards and refresh buttons retracted from Home
@@ -1198,10 +1198,10 @@ func TestASiblingsStatelessEntitiesAreNeverSwept(t *testing.T) {
 			}
 		}
 	}
-	if total != 264 {
-		t.Errorf("rendered %d configs, want the pinned 264", total)
+	if total != 266 {
+		t.Errorf("rendered %d configs, want the pinned 266", total)
 	}
-	if want := (map[string]int{"climate": 14, "button": 10}); !equalCounts(stateless, want) {
+	if want := (map[string]int{"climate": 14, "button": 12}); !equalCounts(stateless, want) {
 		t.Errorf("configs with no state_topic = %v, want %v — the class the old predicate could not key on", stateless, want)
 	}
 
