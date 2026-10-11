@@ -1,5 +1,37 @@
 # Unreleased
 
+# Version 0.15.0 (2026-10-11)
+
+Local mode gains the Faikin module's restart button. Updating needs no other
+action: the button appears on every mapped indoor unit by itself, and no
+existing entity id, name or history changes.
+
+## Added
+
+- **Local mode: a *Restart Faikin module* button per mapped indoor unit**
+  (`button.<room>_faikin_restart`, entity category *config*, topic
+  `daikin/set/<uuid>/climateControl/faikin_restart`). A press publishes the
+  firmware's own restart command, `command/<host>/restart` with the HA press
+  payload `PRESS` — exactly what the restart button in Faikin's own HA
+  discovery sends, so the module stays restartable from Home Assistant once
+  that discovery is redirected away (`docs/faikin-home-assistant.md`). The
+  revk firmware ignores the payload and restarts three seconds later.
+  Measured on a live module (2026-10-11): it counts down on `state/<host>`
+  (`"restart":2,1,0`, `"reason":"Restart command"`), publishes one last
+  document with `"up":false`, is silent for about six seconds and is back
+  with `uptime` 0. The device's `online` item stays `true` throughout (that
+  last document still carries the AC fields and `"online":true`); the first
+  documents after the boot lack `hum` and the energy counters, so the
+  humidity sensor reads 0 for about nine seconds while the held energy
+  totals do not move. The press never reaches the ONECTA cloud: for an
+  unmapped device, or with local mode off, it is rejected and logged at
+  `warn`. Manual test from a shell:
+
+  ```bash
+  mosquitto_pub -h <faikin broker> -u <user> -P <pass> \
+    -t 'command/<faikin host>/restart' -m PRESS
+  ```
+
 ## Security
 
 - Built with Go 1.27.2, which fixes Go standard-library vulnerabilities

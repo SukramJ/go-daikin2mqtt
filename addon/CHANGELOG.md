@@ -6,6 +6,14 @@ top-level changelog.md. Newest version first.
 
 # Unreleased
 
+# 0.15.0 (2026-10-11)
+
+- Local mode: a *Restart Faikin module* button per mapped indoor unit
+  (entity category *config*) sends the module's own
+  `command/<host>/restart`. It replaces the restart button of Faikin's
+  redirected HA discovery. The module is back after about six seconds; the
+  humidity sensor briefly reads 0 until the module reports it again.
+
 # 0.14.1 (2026-10-06)
 
 Fixes for 0.14.0; updating needs no other action.

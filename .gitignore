@@ -44,3 +44,6 @@ token-store.json
 # .vscode/
 /.idea
 /tmp
+
+# local broker credentials for manual mosquitto tests
+.mqtt_cred

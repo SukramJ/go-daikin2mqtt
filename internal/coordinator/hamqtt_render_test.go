@@ -261,7 +261,7 @@ func TestHamqttKeepsThePinnedConfigIdentities(t *testing.T) {
 	}
 	// The census is a Go literal so shrinking the proof is a declaration in
 	// the review rather than a quietly smaller number.
-	const wantTotal = 264
+	const wantTotal = 266
 	if total != wantTotal {
 		t.Errorf("compared %d pinned configs, want %d", total, wantTotal)
 	}
@@ -437,7 +437,7 @@ func TestHamqttLegacyTopicForm(t *testing.T) {
 		}
 	}
 
-	const wantTotal = 264
+	const wantTotal = 266
 	if total != wantTotal {
 		t.Fatalf("examined %d components, want %d", total, wantTotal)
 	}
@@ -493,8 +493,8 @@ func TestHamqttValidatesAgainstHomeAssistant(t *testing.T) {
 			}
 		}
 	}
-	if checked != 264 {
-		t.Errorf("validated %d payloads, want 264", checked)
+	if checked != 266 {
+		t.Errorf("validated %d payloads, want 266", checked)
 	}
 	if len(refusals) != 0 {
 		for _, k := range sortedIntKeys(refusals) {

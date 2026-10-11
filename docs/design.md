@@ -102,6 +102,24 @@ Two refinements are essential here:
   entity would appear. `localOnlyPoints` synthesizes discovery points for these
   topics per mapped device (skipping any the cloud already resolves); their live
   state still comes from the Faikin read path.
+- **Module restart button** — `faikin_restart` is a per-unit HA button
+  synthesized the same way. It is not an AC setting: the revk firmware restarts
+  the module itself on `command/<host>/restart` (ESP32-RevK `revk.c`,
+  `revk_command("restart")` → `revk_restart(3, "Restart command")`; the payload
+  is not read), the very command topic of the restart button in the firmware's
+  own HA discovery (`Faikout.c` `send_ha_config`, `dev_cla: restart`). With
+  that discovery redirected away (see `docs/faikin-home-assistant.md`) the
+  daemon's button keeps the module restartable. `handleWrite` branches on the
+  topic before any catalog lookup (`handleFaikinRestart`), publishes the HA
+  press payload `PRESS` verbatim to the module and touches neither the cloud
+  nor any cache; a press for an unmapped device, or with local mode off, is
+  rejected. Measured on a live module: the firmware counts down on
+  `state/<host>` (`"restart":2,1,0`), publishes a last document with
+  `"up":false` that still carries the AC fields (so `HasAC` is true and the
+  `online` item follows its `"online":true`, not `up`), goes silent for about
+  six seconds and resumes with `uptime` 0. The first documents after the boot
+  omit `hum`, `consumption` and the energy counters: humidity reads 0 for
+  about nine seconds, the energy totals are held (`lastEnergy`).
 
 ### Device mapping & broker
 
@@ -215,7 +233,8 @@ outdoor-shared classification was wrong and was reverted in 0.8.2.
 
 ## Catalog additions
 
-Per-unit switch `streamer`; outdoor-shared `outdoor_silent` and `econo_mode`
+Per-unit switch `streamer` and button `faikin_restart` (the module's own
+restart command); outdoor-shared `outdoor_silent` and `econo_mode`
 (switches) and `demand_control` (number); local-only telemetry sensors
 (per indoor unit: `energy_total`, `heating_energy_total`,
 `cooling_energy_total`, `power_consumption`, `fan_speed`,

@@ -321,8 +321,8 @@ func TestConfigTopicForm(t *testing.T) {
 			}
 		}
 	}
-	if total != 264 {
-		t.Errorf("config topics across all scenarios = %d, want 264", total)
+	if total != 266 {
+		t.Errorf("config topics across all scenarios = %d, want 266", total)
 	}
 }
 
@@ -650,8 +650,8 @@ func TestSlugAgreementOverTheRealCatalogue(t *testing.T) {
 	if diverged != 0 {
 		t.Errorf("catalog topics diverging = %d, want 0", diverged)
 	}
-	if n := len(cat.Entries()); n != 55 {
-		t.Errorf("catalog entries = %d, want 55", n)
+	if n := len(cat.Entries()); n != 56 {
+		t.Errorf("catalog entries = %d, want 56", n)
 	}
 
 	// (b) device-name probes. The device name is the operator's own room label
@@ -743,7 +743,7 @@ func TestSurfaceCensus(t *testing.T) {
 		"d2cnd-gas-boiler.de":           {13, 48, "binary_sensor=5 button=1 climate=1 sensor=5 switch=1"},
 		"multisplit.en":                 {30, 116, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
 		"multisplit.de":                 {30, 116, "binary_sensor=4 button=1 climate=2 sensor=21 switch=2"},
-		"multisplit.local.en":           {52, 202, "binary_sensor=4 button=1 climate=2 number=1 sensor=38 switch=6"},
+		"multisplit.local.en":           {54, 206, "binary_sensor=4 button=3 climate=2 number=1 sensor=38 switch=6"},
 		"multisplit.scheduler.en":       {38, 142, "binary_sensor=4 button=1 climate=2 sensor=27 switch=4"},
 	}
 	for _, sc := range surfaceScenarios() {

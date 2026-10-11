@@ -417,6 +417,27 @@
   value_path: modes/fixed
   path: /demandControl/modes/fixed
 
+# --- Local-only action: restart the Faikin/Faikout module -------------------
+# Not an AC setting. The revk firmware restarts the module itself on
+# `command/<host>/restart` (ESP32-RevK revk.c: revk_command("restart") →
+# revk_restart(3, "Restart command"); the payload is not read). It is the same
+# command topic as the restart button in the firmware's own HA discovery
+# (Faikout.c send_ha_config: `<topic.ha>/button/<id>restart/config`,
+# cmd_t = command/<host>/restart, dev_cla restart), so the module stays
+# restartable from Home Assistant once that discovery is redirected away
+# (docs/faikin-home-assistant.md). Matched on the synthetic faikinLocal
+# characteristic: it exists only for a mapped device in local mode. The
+# coordinator forwards the press as-is (handleFaikinRestart) and never
+# touches the ONECTA cloud for it.
+- match: {managementPointType: climateControl, characteristic: faikinLocal}
+  topic: faikin_restart
+  name: Restart Faikin module
+  name_de: Faikin-Modul neu starten
+  platform: button
+  icon: mdi:restart
+  category: config
+  settable: true
+
 # --- Local-only telemetry (Faikin/Faikout, no ONECTA cloud equivalent) -------
 # These match a synthetic characteristic the cloud never reports, so they are
 # only published when local mode synthesizes them (localOnlyTopics) and fed from

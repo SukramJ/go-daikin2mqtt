@@ -6,6 +6,7 @@
       "superseded": [
         "homeassistant/binary_sensor/daikin_11112222-3333-4444-5555-666677778888_error_state/config",
         "homeassistant/binary_sensor/daikin_11112222-3333-4444-5555-666677778888_holiday_mode/config",
+        "homeassistant/button/daikin_11112222-3333-4444-5555-666677778888_faikin_restart/config",
         "homeassistant/climate/daikin_11112222-3333-4444-5555-666677778888_climate/config",
         "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_cooling_energy_daily/config",
         "homeassistant/sensor/daikin_11112222-3333-4444-5555-666677778888_cooling_energy_monthly/config",
@@ -295,6 +296,33 @@
             "state_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/error_state",
             "unique_id": "daikin_11112222-3333-4444-5555-666677778888_error_state",
             "value_template": "{{ value_json.val | lower }}"
+          },
+          "faikin_restart": {
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/11112222-3333-4444-5555-666677778888/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "command_topic": "daikin/set/11112222-3333-4444-5555-666677778888/climateControl/faikin_restart",
+            "default_entity_id": "button.kuche_faikin_restart",
+            "entity_category": "config",
+            "icon": "mdi:restart",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/11112222-3333-4444-5555-666677778888/climateControl/faikin_restart/attributes",
+            "name": "Restart Faikin module",
+            "payload_press": "PRESS",
+            "platform": "button",
+            "unique_id": "daikin_11112222-3333-4444-5555-666677778888_faikin_restart"
           },
           "fan_speed": {
             "availability": [
@@ -658,6 +686,7 @@
       "superseded": [
         "homeassistant/binary_sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state/config",
         "homeassistant/binary_sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_holiday_mode/config",
+        "homeassistant/button/daikin_809d41d9-4d42-45fa-af6a-84b512143672_faikin_restart/config",
         "homeassistant/climate/daikin_809d41d9-4d42-45fa-af6a-84b512143672_climate/config",
         "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_daily/config",
         "homeassistant/sensor/daikin_809d41d9-4d42-45fa-af6a-84b512143672_cooling_energy_monthly/config",
@@ -947,6 +976,33 @@
             "state_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/error_state",
             "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_error_state",
             "value_template": "{{ value_json.val | lower }}"
+          },
+          "faikin_restart": {
+            "availability": [
+              {
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "topic": "daikin/connected",
+                "value_template": "{{ 'online' if value | int(0) \u003e= 2 else 'offline' }}"
+              },
+              {
+                "payload_available": "true",
+                "payload_not_available": "false",
+                "topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/online",
+                "value_template": "{{ value_json.val | lower }}"
+              }
+            ],
+            "availability_mode": "all",
+            "command_topic": "daikin/set/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/faikin_restart",
+            "default_entity_id": "button.wohnzimmer_faikin_restart",
+            "entity_category": "config",
+            "icon": "mdi:restart",
+            "json_attributes_template": "{{ value_json.val | tojson }}",
+            "json_attributes_topic": "daikin/status/809d41d9-4d42-45fa-af6a-84b512143672/climateControl/faikin_restart/attributes",
+            "name": "Restart Faikin module",
+            "payload_press": "PRESS",
+            "platform": "button",
+            "unique_id": "daikin_809d41d9-4d42-45fa-af6a-84b512143672_faikin_restart"
           },
           "fan_speed": {
             "availability": [

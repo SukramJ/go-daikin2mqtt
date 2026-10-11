@@ -43,6 +43,11 @@ type identityComponent struct {
 // Home Assistant re-points an existing entity to the new topics because its
 // registry keys on unique_id; a single moved string here would instead strand
 // the old entity and create a second one, with no migration path.
+//
+// A component that did not exist in v0.13.0 (an entity added since, such as
+// the Faikin restart button of 0.15) is allowed and logged: it has no old
+// entity to strand. What is refused is a frozen component that is missing or
+// that renders under another platform, unique_id or entity-id seed.
 func TestHAIdentityUnchangedByTheTopicMigration(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("testdata", "identity", "v0.13.0.json"))
 	if err != nil {
@@ -74,8 +79,20 @@ func TestHAIdentityUnchangedByTheTopicMigration(t *testing.T) {
 				t.Errorf("%s %s: device identity %v via %q, was %v via %q",
 					sc.name, topic, g.Identifiers, g.ViaDevice, w.Identifiers, w.ViaDevice)
 			}
-			if !reflect.DeepEqual(g.Components, w.Components) {
-				t.Errorf("%s %s: component identities changed:\n got %v\nwant %v", sc.name, topic, g.Components, w.Components)
+			for key, wc := range w.Components {
+				gc, ok := g.Components[key]
+				if !ok {
+					t.Errorf("%s %s: component %q (%v) is no longer rendered", sc.name, topic, key, wc)
+					continue
+				}
+				if gc != wc {
+					t.Errorf("%s %s: component %q identity changed:\n got %v\nwant %v", sc.name, topic, key, gc, wc)
+				}
+			}
+			for key, gc := range g.Components {
+				if _, ok := w.Components[key]; !ok {
+					t.Logf("%s %s: component %q (%v) was added after v0.13.0", sc.name, topic, key, gc)
+				}
 			}
 			components += len(w.Components)
 		}
