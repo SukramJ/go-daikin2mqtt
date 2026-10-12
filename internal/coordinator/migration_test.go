@@ -688,11 +688,11 @@ func TestAnInvalidDocumentIsRefusedBeforeItIsPublished(t *testing.T) {
 		t.Fatal("a document this bridge actually publishes was refused")
 	}
 
-	// origin.name is blocking on a device document and merely advisory on a
-	// per-entity config — which is why F12 lands at this step and not at the
-	// byte-equality proof.
+	// An empty node id is a document error no withheld component can cure:
+	// Home Assistant ignores the whole document. (An empty origin.name used to
+	// stand here; Home Assistant accepts it, so it is only a warning now.)
 	bad := hass.Bundle{Topic: good.Topic, Bundle: cloneBundle(good.Bundle)}
-	bad.Bundle.Origin.Name = ""
+	bad.Bundle.NodeID = ""
 	if c.bundleValidates(bad) {
 		t.Error("a document Home Assistant's schemas refuse was accepted")
 	}

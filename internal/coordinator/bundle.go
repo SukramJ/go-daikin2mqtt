@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"sort"
 	"sync"
 
 	"github.com/SukramJ/go-hamqtt/discovery"
@@ -203,24 +204,48 @@ func (c *Coordinator) bundlesPublishable(bundles []hass.Bundle) bool {
 	return allOK
 }
 
-// bundleValidates runs Home Assistant's own discovery schemas over one document.
-// An advisory finding is logged and published; a blocking one is withheld.
+// bundleValidates runs Home Assistant's own discovery schemas over one document
+// through discovery.Contain, and says whether the document is worth publishing.
+//
+// Home Assistant refuses a device document whole only over device/origin, the
+// shared availability and a component's platform/unique_id; any other bad
+// component costs just that entity. Refusing the whole document (and with it the
+// whole batch) over one such component was therefore stricter than Home
+// Assistant itself. A component that would be dropped is now logged and the rest
+// of the device is published (the runtime's Config.Contain withholds the same
+// component on the wire); only a document Home Assistant refuses whatever it
+// contains is withheld. An advisory finding is logged and published.
 func (c *Coordinator) bundleValidates(b hass.Bundle) bool {
-	err := discovery.Validate(b.Bundle)
-	if err == nil {
-		return true
+	ct := discovery.Contain(b.Bundle, discovery.ContainOptions{})
+	if err := ct.Err(); err != nil {
+		c.deps.Logger.Error("coordinator.discovery_bundle_invalid",
+			slog.String("topic", b.Topic), slog.String("err", err.Error()),
+			slog.String("consequence",
+				"the device document is withheld and this device's per-entity configs are left in place"))
+		return false
 	}
-	var ve *discovery.ValidationError
-	if errors.As(err, &ve) && !ve.Blocking() {
-		c.deps.Logger.Warn("coordinator.discovery_bundle_advisory",
-			slog.String("topic", b.Topic), slog.Any("warnings", ve.Warnings))
-		return true
+	if len(ct.Withheld) > 0 {
+		c.deps.Logger.Warn("coordinator.discovery_bundle_contained",
+			slog.String("topic", b.Topic), slog.Any("withheld", withheldKeys(ct)))
 	}
-	c.deps.Logger.Error("coordinator.discovery_bundle_invalid",
-		slog.String("topic", b.Topic), slog.String("err", err.Error()),
-		slog.String("consequence",
-			"the device document is withheld and this device's per-entity configs are left in place"))
-	return false
+	if err := discovery.Validate(b.Bundle); err != nil {
+		var ve *discovery.ValidationError
+		if errors.As(err, &ve) && !ve.Blocking() {
+			c.deps.Logger.Warn("coordinator.discovery_bundle_advisory",
+				slog.String("topic", b.Topic), slog.Any("warnings", ve.Warnings))
+		}
+	}
+	return true
+}
+
+// withheldKeys lists the bundle keys a containment took out, sorted.
+func withheldKeys(ct *discovery.Containment) []string {
+	keys := make([]string, 0, len(ct.Withheld))
+	for k := range ct.Withheld {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // bundleFits preflights one document against the Maximum Packet Size the broker
