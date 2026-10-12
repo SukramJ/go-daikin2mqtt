@@ -1,5 +1,23 @@
 # Unreleased
 
+# Version 0.16.0 (2026-10-12)
+
+Discovery publishing now follows Home Assistant more closely: one bad component
+no longer withholds a whole device document. Updating needs no action.
+
+## Changed
+
+- **Discovery containment (go-hamqtt 0.37.0).** Home Assistant refuses a device
+  document whole only over device, origin, shared availability or a
+  component's platform/unique_id; any other bad component costs just that entity.
+  The pre-publish gate now uses `discovery.Contain`: a component Home Assistant
+  would drop is logged (`coordinator.discovery_bundle_contained`) and withheld
+  while the rest of the device is published, and the publisher runs with
+  `Config.Contain` so the wire matches. Only a document that is unpublishable
+  whatever it contains is still refused. An empty `origin.name` is a warning, no
+  longer a refusal.
+- Dependency: go-hamqtt 0.36.0 to 0.37.0.
+
 # Version 0.15.0 (2026-10-11)
 
 Local mode gains the Faikin module's restart button. Updating needs no other

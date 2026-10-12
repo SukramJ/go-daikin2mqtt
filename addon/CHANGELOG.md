@@ -6,6 +6,12 @@ top-level changelog.md. Newest version first.
 
 # Unreleased
 
+# 0.16.0 (2026-10-12)
+
+- One bad discovery component no longer withholds a whole device document: it
+  is logged and left out, the rest of the device is published.
+- Dependency: go-hamqtt 0.37.0.
+
 # 0.15.0 (2026-10-11)
 
 - Local mode: a *Restart Faikin module* button per mapped indoor unit

@@ -105,7 +105,11 @@ func RuntimeConfig(cfg *config.Config, logger *slog.Logger) publisher.Config {
 		Layout:             hass.Layout(cfg.MQTTTopic),
 		QoS:                DiscoveryQoS,
 		LegacyEntityTopics: hass.LegacyConfigTopicForms(),
-		Logger:             logger,
+		// Containment: a component Home Assistant would refuse is withheld and
+		// the rest of the device published, instead of the whole document
+		// being lost. bundleValidates logs the same set before the publish.
+		Contain: &discovery.ContainOptions{},
+		Logger:  logger,
 	}
 }
 
