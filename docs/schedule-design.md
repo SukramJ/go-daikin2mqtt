@@ -394,7 +394,7 @@ resolves through its bundle:
 ```
 
 New bundle keys live under `sched.*` in both
-`internal/web/assets/i18n/en.json` and `de.json`; error keys under
+`internal/web/assets/tools-i18n/en.json` and `de.json`; error keys under
 `sched.err.<code>`. A missing key falls back to the raw key, as `t()`
 already does, so a new error code never renders as an empty string.
 

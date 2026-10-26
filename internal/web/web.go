@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2026 SukramJ
 
-// Package web serves the optional diagnostic web UI for go-daikin2mqtt and
-// hosts the OAuth2 authorization callback.
+// Package web serves the optional web UI for go-daikin2mqtt and hosts the
+// OAuth2 authorization callback.
 //
-// It is a thin standard-library HTTP layer over the ONECTA cloud client, the
-// OAuth token source and the characteristic catalog. A hand-written
-// vanilla single-page app (no build step) embeds assets at build time, so
-// enabling the UI adds no third-party dependencies and keeps the daemon a
-// single static binary.
+// The dashboard — server, hardening, SSE stream and single-page app — is
+// go-bridgeui, the one every go-*2mqtt bridge embeds; the adapter here
+// presents the state store (what the bridge publishes) and the
+// coordinator's write queue as its contract. Beside it, as bridge routes
+// behind the same auth, runs the cloud tools page (tools.html): the OAuth
+// login, the raw device view, the weekly-schedule editor, the manual PATCH
+// test and the rate limit — a hand-written vanilla page over a thin
+// standard-library HTTP layer on the ONECTA cloud client, the OAuth token
+// source and the characteristic catalog.
 //
 // The package depends on the cloud client and token source through small
 // interfaces ([cloudClient] / [tokenSource]) rather than the concrete types,
@@ -22,10 +26,8 @@ package web
 
 import (
 	"context"
-	"crypto/subtle"
 	"embed"
 	"encoding/json"
-	"errors"
 	"hash/fnv"
 	"io/fs"
 	"log/slog"
@@ -33,22 +35,31 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/SukramJ/go-bridgeui"
+
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/auth"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
 	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
+	"github.com/SukramJ/go-daikin2mqtt/internal/state"
 	"github.com/SukramJ/go-daikin2mqtt/internal/version"
 )
 
-// staticFS holds the compiled single-page app. It is hand-written vanilla
-// HTML/CSS/JS (no build step) so the asset tree is committed as-is and
-// embedded verbatim. The tree is index.html at the root, /static for the
-// JS/CSS assets and /i18n for the translation bundles — all referenced with
-// relative URLs so the SPA works behind Home-Assistant ingress.
+// staticFS holds the tools page. It is hand-written vanilla HTML/CSS/JS (no
+// build step) so the asset tree is committed as-is and embedded verbatim.
+// The tree is tools.html at the root, /static for the JS/CSS assets and
+// /tools-i18n for its translation bundles — all referenced with relative
+// URLs so the page works behind Home-Assistant ingress.
 //
 //go:embed assets
 var staticFS embed.FS
+
+// i18nFS holds the dashboard's labels — sections, groups, status and
+// configuration tiles — merged over go-bridgeui's built-in bundles.
+//
+//go:embed i18n
+var i18nFS embed.FS
 
 // cloudClient is the subset of the ONECTA cloud client the web server
 // needs. *client.Client satisfies it structurally; defining it here keeps
@@ -93,7 +104,21 @@ type Deps struct {
 	// coordinator knows them, so it is injected; nil disables the mode-conflict
 	// check, which is meaningless without knowing who shares an outdoor unit.
 	Groups func() map[string][]string
+	// State is what the bridge publishes, for the dashboard; nil shows no
+	// devices.
+	State *state.Store
+	// Bridge queues the dashboard's writes and reports the cloud's health
+	// (*coordinator.Coordinator); nil makes every write fail as not ready.
+	Bridge Bridge
+	// MQTTUp reports the broker connection; nil counts it as up.
+	MQTTUp func() bool
 	Logger *slog.Logger
+}
+
+// Bridge is the subset of the coordinator the dashboard needs.
+type Bridge interface {
+	Submit(deviceID, embeddedID, topic, payload string) error
+	Upstream() (cloudOK, devicesKnown bool, lastPoll time.Time)
 }
 
 // Server is the embedded diagnostic web server. Construct it with [New] and
@@ -108,7 +133,7 @@ type Server struct {
 	schedule scheduleEngine
 	groups   func() map[string][]string
 	log      *slog.Logger
-	handler  http.Handler
+	ui       *bridgeui.Server
 
 	states *stateStore
 }
@@ -140,27 +165,59 @@ func New(d Deps) *Server {
 	if e, ok := d.Schedule.(*schedule.Engine); ok && e == nil {
 		s.schedule = nil
 	}
-	s.handler = s.withAuth(s.routes())
+	tr, err := bridgeui.LoadTranslations(i18nFS, "i18n")
+	if err != nil {
+		// The bundles are embedded and covered by a test.
+		panic("web: " + err.Error())
+	}
+	s.ui = bridgeui.New(bridgeui.Options{
+		Bind:         cfg.WebBind,
+		User:         cfg.WebUser,
+		Password:     cfg.WebPassword,
+		Realm:        "daikin2mqtt",
+		Logger:       log,
+		Language:     cfg.Language,
+		Layout:       dashboardLayout(cfg),
+		Translations: tr,
+		Routes:       s.register,
+	}, newAdapter(d, cfg))
 	return s
 }
 
-// Handler returns the fully wired HTTP handler (auth middleware + routes).
-// Exported for tests and future Home-Assistant ingress mounting.
+// Handler returns the fully wired HTTP handler: the dashboard and the tools
+// page behind one auth. Exported for tests.
 func (s *Server) Handler() http.Handler {
-	return s.handler
+	return s.ui.Handler()
 }
 
-// routes wires the REST API, the OAuth endpoints and the embedded SPA onto
-// a ServeMux.
-func (s *Server) routes() *http.ServeMux {
-	mux := http.NewServeMux()
+// Run binds the socket on Cfg.WebBind and serves until ctx is cancelled.
+func (s *Server) Run(ctx context.Context) error {
+	return s.ui.Run(ctx)
+}
 
-	mux.HandleFunc("GET /api/config", s.handleConfig)
+// cloudRequestTimeout bounds the routes that wait on the cloud: GET
+// /api/devices can wait on the cloud lock plus GET retries with backoff before
+// it starts responding, longer than the dashboard's write deadline.
+const cloudRequestTimeout = 60 * time.Second
+
+// slow extends the response write deadline of a route that waits on the cloud.
+func slow(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(cloudRequestTimeout))
+		next(w, r)
+	}
+}
+
+// register wires the tools page — its REST API, the OAuth endpoints and its
+// assets — onto the dashboard's mux. The mutating routes take JSON from the
+// same origin only.
+func (s *Server) register(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/tools/config", s.handleConfig)
 	mux.HandleFunc("GET /api/auth/status", s.handleAuthStatus)
 	mux.HandleFunc("GET /api/auth/login", s.handleAuthLogin)
 	mux.HandleFunc("GET /callback", s.handleCallback)
-	mux.HandleFunc("GET /api/devices", s.handleDevices)
-	mux.HandleFunc("POST /api/patch", s.handlePatch)
+	mux.HandleFunc("GET /api/devices", slow(s.handleDevices))
+	mux.HandleFunc("POST /api/patch", slow(s.handlePatch))
 	mux.HandleFunc("GET /api/ratelimit", s.handleRateLimit)
 
 	// Weekly schedules. Registered unconditionally: with the scheduler off they
@@ -173,19 +230,18 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/schedules/{id}/enable", s.handleScheduleEnable)
 	mux.HandleFunc("GET /api/schedules/preview", s.handleSchedulePreview)
 
-	// Embedded SPA: index.html + static/* assets + i18n/* bundles. The
-	// FileServerFS serves "/" as index.html, /static/* and /i18n/* directly,
-	// and 404s unknown paths (there is no client-side routing to fall back
-	// for), which is exactly the desired behaviour.
+	// The tools page: tools.html + static/* assets + tools-i18n/* bundles.
+	// "/" is the dashboard's.
 	sub, err := fs.Sub(staticFS, "assets")
 	if err != nil {
 		// Embedded path is a compile-time constant; this cannot fail in a
 		// correctly built binary.
 		panic("web: embed sub fs: " + err.Error())
 	}
-	mux.Handle("GET /", revalidating(http.FileServerFS(sub)))
-
-	return mux
+	files := revalidating(http.FileServerFS(sub))
+	mux.Handle("GET /tools.html", files)
+	mux.Handle("GET /static/", files)
+	mux.Handle("GET /tools-i18n/", files)
 }
 
 // assetsETag fingerprints the embedded asset tree, computed once at start-up.
@@ -236,68 +292,4 @@ func revalidating(next http.Handler) http.Handler {
 		w.Header().Set("ETag", assetsETag)
 		next.ServeHTTP(w, r)
 	})
-}
-
-// withAuth wraps next with HTTP Basic auth when both credentials are
-// configured. With no credentials it returns next unchanged so an
-// unauthenticated deployment (e.g. behind HA ingress) has zero overhead.
-func (s *Server) withAuth(next http.Handler) http.Handler {
-	if s.cfg.WebUser == "" && s.cfg.WebPassword == "" {
-		return next
-	}
-	wantUser := []byte(s.cfg.WebUser)
-	wantPass := []byte(s.cfg.WebPassword)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, pass, ok := r.BasicAuth()
-		// Constant-time compares so a timing side-channel can't probe the
-		// credentials. Both fields must match.
-		userOK := subtle.ConstantTimeCompare([]byte(user), wantUser) == 1
-		passOK := subtle.ConstantTimeCompare([]byte(pass), wantPass) == 1
-		if !ok || !userOK || !passOK {
-			w.Header().Set("WWW-Authenticate", `Basic realm="daikin2mqtt", charset="UTF-8"`)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-// Run binds the socket on Cfg.WebBind and serves until ctx is cancelled,
-// then shuts down gracefully. A clean shutdown returns nil; a bind failure
-// surfaces as a non-nil error so the daemon tears everything down (a
-// misconfigured port should be loud, not silently ignored).
-func (s *Server) Run(ctx context.Context) error {
-	srv := &http.Server{
-		Addr:              s.cfg.WebBind,
-		Handler:           s.handler,
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		// Generous write timeout: /api/devices can wait on the cloud lock plus
-		// GET retries with backoff before it starts responding.
-		WriteTimeout: 60 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	errc := make(chan error, 1)
-	go func() { errc <- srv.ListenAndServe() }()
-
-	s.log.Info("web.listening",
-		slog.String("bind", s.cfg.WebBind),
-		slog.Bool("auth", s.cfg.WebUser != ""))
-
-	select {
-	case <-ctx.Done():
-		// Fresh context on purpose: the parent ctx is already cancelled here,
-		// but graceful shutdown still needs a deadline of its own.
-		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = srv.Shutdown(shutCtx) //nolint:contextcheck // intentional fresh context for shutdown
-		s.log.Info("web.stopped")
-		return nil
-	case err := <-errc:
-		if errors.Is(err, http.ErrServerClosed) {
-			return nil
-		}
-		return err
-	}
 }

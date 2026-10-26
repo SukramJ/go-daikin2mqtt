@@ -18,7 +18,10 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
 	"github.com/SukramJ/go-daikin2mqtt/internal/config"
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/client"
+	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
+	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
+	"github.com/SukramJ/go-daikin2mqtt/internal/state"
 )
 
 // fixtureCloud serves a canned device tree: three indoor units on one outdoor
@@ -167,7 +170,8 @@ func TestManualUIServer(t *testing.T) {
 		lang = "de"
 	}
 	srv := New(Deps{
-		Cfg:      &config.Config{Language: lang, ScheduleEnable: true, WebEnable: true},
+		State:    fixtureState(t, cat),
+		Cfg:      &config.Config{Language: lang, ScheduleEnable: true, WebEnable: true, MQTTServer: "mqtt.local", MQTTTopic: "daikin"},
 		Client:   fixtureCloud{},
 		Catalog:  cat,
 		Schedule: eng,
@@ -177,7 +181,11 @@ func TestManualUIServer(t *testing.T) {
 		Logger: slog.New(slog.DiscardHandler),
 	})
 
-	ln, err := net.Listen("tcp", "127.0.0.1:18099")
+	addr := os.Getenv("UI_ADDR")
+	if addr == "" {
+		addr = "127.0.0.1:18099"
+	}
+	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
@@ -186,4 +194,43 @@ func TestManualUIServer(t *testing.T) {
 	t.Log("UI available at http://127.0.0.1:18099/ — press Ctrl-C or wait for the timeout")
 	time.Sleep(25 * time.Minute)
 	_ = hs.Close()
+}
+
+// fixtureState is the dashboard's store as a poll of the fixture would fill
+// it: the resolved points, each with its value.
+func fixtureState(t *testing.T, cat *catalog.Catalog) *state.Store {
+	t.Helper()
+	raw, _ := fixtureCloud{}.GetDevices(context.Background())
+	devices, err := model.ParseDevices(raw)
+	if err != nil {
+		t.Fatalf("fixture: %v", err)
+	}
+	st := state.New(time.Now().Add(-3 * time.Hour))
+	models := map[string]string{}
+	byDevice := map[string][]state.Point{}
+	for _, d := range devices {
+		models[d.ID] = d.Model
+	}
+	points := process.ResolveAt(devices, cat, time.Now())
+	for i := range points {
+		p := &points[i]
+		sp := state.Point{
+			EmbeddedID: p.EmbeddedID, MPType: p.MPType, Topic: p.Topic, Characteristic: p.Entry.Match.Characteristic,
+			Name: p.Entry.Name, NameDE: p.Entry.NameDE, Platform: p.Entry.Platform, Category: p.Entry.Category,
+			Unit: p.Unit, Min: p.Min, Max: p.Max, Step: p.Step, Settable: p.Entry.Settable,
+		}
+		for _, v := range p.Entry.Values {
+			sp.Options = append(sp.Options, state.Option{Value: v.Value, Label: v.Label, LabelDE: v.LabelDE})
+		}
+		byDevice[p.DeviceID] = append(byDevice[p.DeviceID], sp)
+	}
+	st.SetPoints(models, byDevice)
+	for i := range points {
+		p := &points[i]
+		st.Observe(p.DeviceID, p.EmbeddedID, p.Topic, p.Value, time.Now())
+	}
+	for id := range models {
+		st.Observe(id, "", "online", true, time.Now())
+	}
+	return st
 }

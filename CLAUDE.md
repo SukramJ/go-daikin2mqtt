@@ -256,7 +256,7 @@ switchable from HA. Full rationale in `docs/schedule-design.md`.
   edits only `name`, so `switch.daikin_schedule_<slug>` survives it. `main` imports
   `_ "time/tzdata"`: the distroless image has no system zone database.
 
-### i18n rules (`internal/catalog/localize.go`, `internal/web/assets/i18n/`)
+### i18n rules (`internal/catalog/localize.go`, `internal/web/i18n/`, `internal/web/assets/tools-i18n/`)
 `LANGUAGE` is `en` (default/fallback) or `de`. **Localized:** catalog/entity display names,
 enum labels, web-UI text. **Not localized:** MQTT topics, entity_ids, characteristic keys, and
 command *values*. Schedules add a third category: a schedule's `name` and a block's `label` are **user
@@ -268,7 +268,7 @@ time formatting from `Intl`, so no second translation table exists; API errors c
 stable `code` the SPA resolves as `sched.err.<code>`. The week starts on Monday in both
 languages (the stored day keys are Monday-based). `TestI18nBundlesCoverEveryKey` enforces
 that both bundles carry the same keys and that every key referenced from the HTML or JS
-exists.
+exists (tools page); `TestDashboardBundlesMatch` does the same for the dashboard's labels.
 
 **Tokens on the wire, labels in discovery** (since 0.14, openccu-loom ADR 0083): every
 enum status item — selects, `schedule_state`'s `idle`, the climate fan/swing/preset — carries
@@ -307,10 +307,25 @@ refused unless `publisher.DetectSupervised("DAIKIN_SUPERVISED")`. The HA identit
 (`unique_id`, node ids, device identifiers) must not move — `TestHAIdentityUnchangedByTheTopicMigration`
 pins them against v0.13.0.
 
-### Web UI (`internal/web/`)
-Optional (`WEB_ENABLE`, default off, bind `127.0.0.1:8080`, optional basic auth). Vanilla
-embedded SPA (`//go:embed`, no build step). Same server hosts the OAuth `/callback`, so no
-inbound port forwarding is needed. **HA-ingress aware** (relative asset URLs; can derive the
+### Web UI (`internal/web/`, `internal/state/`)
+Optional (`WEB_ENABLE`, default off, bind `127.0.0.1:8080`, optional basic auth). Two pages
+behind one server and one auth:
+- **The dashboard (`/`) is go-bridgeui**, the one every go-*2mqtt bridge embeds.
+  `adapter.go` maps `internal/state` onto its contract: every ONECTA device a device, every
+  published point an entry (grouped climate / hot water / energy / schedule / local /
+  diagnostics), every settable number/select/switch/button an item. The store is fed by the
+  coordinator — `recordPoints` describes the points of each poll, `publishState` hands it
+  every published status item (cloud, Faikin and scheduler alike) — so the dashboard shows
+  what MQTT carries and costs no cloud request. A write goes through
+  `Coordinator.Submit`, i.e. the same queue, validation and PATCH path as an MQTT `set`.
+- **The tools page (`tools.html`)**, a vanilla embedded page (`//go:embed`, no build step),
+  registered through go-bridgeui's `Options.Routes` and linked from the dashboard's
+  navigation: OAuth login, raw cloud device tree, weekly-schedule editor, manual PATCH
+  test, rate limit. Its config route is `/api/tools/config` (`/api/config` is the
+  dashboard's). The routes that wait on the cloud extend their write deadline (`slow`).
+
+The same server hosts the OAuth `/callback` (it returns to `tools.html`), so no inbound
+port forwarding is needed. **HA-ingress aware** (relative asset URLs; can derive the
 OAuth redirect URI from the request behind ingress).
 
 ## Config

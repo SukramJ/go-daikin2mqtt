@@ -2,6 +2,21 @@
 
 ## Added
 
+- **Web UI: the shared dashboard.** The page is now
+  [go-bridgeui](https://github.com/SukramJ/go-bridgeui), the dashboard every
+  go-*2mqtt bridge shares: every device's values as the bridge publishes them
+  (cloud, Faikin and scheduler alike), live over Server-Sent Events, grouped
+  into climate & hot water, energy, schedule, local and diagnostics; the
+  settable ones as controls that go through the same queue, validation and
+  PATCH path as an MQTT `set`; the cloud, authentication and rate limit as
+  status tiles; the configuration without secrets. It reads what the daemon
+  already has and costs no cloud request.
+- The OAuth login, the raw cloud device tree, the weekly-schedule calendar,
+  the manual PATCH test and the rate limit moved unchanged to a tools page
+  (`tools.html`), linked from the dashboard's navigation. After the OAuth
+  callback the browser returns there. Its configuration route is now
+  `GET /api/tools/config`; `GET /api/config` is the dashboard's.
+
 - **TLS to the MQTT broker.** `MQTT_TLS` connects to the main broker over
   `tls://` instead of `tcp://`; an unset `MQTT_PORT` then defaults to 8883
   (an explicit port always wins). `MQTT_TLS_CA` names a PEM CA bundle for a

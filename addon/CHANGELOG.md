@@ -6,6 +6,11 @@ top-level changelog.md. Newest version first.
 
 # Unreleased
 
+- The web UI's front page is now the dashboard all go-*2mqtt bridges share:
+  every unit's values live, the settable ones as controls (through the same
+  path as an MQTT set), cloud, login and rate-limit status — without extra
+  cloud requests. Login, raw cloud data, weekly schedules and the PATCH test
+  are on the tools page, linked from its navigation.
 - TLS to the MQTT broker: new options `mqtt_tls`, `mqtt_tls_ca` and
   `mqtt_tls_insecure`. Put a private CA bundle under `/ssl` or `/share` and
   name it in `mqtt_tls_ca` (e.g. `/ssl/ca.crt`); set `mqtt_port` to the

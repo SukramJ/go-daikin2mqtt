@@ -138,9 +138,15 @@ MQTT service. See [`addon/README.md`](./addon/README.md).
 
 ## Diagnostic web UI
 
-Set `WEB_ENABLE: true` (default bind `127.0.0.1:8080`) to serve a small
-diagnostic UI that shows the OAuth status, offers a "Connect to Daikin"
-button, browses devices / data points, sends test PATCHes, and shows the
+Set `WEB_ENABLE: true` (default bind `127.0.0.1:8080`) to serve the web
+UI. Its dashboard is the one every go-*2mqtt bridge shares
+([go-bridgeui](https://github.com/SukramJ/go-bridgeui)): every device's
+values as the bridge publishes them, live over Server-Sent Events, the
+settable ones as controls (through the same path as an MQTT `set`), the
+cloud's, authentication's and rate limit's status, and the configuration —
+without a single extra cloud request. Its navigation links the cloud tools
+page: the OAuth status with the "Connect to Daikin" button, the raw device
+tree, the weekly-schedule calendar, the manual PATCH test and the
 rate-limit budget. The same server hosts the OAuth `/callback`, so no
 inbound port forwarding is required.
 
