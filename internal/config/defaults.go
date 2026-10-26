@@ -26,7 +26,10 @@ const (
 	// the cloud serves stale data immediately after a write.
 	DefaultScanIgnore = 30
 
-	DefaultMQTTPort     = 1883
+	DefaultMQTTPort = 1883
+	// DefaultMQTTTLSPort is the IANA-registered MQTT-over-TLS port, the
+	// MQTT_PORT default while MQTT_TLS is on.
+	DefaultMQTTTLSPort  = 8883
 	DefaultMQTTLogin    = ""
 	DefaultMQTTPassword = ""
 	// DefaultMQTTStatsInterval is mqtt-smarthome 2.0's own default for
@@ -90,8 +93,13 @@ func applyDefaults(c *Config) {
 	if c.ScanIgnore == 0 {
 		c.ScanIgnore = DefaultScanIgnore
 	}
+	// Only an unset port is defaulted, so an explicit MQTT_PORT wins over
+	// the TLS-dependent default.
 	if c.MQTTPort == 0 {
 		c.MQTTPort = DefaultMQTTPort
+		if c.MQTTTLS {
+			c.MQTTPort = DefaultMQTTTLSPort
+		}
 	}
 	// Both topic roots are trimmed of surrounding slashes BEFORE the empty
 	// check, so "/" normalises to the default rather than to an empty root.
@@ -128,6 +136,18 @@ func applyDefaults(c *Config) {
 	}
 	if c.LocalFaikinPort == 0 {
 		c.LocalFaikinPort = DefaultLocalFaikinPort
+		// The Faikin broker falls back to the main broker's host. Without
+		// TLS both ports default to 1883 and the main connection is reused.
+		// With MQTT_TLS the main port becomes 8883, and a 1883 default here
+		// would open a second, plaintext connection to the same broker —
+		// carrying the main credentials in the clear, which is exactly what
+		// MQTT_TLS was set to prevent. So while the Faikin broker is
+		// entirely unconfigured it IS the main broker, port included, and
+		// the TLS connection is shared. An explicit LOCAL_FAIKIN_PORT or
+		// LOCAL_FAIKIN_SERVER still wins (and stays plain MQTT).
+		if c.MQTTTLS && c.LocalFaikinServer == "" {
+			c.LocalFaikinPort = c.MQTTPort
+		}
 	}
 	if c.LocalFaikinPrefix == "" {
 		c.LocalFaikinPrefix = DefaultLocalFaikinPrefix

@@ -46,6 +46,12 @@ ports_description:
 services:
   - mqtt:want
 
+# /ssl (Home Assistant's certificate folder) and /share, read-only, so a
+# private CA bundle for mqtt_tls_ca can be placed there.
+map:
+  - ssl:ro
+  - share:ro
+
 options:
   client_id: ""
   client_secret: ""
@@ -54,6 +60,9 @@ options:
   mqtt_port: 1883
   mqtt_login: ""
   mqtt_password: ""
+  mqtt_tls: false
+  mqtt_tls_insecure: false
+  mqtt_tls_ca: ""
   mqtt_topic: daikin
   mqtt_client_id: ""
   mqtt_maintenance: true
@@ -85,6 +94,9 @@ schema:
   mqtt_port: int(1,65535)
   mqtt_login: "str?"
   mqtt_password: "password?"
+  mqtt_tls: bool
+  mqtt_tls_insecure: bool
+  mqtt_tls_ca: "str?"
   mqtt_topic: str
   mqtt_client_id: "str?"
   mqtt_maintenance: bool

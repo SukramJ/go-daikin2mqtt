@@ -203,7 +203,10 @@ or an `id=host,…` string). Three concerns, all sitting on top of the existing 
   `MULTISPLIT_OUTDOOR_AGGREGATE` / `ENFORCE_MUTUAL_EXCLUSIVE`.
 
 The Faikin broker defaults to the main MQTT broker (connection reused); a distinct
-`LOCAL_FAIKIN_SERVER` opens a second connection. The dependency engine runs **above** the backend
+`LOCAL_FAIKIN_SERVER` opens a second connection. That second connection is always plain
+`tcp://` — `MQTT_TLS` covers the main broker only. With `MQTT_TLS` on and both
+`LOCAL_FAIKIN_SERVER`/`LOCAL_FAIKIN_PORT` unset, the Faikin port defaults to `MQTT_PORT`
+(not 1883), so the TLS connection is shared instead of a plaintext one opened to the same host. The dependency engine runs **above** the backend
 seam, so fan-out works through either cloud or local.
 
 ### Weekly schedules (`internal/schedule/`, `internal/coordinator/schedule.go`)
@@ -323,7 +326,9 @@ their feature switch is on; the
 add-on surfaces them as options and `script/run.sh` maps them to env (`local_device_map` as a
 list joined into the `id=host,…` scalar form). `MQTT_MAINTENANCE` (default true) and
 `MQTT_STATS_INTERVAL` (seconds, default 60, 0 = off) are `*bool`/`*int` so an unset key keeps
-its default; `MQTT_TOPIC` is refused when it holds a wildcard, NUL or a leading `$`.
+its default; `MQTT_TLS`/`MQTT_TLS_CA`/`MQTT_TLS_INSECURE` select TLS to the main broker (port
+default 8883 when TLS is on and `MQTT_PORT` unset; CA + insecure is refused; the tls.Config is
+built at startup in `mainBrokerConfig`); `MQTT_TOPIC` is refused when it holds a wildcard, NUL or a leading `$`.
 
 ## Testing conventions
 

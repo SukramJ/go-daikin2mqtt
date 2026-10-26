@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -143,15 +144,11 @@ func run(configPath, catalogPath string, logger *slog.Logger, level *slog.LevelV
 	if err != nil {
 		return fmt.Errorf("mqtt will: %w", err)
 	}
-	mqttClient := mqtt.NewTCPClient(mqtt.TCPConfig{
-		BrokerURL:  fmt.Sprintf("tcp://%s:%d", cfg.MQTTServer, cfg.MQTTPort),
-		ClientID:   mainClientID(cfg),
-		Username:   cfg.MQTTLogin,
-		Password:   cfg.MQTTPassword,
-		CleanStart: true,
-		Will:       bridgeWill(will),
-		Logger:     logger,
-	})
+	mainCfg, err := mainBrokerConfig(cfg, bridgeWill(will), logger)
+	if err != nil {
+		return err
+	}
+	mqttClient := mqtt.NewTCPClient(mainCfg)
 	lifecycle := mqtt.NewLifecycle(mqtt.LifecycleConfig{Logger: logger}, mqttClient)
 	if err := lifecycle.Start(ctx); err != nil {
 		return fmt.Errorf("mqtt: %w", err)
@@ -203,7 +200,7 @@ func run(configPath, catalogPath string, logger *slog.Logger, level *slog.LevelV
 				slog.String("faikin_broker", cfg.FaikinBrokerAddress()), slog.Bool("shared_connection", true))
 		} else {
 			fc := mqtt.NewTCPClient(mqtt.TCPConfig{
-				BrokerURL:  "tcp://" + cfg.FaikinBrokerAddress(),
+				BrokerURL:  cfg.FaikinBrokerURL(),
 				ClientID:   faikinClientID(cfg),
 				Username:   cfg.FaikinLogin(),
 				Password:   cfg.FaikinPassword(),
@@ -398,6 +395,42 @@ func faikinClientID(cfg *config.Config) string {
 	return cfg.MQTTClientID + config.FaikinClientIDSuffix
 }
 
+// mainBrokerConfig builds the client config of the main broker link.
+//
+// The TLS config is built here, at startup, so a CA file that cannot be used
+// stops the daemon with an error naming it instead of turning into a
+// handshake failure on every reconnect. The server name is the broker
+// hostname from MQTT_SERVER, never a URL. With MQTT_TLS off no TLS config is
+// built at all (the client would ignore one on tcp:// anyway).
+func mainBrokerConfig(cfg *config.Config, will *mqtt.Will, logger *slog.Logger) (mqtt.TCPConfig, error) {
+	var tlsConfig *tls.Config
+	if cfg.MQTTTLS {
+		var err error
+		tlsConfig, err = mqtt.NewClientTLSConfigWithCA(cfg.MQTTServer, cfg.MQTTTLSCA, cfg.MQTTTLSInsecure)
+		if err != nil {
+			return mqtt.TCPConfig{}, fmt.Errorf("mqtt: broker TLS: %w", err)
+		}
+	}
+	return mqtt.TCPConfig{
+		BrokerURL:  cfg.MQTTBrokerURL(),
+		ClientID:   mainClientID(cfg),
+		Username:   cfg.MQTTLogin,
+		Password:   cfg.MQTTPassword,
+		TLSConfig:  tlsConfig,
+		CleanStart: true,
+		Will:       will,
+		Logger:     logger,
+	}, nil
+}
+
+// logConfigWarnings logs every non-fatal config problem [config.Config.Warnings]
+// reports.
+func logConfigWarnings(cfg *config.Config, logger *slog.Logger) {
+	for _, w := range cfg.Warnings() {
+		logger.Warn("daikin2mqtt.config_warning", slog.String("warning", w))
+	}
+}
+
 // loadConfig resolves the config path (explicit flag or standard search) and
 // loads it with environment overrides applied.
 func loadConfig(configPath string, logger *slog.Logger) (*config.Config, error) {
@@ -418,6 +451,7 @@ func loadConfig(configPath string, logger *slog.Logger) (*config.Config, error) 
 			return nil, err
 		}
 		logger.Info("daikin2mqtt.config_loaded", slog.String("path", "(environment only)"))
+		logConfigWarnings(cfg, logger)
 		return cfg, nil
 	}
 	cfg, err := config.LoadFile(path, env)
@@ -425,5 +459,6 @@ func loadConfig(configPath string, logger *slog.Logger) (*config.Config, error) 
 		return nil, err
 	}
 	logger.Info("daikin2mqtt.config_loaded", slog.String("path", path))
+	logConfigWarnings(cfg, logger)
 	return cfg, nil
 }
