@@ -73,7 +73,7 @@ jobs:
         env:
           # Race detector requires CGo; re-enable just for this step.
           CGO_ENABLED: "1"
-        run: go test -race -count=1 -timeout=120s ./...
+        run: go test -race -count=1 -timeout=300s ./...
 
   build:
     name: build

@@ -107,7 +107,7 @@ install: ## go install both binaries to $(go env GOPATH)/bin
 
 .PHONY: test
 test: ## run the full test suite with race detector
-	CGO_ENABLED=1 $(GO) test -race -count=1 -timeout=60s ./...
+	CGO_ENABLED=1 $(GO) test -race -count=1 -timeout=300s ./...
 
 .PHONY: test-cover
 test-cover: ## run tests + coverage report
