@@ -175,6 +175,19 @@ DAIKIN_MQTT_PASSWORD='change-me' ./bin/daikin2mqtt
 
 Bool / int / float values are coerced; everything else stays a string.
 
+**TLS to the broker.** `MQTT_TLS: true` dials the broker over `tls://`
+instead of `tcp://`; an unset `MQTT_PORT` then defaults to `8883` (an
+explicit port always wins). `MQTT_TLS_CA` names a PEM CA bundle for a broker
+signed by a private CA — it replaces the system trust store, and a file that
+cannot be used stops the daemon at startup with an error naming it.
+`MQTT_TLS_INSECURE: true` skips certificate verification: **dangerous**,
+explicit opt-in only, warned about at startup, and refused together with
+`MQTT_TLS_CA`. Either key while `MQTT_TLS` is off has no effect (logged).
+TLS covers the main broker only; a separate Faikin broker
+(`LOCAL_FAIKIN_SERVER`) stays plain MQTT (also logged). With
+`LOCAL_FAIKIN_SERVER` and `LOCAL_FAIKIN_PORT` both unset the Faikin broker
+*is* the main broker, so local mode rides the TLS connection.
+
 **`MQTT_TOPIC`** (default `daikin`) is the instance name every topic starts
 with. **It is the only thing that keeps two instances apart on one broker** —
 nothing checks it. Two instances of this bridge (two ONECTA accounts, a

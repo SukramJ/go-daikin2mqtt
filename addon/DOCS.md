@@ -32,6 +32,9 @@ Everything else has sensible defaults; use the reference below to fine-tune.
 | `mqtt_port` | int | `1883` | MQTT broker port. Only used when `mqtt_server` is set; the auto-detected broker brings its own port. |
 | `mqtt_login` | str | `""` | MQTT username. Only used when `mqtt_server` is set (auto-detect supplies credentials). |
 | `mqtt_password` | password | `""` | MQTT password. Only used when `mqtt_server` is set. |
+| `mqtt_tls` | bool | `false` | Connect to the broker over TLS. Only used when `mqtt_server` is set — with `mqtt_server` empty the add-on follows the Home Assistant MQTT service, TLS included. Set `mqtt_port` to the broker's TLS port (usually `8883`) as well. See "TLS to the MQTT broker" below. |
+| `mqtt_tls_ca` | str | `""` | Path of a PEM CA bundle for a broker signed by a private CA, e.g. `/ssl/ca.crt` or `/share/mqtt/ca.crt` (both folders are mapped read-only). Replaces the system trust store for the broker. A file that cannot be used stops the add-on with an error naming it. |
+| `mqtt_tls_insecure` | bool | `false` | **Dangerous.** Skip verification of the broker certificate — the connection is then open to a man-in-the-middle. Explicit opt-in only, logged as a warning at startup. Cannot be combined with `mqtt_tls_ca`. |
 | `mqtt_topic` | str | `daikin` | Instance name every MQTT topic starts with (`daikin/status/…`, `daikin/set/…`, `daikin/connected`, `daikin/info`). **It is the only thing that keeps two instances apart on one broker** — a second go-daikin2mqtt against the same broker needs a different name, or both write the same topics. No `+`, `#` or leading `$`. |
 | `mqtt_client_id` | str? | `daikin2mqtt` | MQTT client identifier. A broker disconnects the session it already holds when a second client presents the same id, so two instances on one broker must differ here. Leave empty unless you run more than one. |
 | `mqtt_maintenance` | bool | `true` | Maintenance topics: `<mqtt_topic>/maintenance/set/loglevel` (`error`/`warn`/`info`/`debug`), the periodic `<mqtt_topic>/maintenance/stats`, and `…/set/restart`, which the add-on refuses (the Supervisor does not restart an add-on that exits cleanly). **Anyone who may publish on the broker can change the log level** — keep the broker's ACLs tight or turn this off. |
@@ -54,6 +57,23 @@ Everything else has sensible defaults; use the reference below to fine-tune.
 | `schedule_timezone` | str | `""` | IANA zone the schedules' wall-clock times are read in (e.g. `Europe/Berlin`). **Leave empty** to use the system zone, which under Home Assistant is the Supervisor's — normally what you want. |
 | `schedule_catchup` | int | `1800` | Seconds after a missed block start during which the target state is still applied. Covers a restart that interrupted a switch without overwriting a manual change made hours ago. |
 | `enforce_mutual_exclusive` | bool | `true` | Powerful and eco cannot run together (both act on the shared outdoor compressor). Turning eco on clears powerful. Turning powerful on suspends eco group-wide and remembers it; when powerful ends (manually or after the 20-minute hardware timeout) eco is restored, since the hardware does not restore it itself. |
+
+### TLS to the MQTT broker
+
+With `mqtt_server` empty the add-on uses the Home Assistant MQTT service and
+connects over TLS exactly when that service reports TLS. For a broker of your
+own set `mqtt_server`, `mqtt_tls: true` and `mqtt_port` (usually `8883`).
+
+If the broker's certificate is signed by a private CA, put the CA bundle (PEM)
+in Home Assistant's `/ssl` folder (e.g. `/ssl/ca.crt`) or under `/share`
+(e.g. `/share/mqtt/ca.crt`) — the add-on maps both read-only — and name it in
+`mqtt_tls_ca`. That bundle then replaces the system trust store for the
+broker. `mqtt_tls_insecure` switches verification off instead; use it only to
+diagnose, never permanently.
+
+TLS covers the main broker. In local mode with `local_faikin_server` empty the
+Faikin traffic shares that TLS connection (`local_faikin_port` is then not
+used). A separate Faikin broker (`local_faikin_server` set) stays plain MQTT.
 
 Fixed by the add-on (not user-configurable): the token store lives at
 `/data/token-store.json`, the schedules at `/data/schedules.json` (both survive

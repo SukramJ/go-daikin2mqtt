@@ -138,6 +138,22 @@ type Config struct {
 	MQTTPort     int    `yaml:"MQTT_PORT"`
 	MQTTLogin    string `yaml:"MQTT_LOGIN"`
 	MQTTPassword string `yaml:"MQTT_PASSWORD"`
+	// MQTTTLS dials the main broker over tls:// instead of tcp://. With TLS
+	// on, an unset MQTT_PORT defaults to 8883 instead of 1883; an explicit
+	// MQTT_PORT always wins. It applies to the main broker only — the Faikin
+	// broker connection stays plain MQTT (see [Config.FaikinSharesMainBroker]
+	// for how the two meet).
+	MQTTTLS bool `yaml:"MQTT_TLS"`
+	// MQTTTLSInsecure skips verification of the main broker's certificate. It
+	// leaves the link open to an active man-in-the-middle, so it is an
+	// explicit operator opt-in only, never a default, and the daemon warns at
+	// startup while it is on.
+	MQTTTLSInsecure bool `yaml:"MQTT_TLS_INSECURE"`
+	// MQTTTLSCA is the path of a PEM bundle of the CA certificate(s) the main
+	// broker's certificate must chain to — for a broker signed by a private
+	// CA. It replaces the system trust store for this connection. Empty uses
+	// the system roots.
+	MQTTTLSCA string `yaml:"MQTT_TLS_CA"`
 	// MQTTTopic is the instance name every topic starts with (mqtt-smarthome
 	// 2.0's `<name>`): `<name>/status/…`, `<name>/set/…`, `<name>/connected`.
 	// It is the ONLY thing that keeps two instances apart on one broker:
@@ -334,8 +350,55 @@ func (c *Config) MutualExclusiveEnforced() bool {
 // FaikinSharesMainBroker reports whether the Faikin broker address equals the
 // main MQTT broker, so the existing connection can be reused instead of opening
 // a second one (the common case: the modules publish to the same broker).
+//
+// With MQTT_TLS on and neither LOCAL_FAIKIN_SERVER nor LOCAL_FAIKIN_PORT set,
+// the defaults make the Faikin port follow MQTT_PORT (see applyDefaults), so
+// this stays true and the Faikin traffic rides the main TLS connection instead
+// of a second, plaintext one to the main broker's host.
 func (c *Config) FaikinSharesMainBroker() bool {
 	return c.FaikinBrokerAddress() == net.JoinHostPort(c.MQTTServer, strconv.Itoa(c.MQTTPort))
+}
+
+// MQTTBrokerURL is the URL the main broker client dials: tls:// when MQTT_TLS
+// is on, tcp:// otherwise.
+func (c *Config) MQTTBrokerURL() string {
+	scheme := "tcp"
+	if c.MQTTTLS {
+		scheme = "tls"
+	}
+	return scheme + "://" + net.JoinHostPort(c.MQTTServer, strconv.Itoa(c.MQTTPort))
+}
+
+// FaikinBrokerURL is the URL a separate Faikin broker connection dials. It is
+// always plain tcp://: MQTT_TLS covers the main broker only, and the Faikin
+// modules themselves speak plain MQTT.
+func (c *Config) FaikinBrokerURL() string {
+	return "tcp://" + c.FaikinBrokerAddress()
+}
+
+// Warnings returns the config problems that are worth an operator's
+// attention but do not stop the daemon: TLS options that have no effect
+// because MQTT_TLS is off, certificate verification switched off, and a
+// Faikin broker connection that stays plaintext while the main one is TLS.
+func (c *Config) Warnings() []string {
+	var out []string
+	if !c.MQTTTLS {
+		if c.MQTTTLSInsecure {
+			out = append(out, "MQTT_TLS_INSECURE has no effect while MQTT_TLS is false")
+		}
+		if c.MQTTTLSCA != "" {
+			out = append(out, "MQTT_TLS_CA has no effect while MQTT_TLS is false")
+		}
+		return out
+	}
+	if c.MQTTTLSInsecure {
+		out = append(out, "MQTT_TLS_INSECURE is on: the broker certificate is NOT verified, the connection is open to a man-in-the-middle")
+	}
+	if c.LocalEnabled() && !c.FaikinSharesMainBroker() {
+		out = append(out, "the Faikin broker connection to "+c.FaikinBrokerAddress()+
+			" is plain MQTT (tcp://): MQTT_TLS applies to the main broker only")
+	}
+	return out
 }
 
 // CredentialsConfigured reports whether both OAuth client credentials are set.

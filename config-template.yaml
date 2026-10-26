@@ -26,9 +26,21 @@ SCAN_IGNORE: 30               # seconds to skip GETs after a PATCH (stale data)
 
 # --- MQTT ---
 MQTT_SERVER: localhost
+# Omit MQTT_PORT for the default: 1883, or 8883 with MQTT_TLS. An explicit
+# value always wins.
 MQTT_PORT: 1883
 MQTT_LOGIN: ""
 MQTT_PASSWORD: ""
+# TLS to the broker (tls:// instead of tcp://). Off by default. Covers this
+# broker only; a separate Faikin broker (LOCAL_FAIKIN_SERVER) stays plain MQTT.
+MQTT_TLS: false
+# PEM bundle with the CA certificate(s) of a broker signed by a private CA. It
+# replaces the system trust store for this connection; empty = system roots.
+# A file that cannot be used stops the daemon at startup.
+MQTT_TLS_CA: ""
+# DANGEROUS: skip verification of the broker certificate (man-in-the-middle
+# possible). Explicit opt-in only; cannot be combined with MQTT_TLS_CA.
+MQTT_TLS_INSECURE: false
 # Instance name every topic starts with: <MQTT_TOPIC>/status/..., /set/...,
 # /connected, /info (mqtt-smarthome 2.0). Default: daikin.
 # It is the ONLY thing that keeps two instances apart on one broker: two
@@ -68,7 +80,10 @@ LOCAL_MODE: false
 # Broker the Faikin modules publish to. Empty -> same host/port as MQTT_SERVER
 # (the common case: the modules share the daemon's broker).
 LOCAL_FAIKIN_SERVER: ""
-LOCAL_FAIKIN_PORT: 1883
+# Default 1883. With MQTT_TLS on and LOCAL_FAIKIN_SERVER empty, an unset port
+# follows MQTT_PORT, so the main TLS connection is reused instead of a second,
+# plaintext one to the same broker.
+# LOCAL_FAIKIN_PORT: 1883
 # Credentials for that broker. Empty -> fall back to MQTT_LOGIN / MQTT_PASSWORD.
 LOCAL_FAIKIN_LOGIN: ""
 LOCAL_FAIKIN_PASSWORD: ""

@@ -25,17 +25,36 @@ if bashio::config.has_value 'mqtt_server'; then
   export DAIKIN_MQTT_PORT="$(bashio::config 'mqtt_port')"
   export DAIKIN_MQTT_LOGIN="$(bashio::config 'mqtt_login')"
   export DAIKIN_MQTT_PASSWORD="$(bashio::config 'mqtt_password')"
+  export DAIKIN_MQTT_TLS="$(bashio::config 'mqtt_tls')"
+  if bashio::config.true 'mqtt_tls' && [ "${DAIKIN_MQTT_PORT}" = "1883" ]; then
+    bashio::log.warning "mqtt_tls is on but mqtt_port is 1883, the plaintext MQTT port; TLS brokers usually listen on 8883."
+  fi
 elif bashio::services.available 'mqtt'; then
   bashio::log.info "mqtt_server empty; using the Home Assistant MQTT service."
   export DAIKIN_MQTT_SERVER="$(bashio::services 'mqtt' 'host')"
   export DAIKIN_MQTT_PORT="$(bashio::services 'mqtt' 'port')"
   export DAIKIN_MQTT_LOGIN="$(bashio::services 'mqtt' 'username')"
   export DAIKIN_MQTT_PASSWORD="$(bashio::services 'mqtt' 'password')"
+  # The service states whether its port speaks TLS; follow it, so the port
+  # it hands over is never dialed with the wrong protocol.
+  if [ "$(bashio::services 'mqtt' 'ssl')" = "true" ]; then
+    export DAIKIN_MQTT_TLS="true"
+  else
+    export DAIKIN_MQTT_TLS="false"
+  fi
 else
   bashio::log.warning "mqtt_server empty and no MQTT service offered; falling back to core-mosquitto:1883."
   export DAIKIN_MQTT_SERVER="core-mosquitto"
   export DAIKIN_MQTT_PORT="1883"
+  export DAIKIN_MQTT_TLS="false"
 fi
+# CA bundle and the verification opt-out apply to whichever broker was chosen
+# above. The daemon refuses the two together, warns when either is set while
+# TLS is off, and stops when the CA file cannot be used.
+if bashio::config.has_value 'mqtt_tls_ca'; then
+  export DAIKIN_MQTT_TLS_CA="$(bashio::config 'mqtt_tls_ca')"
+fi
+export DAIKIN_MQTT_TLS_INSECURE="$(bashio::config 'mqtt_tls_insecure')"
 export DAIKIN_MQTT_TOPIC="$(bashio::config 'mqtt_topic')"
 # Client identifier. A broker disconnects the session it already holds when a
 # second client presents the same id, so two instances against one broker must
@@ -89,7 +108,15 @@ fi
 # --- Local-first control (Faikin / Faikout) ---
 export DAIKIN_LOCAL_MODE="$(bashio::config 'local_mode')"
 if bashio::config.true 'local_mode'; then
-  export DAIKIN_LOCAL_FAIKIN_PORT="$(bashio::config 'local_faikin_port')"
+  # local_faikin_port is documented as used only with local_faikin_server.
+  # Under TLS that has to hold: an exported 1883 would make the daemon open a
+  # second, plaintext connection to the main broker's host (with the main
+  # credentials) instead of sharing the TLS one — unset, the daemon lets the
+  # Faikin port follow MQTT_PORT. Without TLS it is exported as before, so
+  # existing plaintext setups behave exactly as they did.
+  if bashio::config.has_value 'local_faikin_server' || [ "${DAIKIN_MQTT_TLS}" != "true" ]; then
+    export DAIKIN_LOCAL_FAIKIN_PORT="$(bashio::config 'local_faikin_port')"
+  fi
   if bashio::config.has_value 'local_faikin_server'; then
     export DAIKIN_LOCAL_FAIKIN_SERVER="$(bashio::config 'local_faikin_server')"
   fi
@@ -135,7 +162,7 @@ export DAIKIN_TOKEN_STORE_PATH="/data/token-store.json"
 # Same for the schedules, so they survive add-on updates.
 export DAIKIN_SCHEDULE_STORE_PATH="/data/schedules.json"
 
-bashio::log.info "Configuration prepared; MQTT server: ${DAIKIN_MQTT_SERVER}:${DAIKIN_MQTT_PORT}"
+bashio::log.info "Configuration prepared; MQTT server: ${DAIKIN_MQTT_SERVER}:${DAIKIN_MQTT_PORT} (tls=${DAIKIN_MQTT_TLS})"
 bashio::log.info "Web UI / OAuth callback bound to ${DAIKIN_WEB_BIND} (served via Ingress)."
 
 # Hand off to the daemon (becomes PID 1).

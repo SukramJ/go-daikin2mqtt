@@ -6,6 +6,14 @@ top-level changelog.md. Newest version first.
 
 # Unreleased
 
+- TLS to the MQTT broker: new options `mqtt_tls`, `mqtt_tls_ca` and
+  `mqtt_tls_insecure`. Put a private CA bundle under `/ssl` or `/share` and
+  name it in `mqtt_tls_ca` (e.g. `/ssl/ca.crt`); set `mqtt_port` to the
+  broker's TLS port (usually 8883). With `mqtt_server` empty, a Home Assistant
+  MQTT service that reports TLS is now connected over TLS. In local mode with
+  `local_faikin_server` empty the Faikin traffic then shares that TLS
+  connection. Nothing changes for existing plaintext setups.
+
 # 0.16.0 (2026-10-12)
 
 - One bad discovery component no longer withholds a whole device document: it

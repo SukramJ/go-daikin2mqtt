@@ -1,5 +1,32 @@
 # Unreleased
 
+## Added
+
+- **TLS to the MQTT broker.** `MQTT_TLS` connects to the main broker over
+  `tls://` instead of `tcp://`; an unset `MQTT_PORT` then defaults to 8883
+  (an explicit port always wins). `MQTT_TLS_CA` names a PEM CA bundle for a
+  broker signed by a private CA, and `MQTT_TLS_INSECURE` (dangerous, warned
+  about at startup) skips certificate verification. The two cannot be
+  combined; a CA file that cannot be used stops the daemon at startup with an
+  error naming it. Env overrides `DAIKIN_MQTT_TLS`, `DAIKIN_MQTT_TLS_CA`,
+  `DAIKIN_MQTT_TLS_INSECURE`.
+- **Local mode under TLS.** The Faikin broker stays plain MQTT. When it falls
+  back to the main broker (`LOCAL_FAIKIN_SERVER` empty) and `LOCAL_FAIKIN_PORT`
+  is unset, its port now follows `MQTT_PORT` while `MQTT_TLS` is on, so the
+  main TLS connection is reused instead of a second, plaintext connection to
+  the same broker carrying the main credentials. A separately configured
+  Faikin broker is logged as plaintext. Nothing changes with `MQTT_TLS` off.
+- **Add-on.** New options `mqtt_tls`, `mqtt_tls_insecure`, `mqtt_tls_ca`; the
+  add-on maps `/ssl` and `/share` read-only so a CA bundle such as
+  `/ssl/ca.crt` can be used. With `mqtt_server` empty, a Home Assistant MQTT
+  service that reports TLS is now connected over TLS.
+
+## Changed
+
+- `config-template.yaml` no longer sets `LOCAL_FAIKIN_PORT` (the default is
+  still 1883), so the TLS fallback above applies to a copied template.
+- Dependency: go-mqtt 1.7.0.
+
 # Version 0.16.0 (2026-10-12)
 
 Discovery publishing now follows Home Assistant more closely: one bad component
