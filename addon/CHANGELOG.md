@@ -4,7 +4,7 @@ Keep entries condensed; the full history lives in the repository's
 top-level changelog.md. Newest version first.
 -->
 
-# Unreleased
+# 0.17.0 (2026-10-26)
 
 - The web UI's front page is now the dashboard all go-*2mqtt bridges share:
   every unit's values live, the settable ones as controls (through the same

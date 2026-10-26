@@ -1,4 +1,4 @@
-# Unreleased
+# Version 0.17.0 (2026-10-26)
 
 ## Added
 
