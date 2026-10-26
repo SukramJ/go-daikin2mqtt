@@ -85,7 +85,7 @@ func TestConfigReportsLanguage(t *testing.T) {
 	ts := newTestServer(baseDeps())
 	defer ts.Close()
 
-	res, err := http.Get(ts.URL + "/api/config")
+	res, err := http.Get(ts.URL + "/api/tools/config")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestConfigDefaultsLanguageToEnglish(t *testing.T) {
 	ts := newTestServer(d)
 	defer ts.Close()
 
-	res, _ := http.Get(ts.URL + "/api/config")
+	res, _ := http.Get(ts.URL + "/api/tools/config")
 	defer func() { _ = res.Body.Close() }()
 	var cv configView
 	_ = json.NewDecoder(res.Body).Decode(&cv)
@@ -124,17 +124,18 @@ func TestServesSPA(t *testing.T) {
 	ts := newTestServer(baseDeps())
 	defer ts.Close()
 
-	res, _ := http.Get(ts.URL + "/")
+	res, _ := http.Get(ts.URL + "/tools.html")
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
-		t.Fatalf("index status = %d", res.StatusCode)
+		t.Fatalf("tools status = %d", res.StatusCode)
 	}
 	b, _ := io.ReadAll(res.Body)
 	if !strings.Contains(string(b), "daikin2mqtt") {
-		t.Error("index.html not served at /")
+		t.Error("tools.html not served")
 	}
 
-	for _, asset := range []string{"/static/app.js", "/static/style.css", "/i18n/en.json", "/i18n/de.json"} {
+	// "/" is the dashboard, with the bridge's layout.
+	for _, asset := range []string{"/", "/app.js", "/api/ui", "/i18n/de.json", "/static/app.js", "/static/style.css", "/tools-i18n/en.json", "/tools-i18n/de.json"} {
 		r, err := http.Get(ts.URL + asset)
 		if err != nil {
 			t.Fatalf("GET %s: %v", asset, err)
@@ -151,7 +152,7 @@ func TestI18nBundlesAreValidJSON(t *testing.T) {
 	defer ts.Close()
 
 	for _, lang := range []string{"en", "de"} {
-		res, err := http.Get(ts.URL + "/i18n/" + lang + ".json")
+		res, err := http.Get(ts.URL + "/tools-i18n/" + lang + ".json")
 		if err != nil {
 			t.Fatalf("GET %s: %v", lang, err)
 		}
@@ -174,14 +175,14 @@ func TestBasicAuth(t *testing.T) {
 	defer ts.Close()
 
 	// No credentials → 401.
-	res, _ := http.Get(ts.URL + "/api/config")
+	res, _ := http.Get(ts.URL + "/api/tools/config")
 	_ = res.Body.Close()
 	if res.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("no-auth status = %d, want 401", res.StatusCode)
 	}
 
 	// Wrong credentials → 401.
-	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/config", http.NoBody)
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/tools/config", http.NoBody)
 	req.SetBasicAuth("admin", "wrong")
 	res2, _ := http.DefaultClient.Do(req)
 	_ = res2.Body.Close()
@@ -190,7 +191,7 @@ func TestBasicAuth(t *testing.T) {
 	}
 
 	// Correct credentials → 200.
-	req2, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/config", http.NoBody)
+	req2, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/tools/config", http.NoBody)
 	req2.SetBasicAuth("admin", "s3cret")
 	res3, _ := http.DefaultClient.Do(req2)
 	_ = res3.Body.Close()
@@ -440,11 +441,11 @@ func TestEffectiveRedirectURI(t *testing.T) {
 
 func TestRootRedirectIngressAware(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/callback", http.NoBody)
-	if got := rootRedirect(req); got != "./" {
-		t.Errorf("rootRedirect without ingress = %q, want ./", got)
+	if got := rootRedirect(req); got != "tools.html" {
+		t.Errorf("rootRedirect without ingress = %q, want tools.html", got)
 	}
 	req.Header.Set("X-Ingress-Path", "/api/hassio_ingress/abc")
-	if got := rootRedirect(req); got != "/api/hassio_ingress/abc/" {
+	if got := rootRedirect(req); got != "/api/hassio_ingress/abc/tools.html" {
 		t.Errorf("rootRedirect with ingress = %q", got)
 	}
 }
@@ -457,7 +458,7 @@ func TestRootRedirectIngressAware(t *testing.T) {
 func TestI18nBundlesCoverEveryKey(t *testing.T) {
 	load := func(lang string) map[string]string {
 		t.Helper()
-		b, err := staticFS.ReadFile("assets/i18n/" + lang + ".json")
+		b, err := staticFS.ReadFile("assets/tools-i18n/" + lang + ".json")
 		if err != nil {
 			t.Fatalf("read %s bundle: %v", lang, err)
 		}
@@ -481,7 +482,7 @@ func TestI18nBundlesCoverEveryKey(t *testing.T) {
 	}
 
 	// Keys referenced from the markup.
-	html, err := staticFS.ReadFile("assets/index.html")
+	html, err := staticFS.ReadFile("assets/tools.html")
 	if err != nil {
 		t.Fatalf("read index.html: %v", err)
 	}
@@ -570,7 +571,7 @@ func TestStylesheetDefinesUsedClasses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read style.css: %v", err)
 	}
-	html, err := staticFS.ReadFile("assets/index.html")
+	html, err := staticFS.ReadFile("assets/tools.html")
 	if err != nil {
 		t.Fatalf("read index.html: %v", err)
 	}
@@ -644,7 +645,7 @@ func TestAssetsRevalidate(t *testing.T) {
 	ts := newTestServer(baseDeps())
 	defer ts.Close()
 
-	for _, asset := range []string{"/", "/static/style.css", "/static/app.js", "/i18n/de.json"} {
+	for _, asset := range []string{"/tools.html", "/static/style.css", "/static/app.js", "/tools-i18n/de.json"} {
 		res, err := http.Get(ts.URL + asset)
 		if err != nil {
 			t.Fatalf("GET %s: %v", asset, err)

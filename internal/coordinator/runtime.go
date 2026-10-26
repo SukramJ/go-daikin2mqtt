@@ -74,6 +74,7 @@ func (c *Coordinator) resetHAPlane() {
 // [noneIfEmpty]); this function no longer guesses. Home Assistant shows both
 // as unknown — see hass.SensorValueTemplate.
 func (c *Coordinator) publishState(ctx context.Context, topic string, value any) (written, ok bool) {
+	c.observe(topic, value)
 	if c.deps.StatePlane == nil {
 		return false, false
 	}

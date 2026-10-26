@@ -440,13 +440,13 @@ func (s *Server) handlePatch(w http.ResponseWriter, r *http.Request) {
 
 // rootRedirect resolves the URL to send the browser back to after a
 // successful callback. Behind Home-Assistant ingress the add-on UI lives at
-// the X-Ingress-Path prefix; otherwise a relative "./" returns to the SPA
-// root regardless of where it is mounted.
+// the X-Ingress-Path prefix; otherwise a relative "tools.html" returns to the
+// tools page regardless of where it is mounted.
 func rootRedirect(r *http.Request) string {
 	if p := ingressPrefix(r); p != "" {
-		return p + "/"
+		return p + "/tools.html"
 	}
-	return "./"
+	return "tools.html"
 }
 
 // ingressPrefix returns the validated Home-Assistant X-Ingress-Path prefix

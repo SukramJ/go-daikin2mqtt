@@ -39,6 +39,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
 	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
+	"github.com/SukramJ/go-daikin2mqtt/internal/state"
 	"github.com/SukramJ/go-daikin2mqtt/internal/version"
 	"github.com/SukramJ/go-daikin2mqtt/internal/web"
 )
@@ -255,7 +256,14 @@ func run(configPath, catalogPath string, logger *slog.Logger, level *slog.LevelV
 	// user-intent device commands (and its own state subscription),
 	// possibly on a separate local broker whose health is independent of
 	// the main link — a main-broker brownout must not reject them.
+	// The web UI's copy of what the bridge publishes; only kept when the UI
+	// is on.
+	var store *state.Store
+	if cfg.WebEnable {
+		store = state.New(time.Now())
+	}
 	coord := coordinator.New(coordinator.Deps{
+		State:        store,
 		Cfg:          cfg,
 		Client:       cloud,
 		MQTT:         session,
@@ -335,6 +343,9 @@ func run(configPath, catalogPath string, logger *slog.Logger, level *slog.LevelV
 			// unit, which is what makes a scheduled heat/cool clash detectable.
 			Schedule: scheduleEngine,
 			Groups:   coord.OutdoorGroups,
+			State:    store,
+			Bridge:   coord,
+			MQTTUp:   mqttClient.IsConnected,
 			Logger:   logger,
 		})
 		g.Go(func() error { return srv.Run(gctx) })

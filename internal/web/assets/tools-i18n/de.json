@@ -1,4 +1,5 @@
 {
+  "nav.dashboard": "← Dashboard",
   "app.title": "Daikin-Diagnose",
   "app.subtitle": "Cloud-Diagnose & OAuth",
   "nav.auth": "Anmeldung",

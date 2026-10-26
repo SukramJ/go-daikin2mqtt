@@ -120,6 +120,26 @@ func (r Root) CommandFilter() string { return r.sh.Name() + "/" + hatopic.Functi
 // Online is a device's reachability item, `<name>/status/<deviceID>/online`.
 func (r Root) Online(deviceID string) string { return r.sh.Status(deviceID, OnlineLeaf) }
 
+// ParseStatus is the inverse of [Root.Slot]'s and [Root.Online]'s status
+// items: a slot's device, management point and leaf, or a device's online
+// item (embeddedID empty, leaf [OnlineLeaf]). ok is false for any other
+// topic.
+func (r Root) ParseStatus(topic string) (deviceID, embeddedID, leaf string, ok bool) {
+	prefix := strings.TrimSuffix(r.sh.Status("x"), "x")
+	rest, found := strings.CutPrefix(topic, prefix)
+	if !found {
+		return "", "", "", false
+	}
+	parts := strings.Split(rest, "/")
+	switch {
+	case len(parts) == 3 && parts[0] != "" && parts[1] != "" && parts[2] != "":
+		return parts[0], parts[1], parts[2], true
+	case len(parts) == 2 && parts[0] != "" && parts[1] == OnlineLeaf:
+		return parts[0], "", OnlineLeaf, true
+	}
+	return "", "", "", false
+}
+
 // Slot addresses one entity's item: the device, the management point and the
 // leaf name. The leaf is a catalogue `topic:` for a real characteristic and a
 // synthetic name (hvac_mode, fan_mode, schedule_state, …) for a point the

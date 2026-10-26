@@ -2,7 +2,7 @@
 <!--
   SPDX-License-Identifier: MIT
   Copyright (C) 2026 SukramJ
-  Diagnostic web UI for go-daikin2mqtt. Hand-written vanilla SPA (no build
+  Cloud tools page of go-daikin2mqtt, linked from the dashboard ("./"). Hand-written vanilla SPA (no build
   step) — served verbatim via go:embed. All asset/API URLs are relative so
   the page works both directly and behind Home-Assistant ingress. Static
   strings carry data-i18n keys; app.js fills them from the translation
@@ -29,6 +29,7 @@
           </div>
         </div>
         <nav class="nav" id="nav">
+          <a href="./" class="nav-item" data-i18n="nav.dashboard">← Dashboard</a>
           <a href="#sec-auth" class="nav-item active" data-target="sec-auth" data-i18n="nav.auth">Authentication</a>
           <a href="#sec-devices" class="nav-item" data-target="sec-devices" data-i18n="nav.devices">Devices</a>
           <a href="#sec-schedules" class="nav-item" data-target="sec-schedules" data-i18n="nav.schedules" hidden>Schedules</a>

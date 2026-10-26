@@ -190,7 +190,7 @@ Enable it with:
     - "1921496f-5316-4555-b79a-2d3c96da202f=Klima SZ"
   ```
 
-  Find each **device ID** in the diagnostic web UI's device browser; the
+  Find each **device ID** in the web UI (the dashboard's device picker, or the raw cloud data page); the
   **Faikin host** is the module's hostname (its `state/<host>` topic).
 
 The cloud connection is still used to bootstrap the device list and Home

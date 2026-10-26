@@ -197,3 +197,23 @@ func TestNewRefusesAnInvalidName(t *testing.T) {
 		}()
 	}
 }
+
+func TestParseStatus(t *testing.T) {
+	r := New("daikin")
+	for _, c := range []struct {
+		topic          string
+		dev, emb, leaf string
+		ok             bool
+	}{
+		{r.Slot("d1", "climateControl", "room_temp").State(), "d1", "climateControl", "room_temp", true},
+		{r.Online("d1"), "d1", "", OnlineLeaf, true},
+		{r.Slot("d1", "climateControl", "room_temp").Command(), "", "", "", false},
+		{"other/status/d1/e/x", "", "", "", false},
+		{r.Connected(), "", "", "", false},
+	} {
+		dev, emb, leaf, ok := r.ParseStatus(c.topic)
+		if dev != c.dev || emb != c.emb || leaf != c.leaf || ok != c.ok {
+			t.Errorf("ParseStatus(%q) = %q %q %q %v", c.topic, dev, emb, leaf, ok)
+		}
+	}
+}

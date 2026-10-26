@@ -31,7 +31,7 @@ async function loadI18n(lang) {
   LOCALE = LANG === "de" ? "de-DE" : "en-US";
   document.documentElement.lang = LANG;
   try {
-    I18N = await fetchJSON("i18n/" + LANG + ".json");
+    I18N = await fetchJSON("tools-i18n/" + LANG + ".json");
   } catch (e) {
     I18N = {}; // fall back to raw keys / English HTML defaults
   }
@@ -60,7 +60,7 @@ async function init() {
   // Language first so all subsequent rendering is localised.
   let config = null;
   try {
-    config = await fetchJSON("api/config");
+    config = await fetchJSON("api/tools/config");
   } catch (e) {
     /* non-critical */
   }

@@ -40,6 +40,7 @@ import (
 	"github.com/SukramJ/go-daikin2mqtt/internal/hass"
 	"github.com/SukramJ/go-daikin2mqtt/internal/process"
 	"github.com/SukramJ/go-daikin2mqtt/internal/schedule"
+	"github.com/SukramJ/go-daikin2mqtt/internal/state"
 )
 
 // CloudClient is the slice of the cloud client the coordinator needs.
@@ -88,6 +89,9 @@ type Deps struct {
 	// reached over is up. Optional; nil counts it as up. It is half of what
 	// `<name>/connected` says in local mode — see [Coordinator.upstreamLevel].
 	FaikinConnected func() bool
+	// State is the web UI's copy of what this bridge publishes. Optional;
+	// nil (the web UI off) keeps none.
+	State *state.Store
 }
 
 // Coordinator owns the poll/publish/write loops.
@@ -463,6 +467,7 @@ func (c *Coordinator) pollOnce(ctx context.Context) {
 	points = append(points, c.refreshPoints(devices)...)
 	// The scheduler's per-device status sensors (only when it is enabled).
 	points = append(points, c.schedulePoints(devices)...)
+	c.recordPoints(devices, points)
 
 	if c.deps.HASS != nil {
 		// What this instance polls, and therefore which retained discovery
