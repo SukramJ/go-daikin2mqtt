@@ -1,272 +1,1724 @@
-<!--
-Home Assistant renders this file as the add-on changelog in its UI.
-Keep entries condensed; the full history lives in the repository's
-top-level changelog.md. Newest version first.
--->
+# Unreleased
 
-# 0.17.0 (2026-10-26)
+## Changed
 
-- The web UI's front page is now the dashboard all go-*2mqtt bridges share:
-  every unit's values live, the settable ones as controls (through the same
-  path as an MQTT set), cloud, login and rate-limit status — without extra
-  cloud requests. Login, raw cloud data, weekly schedules and the PATCH test
-  are on the tools page, linked from its navigation.
-- TLS to the MQTT broker: new options `mqtt_tls`, `mqtt_tls_ca` and
-  `mqtt_tls_insecure`. Put a private CA bundle under `/ssl` or `/share` and
-  name it in `mqtt_tls_ca` (e.g. `/ssl/ca.crt`); set `mqtt_port` to the
-  broker's TLS port (usually 8883). With `mqtt_server` empty, a Home Assistant
-  MQTT service that reports TLS is now connected over TLS. In local mode with
-  `local_faikin_server` empty the Faikin traffic then shares that TLS
-  connection. Nothing changes for existing plaintext setups.
+- **The web UI follows Home Assistant's look** (go-bridgeui 0.4.0). In the
+  add-on panel it takes Home Assistant's live theme — colours, light/dark
+  mode and card style, custom themes included — and hides its own toggle.
+  Opened directly it uses Home Assistant's default light and dark palettes,
+  following the system preference, instead of the former navy theme.
+- **Add-on sidebar title** is now `Daikin` instead of `go-daikin2mqtt`.
 
-# 0.16.0 (2026-10-12)
+# Version 0.17.0 (2026-10-26)
 
-- One bad discovery component no longer withholds a whole device document: it
-  is logged and left out, the rest of the device is published.
-- Dependency: go-hamqtt 0.37.0.
+## Added
 
-# 0.15.0 (2026-10-11)
+- **Web UI: the shared dashboard.** The page is now
+  [go-bridgeui](https://github.com/SukramJ/go-bridgeui), the dashboard every
+  go-*2mqtt bridge shares: every device's values as the bridge publishes them
+  (cloud, Faikin and scheduler alike), live over Server-Sent Events, grouped
+  into climate & hot water, energy, schedule, local and diagnostics; the
+  settable ones as controls that go through the same queue, validation and
+  PATCH path as an MQTT `set`; the cloud, authentication and rate limit as
+  status tiles; the configuration without secrets. It reads what the daemon
+  already has and costs no cloud request.
+- The OAuth login, the raw cloud device tree, the weekly-schedule calendar,
+  the manual PATCH test and the rate limit moved unchanged to a tools page
+  (`tools.html`), linked from the dashboard's navigation. After the OAuth
+  callback the browser returns there. Its configuration route is now
+  `GET /api/tools/config`; `GET /api/config` is the dashboard's.
 
-- Local mode: a *Restart Faikin module* button per mapped indoor unit
-  (entity category *config*) sends the module's own
-  `command/<host>/restart`. It replaces the restart button of Faikin's
-  redirected HA discovery. The module is back after about six seconds; the
-  humidity sensor briefly reads 0 until the module reports it again.
+- **TLS to the MQTT broker.** `MQTT_TLS` connects to the main broker over
+  `tls://` instead of `tcp://`; an unset `MQTT_PORT` then defaults to 8883
+  (an explicit port always wins). `MQTT_TLS_CA` names a PEM CA bundle for a
+  broker signed by a private CA, and `MQTT_TLS_INSECURE` (dangerous, warned
+  about at startup) skips certificate verification. The two cannot be
+  combined; a CA file that cannot be used stops the daemon at startup with an
+  error naming it. Env overrides `DAIKIN_MQTT_TLS`, `DAIKIN_MQTT_TLS_CA`,
+  `DAIKIN_MQTT_TLS_INSECURE`.
+- **Local mode under TLS.** The Faikin broker stays plain MQTT. When it falls
+  back to the main broker (`LOCAL_FAIKIN_SERVER` empty) and `LOCAL_FAIKIN_PORT`
+  is unset, its port now follows `MQTT_PORT` while `MQTT_TLS` is on, so the
+  main TLS connection is reused instead of a second, plaintext connection to
+  the same broker carrying the main credentials. A separately configured
+  Faikin broker is logged as plaintext. Nothing changes with `MQTT_TLS` off.
+- **Add-on.** New options `mqtt_tls`, `mqtt_tls_insecure`, `mqtt_tls_ca`; the
+  add-on maps `/ssl` and `/share` read-only so a CA bundle such as
+  `/ssl/ca.crt` can be used. With `mqtt_server` empty, a Home Assistant MQTT
+  service that reports TLS is now connected over TLS.
 
-# 0.14.1 (2026-10-06)
+## Changed
 
-Fixes for 0.14.0; updating needs no other action.
+- `config-template.yaml` no longer sets `LOCAL_FAIKIN_PORT` (the default is
+  still 1883), so the TLS fallback above applies to a copied template.
+- Dependency: go-mqtt 1.7.0.
 
-- The scheduler's enable switches showed no state (*unknown*); they now
-  work like every other switch.
-- A cleared value (an error code that went away, the next change of a
-  disabled schedule) now shows as *unknown* instead of the old value.
-- In local mode, every cloud poll no longer briefly clears the
-  Faikin-provided values, and the start-up clean-up no longer clears a
-  device's availability before its Faikin module reported.
-- A single failed or rate-limited cloud poll no longer makes every entity
-  unavailable; a rate limit keeps the last values, other failures count
-  from the second poll in a row.
+# Version 0.16.0 (2026-10-12)
 
-# 0.14.0 (2026-10-06)
+Discovery publishing now follows Home Assistant more closely: one bad component
+no longer withholds a whole device document. Updating needs no action.
 
-- **Every MQTT topic changes** to the mqtt-smarthome 2.0 convention:
-  `daikin/status/…` and `daikin/set/…` instead of `…/state` and `…/set`,
-  and `daikin/connected` (`0`/`1`/`2`) instead of `daikin/bridge/status`.
-  **Home Assistant entities are unaffected** — ids, names, areas and
-  history are kept. Node-RED flows, dashboards and scripts reading raw
-  topics must be updated (see the add-on documentation).
-- Every value is a JSON object `{"val","ts","lc"}`: power and switches are
-  `true`/`false`, enums are tokens (`cooling`) instead of localized labels.
-  Commands take the plain value or `{"val": …}`, at QoS 1.
-- Entities now go unavailable when a device is unreachable
-  (`daikin/status/<device>/online`), not only when the add-on stops.
-- New `daikin/info` and maintenance topics (log level, stats), with the
-  new options `mqtt_maintenance` and `mqtt_stats_interval`. Restart over
-  MQTT is refused in the add-on. Anyone who may publish on the broker can
-  change the log level — keep its ACLs tight or turn maintenance off.
-- The retained topics 0.13 left are cleared on start; another
-  instance's topics are never touched. `mqtt_topic` is what keeps two
-  instances apart — give a second one a different name.
+## Changed
 
-# 0.13.0 (2026-10-02)
+- **Discovery containment (go-hamqtt 0.37.0).** Home Assistant refuses a device
+  document whole only over device, origin, shared availability or a
+  component's platform/unique_id; any other bad component costs just that entity.
+  The pre-publish gate now uses `discovery.Contain`: a component Home Assistant
+  would drop is logged (`coordinator.discovery_bundle_contained`) and withheld
+  while the rest of the device is published, and the publisher runs with
+  `Config.Contain` so the wire matches. Only a document that is unpublishable
+  whatever it contains is still refused. An empty `origin.name` is a warning, no
+  longer a refusal.
+- Dependency: go-hamqtt 0.36.0 to 0.37.0.
 
-- **Built with Go 1.27.1** (Docker image, add-on image and CI). Nothing
-  changes at runtime.
-- **Library updates:** go-mqtt 1.6.0, go-ha-catalog 0.3.0 and go-hamqtt
-  0.35.0, the releases built on Go 1.27.
-- Otherwise internal clean-ups only: no entities, topics, payloads or
-  options change.
+# Version 0.15.0 (2026-10-11)
 
-# 0.12.0 (2026-09-14)
+Local mode gains the Faikin module's restart button. Updating needs no other
+action: the button appears on every mapped indoor unit by itself, and no
+existing entity id, name or history changes.
 
-- **New option `mqtt_client_id`.** The MQTT client identifier used to be
-  a compile-time constant, so two daemons on one broker disconnected
-  each other in a loop. Existing installations are unaffected: the
-  option defaults to the value used before it existed.
-- **A second instance no longer removed the first's thermostats and
-  refresh buttons.** Those 24 discovery payloads carry no state topic,
-  so the "is this mine?" rule fell back to a prefix every installation
-  shares.
-- **The climate fan dropdown no longer reads `unknown` in local mode.**
-  The Faikin fan speed was translated through Daikin's *humidification*
-  vocabulary instead of its fan-speed one, so every numbered speed was
-  dropped. Cloud-only installations were unaffected.
-- Shared outdoor-unit entities no longer depend on the order the cloud
-  returns devices in.
-- Home Assistant discovery now publishes **one retained document per
-  device** instead of one config per entity. Upgrading needs no action:
-  entities keep their ids, names, icons, areas and history. If the
-  add-on is stopped mid-migration the entities disappear until it
-  starts again, which redoes the migration by itself.
-- An entity removed from a device (a deleted weekly schedule,
-  `local_mode` turned off, a catalogue change) is now actually removed
-  from Home Assistant instead of lingering as a phantom that still
-  reads "available".
-- A broker restarted without its retained store now gets the discovery
-  documents back on the next connect, instead of staying empty until
-  the entity set happened to change.
-- **Two daemons on one broker no longer delete each other's weekly
-  schedule switches.** The switches sat on a topic and a Home Assistant
-  device that every installation shares, so each instance removed the
-  other's from the entity registry and put its own back, indefinitely.
-  Side effect for a single instance: a schedule deleted while the
-  add-on is stopped leaves its switch behind to remove by hand;
-  deleting a schedule in the web UI works as before. Run one instance
-  per ONECTA account per MQTT topic.
-- **Downgrading to 0.11.x or earlier requires clearing the retained
-  device documents first** — see "Home Assistant discovery and rolling
-  back" in the documentation tab.
+## Added
 
-# 0.11.0 (2026-08-16)
+- **Local mode: a *Restart Faikin module* button per mapped indoor unit**
+  (`button.<room>_faikin_restart`, entity category *config*, topic
+  `daikin/set/<uuid>/climateControl/faikin_restart`). A press publishes the
+  firmware's own restart command, `command/<host>/restart` with the HA press
+  payload `PRESS` — exactly what the restart button in Faikin's own HA
+  discovery sends, so the module stays restartable from Home Assistant once
+  that discovery is redirected away (`docs/faikin-home-assistant.md`). The
+  revk firmware ignores the payload and restarts three seconds later.
+  Measured on a live module (2026-10-11): it counts down on `state/<host>`
+  (`"restart":2,1,0`, `"reason":"Restart command"`), publishes one last
+  document with `"up":false`, is silent for about six seconds and is back
+  with `uptime` 0. The device's `online` item stays `true` throughout (that
+  last document still carries the AC fields and `"online":true`); the first
+  documents after the boot lack `hum` and the energy counters, so the
+  humidity sensor reads 0 for about nine seconds while the held energy
+  totals do not move. The press never reaches the ONECTA cloud: for an
+  unmapped device, or with local mode off, it is rejected and logged at
+  `warn`. Manual test from a shell:
 
-- The MQTT client library go-mqtt moves to 1.3.0, an audit release that
-  fixed 42 findings. Nothing changed in the bridge itself.
-- Reconnects back off when the broker drops a connection right after
-  accepting it, instead of redialling at full speed; a stable
-  connection that drops still reconnects immediately.
-- The publish circuit breaker only opens on real broker trouble now,
-  not on locally rejected topics or options.
+  ```bash
+  mosquitto_pub -h <faikin broker> -u <user> -P <pass> \
+    -t 'command/<faikin host>/restart' -m PRESS
+  ```
 
-# 0.10.3 (2026-08-13)
+## Security
 
-- The Home Hub is no longer offered when picking a device for a schedule — a
-  gateway has no climate control to set.
-- The outdoor unit is simply called "outdoor unit" instead of carrying its
-  serial number.
-- The UI assets are now fingerprinted by content, so a browser also picks up
-  changes in builds between releases.
+- Built with Go 1.27.2, which fixes Go standard-library vulnerabilities
+  (net/http and HTTP/2, crypto/tls, net/textproto, html/template).
+  golangci-lint v2.14.0 (reads Go 1.27.2's export data).
 
-# 0.10.2 (2026-08-13)
+# Version 0.14.1 (2026-10-06)
 
-Security: two findings from the repository's code scan, both in the web UI.
+Fixes for 0.14.0. Updating needs no other action: Home Assistant picks up
+the corrected discovery documents and the next values by itself, and no
+entity id, name or history changes.
 
-- The OAuth error page now escapes the values the identity provider echoes back
-  using a context-aware template instead of a hand-written escaper.
-- The ingress path header is validated more strictly: `/\host` is read by
-  browsers as another host, and was previously accepted, which allowed an
-  off-site redirect after login.
+## Fixed
 
-Neither is exploitable without a crafted link or control of the proxy in front
-of the add-on, but both were real gaps.
+- **The scheduler's enable switches never showed a state.** Their discovery
+  said `on`/`off`, while the status item carries the JSON boolean every other
+  switch carries; Home Assistant ignores a state matching neither payload, so
+  the switches stayed *unknown*. They now use `true`/`false` like the device
+  switches (commands still accept `on`/`off` too).
+- **A value that became empty kept showing its old state in Home
+  Assistant** — a cleared error code, or the next change of a schedule that
+  was disabled — until Home Assistant restarted, with a template error in
+  its log per clear. Every sensor now renders an empty or cleared item as
+  *unknown*. On the wire, an empty error code is now `{"val":""}` (it was a
+  cleared item); an item without a value of its type (a timestamp, a number,
+  a token) is still cleared with an empty retained payload.
+- **Every poll cleared the retained state of entities another part of the
+  daemon owns**: in local mode the Faikin-only telemetry (power, energy,
+  fan speed, compressor frequency, …), and with the scheduler on its two
+  status sensors, each until the Faikin module's or the scheduler's next
+  update. The poll leaves them alone now. A device no schedule targets gets
+  its schedule sensors from the poll instead — *No block* and no next
+  change — so they no longer stay empty, and a device whose schedule was
+  removed no longer keeps showing its last block.
+- **Local mode: the start-up clean-up could clear a Faikin-served device's
+  `online` item and its local values** when no Faikin state arrived within
+  the first poll, which made the device's entities unavailable after a Home
+  Assistant restart until the module's next message. Clearing current items
+  is now limited to cloud-served devices and to items the cloud poll itself
+  writes; clearing the 0.13 topics is unchanged.
+- **A single failed or rate-limited cloud poll made every entity
+  unavailable** (`daikin/connected` dropped to `1`). 0.13 kept the last
+  values on screen. A rate limit no longer changes the level; any other
+  failure lowers it at the second consecutive failed poll, a dead
+  authorization at once.
 
-# 0.10.1 (2026-08-13)
+## Tests
 
-Fix: **the UI kept looking unchanged after an update.**
+- A template contract test renders every entity's templates from the
+  device documents against the state the publish path really writes —
+  switch/binary sensor payloads, numbers, options, timestamps, attributes,
+  availability, the command round trip — with a small Jinja-subset
+  evaluator that fails on any template shape it cannot read. It fails on
+  0.14.0's scheduler switches and empty-value templates.
 
-- The add-on's stylesheet and script were served without cache validators, so
-  browsers kept using the previous copy after an upgrade and UI fixes appeared not
-  to ship. They now revalidate against the build version. If the schedule view
-  still looks wrong after this update, reload once with Ctrl-Shift-R.
-- An empty orange bar above the calendar (the conflict banner) is gone.
-- The weekday buttons read Mo/Di/Mi/… instead of the ambiguous single letters.
-- The calendar now names the unit it belongs to, so it is never unclear which
-  device is being edited.
-- The rate-limit panel no longer shows "undefined / undefined".
+# Version 0.14.0 (2026-10-06)
 
-# 0.10.0 (2026-08-13)
+## Before you upgrade
 
-New: **the outdoor unit can be scheduled.**
+**Every MQTT topic changes.** This release adopts the
+[mqtt-smarthome 2.0](https://github.com/mqtt-smarthome/mqtt-smarthome/blob/master/SPEC.md)
+topic convention (openccu-loom ADR 0083), shared by all `go-*2mqtt`
+bridges and openccu-loom. It is a clean break with no compatibility switch.
 
-- Silent mode, eco and the power limit act on the shared compressor rather than
-  on one room, so they now have their own schedule type. An outdoor schedule
-  targets the outdoor unit and its settings reach every indoor unit on it.
-- Each setting can be left alone, so a night block can switch on the silent
-  mode without also changing the power limit.
-- The outdoor units appear in the calendar's device picker, and two new
-  diagnostic sensors report the active outdoor block and its next change.
-- Existing schedules are unaffected and keep working as indoor schedules.
+- **Home Assistant users:** nothing to do. Every `unique_id`, node id,
+  device identifier and discovery topic is unchanged — pinned against the
+  0.13.0 rendering of all twelve scenarios — so Home Assistant re-points
+  every entity to the new topics and keeps its entity id, name, area and
+  history.
+- **Everything that reads raw topics** — Node-RED flows, dashboards,
+  Telegraf, `mosquitto_sub` scripts — has to move to the new topics and read
+  `val` out of a JSON object. Enum values are API tokens now, power is a
+  boolean. The README's "MQTT topics" section has the full old/new table.
+- `MQTT_TOPIC` is the only thing that keeps two instances apart on one
+  broker. Two instances of this bridge need different names.
 
-# 0.9.1 (2026-08-13)
+## Changed (breaking)
 
-Fix: **the Schedules view showed no selection.**
+- **Topics** are `<name>/<function>/<item…>`, `<name>` being `MQTT_TOPIC`
+  (default `daikin`, unchanged):
+  `daikin/<uuid>/<emb>/<key>/state` → `daikin/status/<uuid>/<emb>/<key>`;
+  `…/set` → `daikin/set/<uuid>/<emb>/<key>` (same item path);
+  `…/<key>/attributes` and `…/climate/attributes` → `daikin/status/…/attributes`;
+  `daikin/scheduler/<id>/enabled/{state,set}` →
+  `daikin/{status,set}/scheduler/<id>/enabled`;
+  `…/refresh/set` → `daikin/set/<uuid>/<emb>/refresh` (an action item: any
+  non-empty payload).
+- **`daikin/bridge/status` (`online`/`offline`) is replaced by
+  `daikin/connected`**: `0` by the Last Will and on a graceful stop, `1`
+  while the upstream is unusable (cloud polls failing; in local mode the
+  Faikin broker down or the devices not yet known), `2` when operational.
+- **Payloads** are status objects, `{"val": …, "ts": …, "lc": …}` in integer
+  milliseconds, for every status item. Switches and binary sensors carry JSON
+  booleans (power was `on`/`off`), numbers JSON numbers at the catalog's
+  precision, enums the API token instead of the localized label (selects,
+  the climate fan/swing/preset, the scheduler's idle state); the labels live
+  in the discovery payloads' value and command templates. A value is
+  published when it changes and again after every reconnect, not on every
+  poll.
+- **Commands** accept the plain value or `{"val": …}`; booleans as
+  `true/false, 1/0, on/off, yes/no`, enum tokens in any case (labels still
+  accepted), numbers rounded to the live step and clamped to the live range.
+  Empty and retained commands are ignored, a rejected or failed one is
+  logged at `warn` with topic and payload. The set items are subscribed at
+  **QoS 1** (was 0). A value that is no boolean no longer switches a schedule
+  off; it is rejected.
+- **Home Assistant availability** reads `daikin/connected` (available at
+  `2`) plus the device's new `daikin/status/<uuid>/online` item, with
+  `availability_mode: all`. `online` is the ONECTA device's
+  `isCloudConnectionUp`, or in local mode the Faikin module's own report
+  (`false` on its `{"up":false}` will).
 
-- The toggle buttons in the schedule editor (device picker, weekdays, mode,
-  state) were rendered unstyled, so it was invisible which device was selected
-  or which weekdays a block covered. They are styled again.
-- The device picker no longer offers the Home Hub, which has no climate control
-  and therefore cannot be scheduled.
+## Added
 
-# 0.9.0 (2026-08-13)
+- `daikin/info` (retained on every connect): `name` `go-daikin2mqtt`,
+  `version`, `spec`, `go`, `host`, `pid`, `started`, `maintenance`, `mode`.
+- **Maintenance topics**, on by default: `daikin/maintenance/set/loglevel`,
+  `daikin/maintenance/set/restart` (graceful stop, `connected` → `0`, exit 0;
+  only under a supervisor — `DAIKIN_SUPERVISED`, systemd, Kubernetes or a
+  container — otherwise refused at `warn`) and the retained
+  `daikin/maintenance/stats`. New keys `MQTT_MAINTENANCE` (default `true`)
+  and `MQTT_STATS_INTERVAL` (seconds, default `60`, `0` = off); add-on
+  options `mqtt_maintenance` / `mqtt_stats_interval`. Anyone who may publish
+  on the broker can use them — secure it with ACLs or turn them off.
+- **Start-up sweep of the 0.13 tree**: once per start, after the first poll,
+  the daemon clears the retained 0.13 topics of the devices it polls, of its
+  own schedules and `daikin/bridge/status` — exact old shapes only, never a
+  prefix, never another instance's devices, never the Faikin firmware's
+  topics — plus status items of its own devices it no longer publishes.
+- `connected` is now set to `0` on a graceful stop too, which the old
+  `bridge/status` never was (a clean disconnect discards the Last Will).
 
-New: **weekly schedules.** A seven-day programme run by the add-on itself,
-edited in a calendar view and switchable from Home Assistant. Off by default —
-turn on the `schedule_enable` option.
+## Fixed
 
-- Blocks set power, mode and setpoint **at their start**; the state holds until
-  the next block, so a change you make by hand stays until then.
-- Several schedules can target the same device and are layered by **priority**,
-  so a base programme can be overridden by "home office" or "holiday" that you
-  switch on when needed.
-- Every schedule becomes a **switch** entity under the new device
-  *daikin2mqtt Scheduler*, and each climate device gains *Active schedule* and
-  *Next schedule change* sensors — so schedules can be driven from ordinary HA
-  automations.
-- On devices mapped for local-first mode the switching goes to Faikin and
-  consumes **no ONECTA requests** at all.
-- The calendar warns when two units on one outdoor unit are scheduled to heat
-  and cool at the same time.
-- Schedules are stored on `/data` and survive add-on updates. New options:
-  `schedule_enable`, `schedule_timezone`, `schedule_catchup`.
+- An econo suspend/restore whose write failed no longer reflects the
+  unwritten value optimistically on the outdoor unit's entity.
+- `MQTT_TOPIC` values containing `+`, `#`, NUL or a leading `$`, which made
+  every topic unpublishable, are refused at start.
 
-# 0.8.2 (2026-07-20)
+## Internal
 
-Fix: **fan speed and refrigerant temperature are shown per indoor unit again.**
+- go-hamqtt 0.36.0: `topic.SmartHome`, `StatusObjectEncoding`,
+  `PublishStatus`, `Runtime.SetConnected`, `CommandRouter.HandleSet`,
+  `publisher.Instance`, `DetectSupervised`.
+- The device-bundle and surface goldens are regenerated; a new pin compares
+  every rendered identity against the frozen 0.13.0 projection.
 
-- Both readings had been collapsed into single aggregated sensors on the
-  outdoor unit, hiding the individual units' values. Each indoor unit now gets
-  its own diagnostic `fan_speed` (rpm) and `refrigerant_temperature` (°C)
-  sensors; the misleading outdoor aggregates are removed automatically.
+# Version 0.13.0 (2026-10-02)
 
-# 0.8.1 (2026-07-19)
+## Changed
 
-Fix: **the Eco mode switch no longer snaps back to off.**
+- The build toolchain moves to Go 1.27.1 (Docker image, add-on image and CI).
+  Nothing changes at runtime; building from source now requires Go 1.27.
+- The shared libraries move to their Go 1.27 releases: go-mqtt 1.6.0,
+  go-ha-catalog 0.3.0 and go-hamqtt 0.35.0; the discovery golden files do
+  not change with them.
+- Otherwise internal clean-ups only (the Go 1.27 modernizers, test-only
+  clock seams removed, timer tests on `testing/synctest`): no entities,
+  topics, payloads or options change.
 
-- Indoor units in standby accept the econo command but never confirm it on the
-  serial bus, so the switch reverted to off after two minutes even though the
-  Daikin app showed eco on everywhere. The daemon now latches the last reliably
-  known eco state per outdoor unit: running units remain the truth, and while
-  the whole group is off the latched value stays in effect.
+# Version 0.12.0 (2026-09-14)
 
-# 0.8.0 (2026-07-19)
+## Before you upgrade
 
-Fix: **turning one indoor unit on no longer switches on the others.**
+This release moves Home Assistant discovery onto the **device bundle**:
+the 264 per-entity configs a measured twelve-scenario fleet used to
+publish are retracted, and 31 retained **device documents** are
+published in their place. The upgrade itself needs no action — every
+`unique_id` is unchanged, so entity ids, renames, icons, areas and
+recorded history all survive.
 
-- The multi-split mode sync now only adjusts units that are **already running**
-  in the opposite direction (heating vs cooling/dry) — the last command wins.
-  Units that are off stay off (on the local Faikin path the `mode` command
-  force-powers a unit on, so the old blind sync switched on the whole house).
-- `auto`/`fan only` no longer trigger or receive a mode sync.
+**What a rollback costs.** The bundle stays retained. Home Assistant
+refuses a per-entity config while a device document carrying the same
+`unique_id` is retained, and it says so exactly once, as a single
+`WARNING [mqtt.entity] Received a conflicting MQTT discovery message`
+in its own log — there is no other symptom, and the entities simply do
+not come back. So a rollback to 0.11.x or earlier needs the retained
+device documents cleared by hand first, once per device:
 
-# 0.7.0 (2026-07-14)
+```bash
+mosquitto_pub -h <broker host> -p 1883 -u <user> -P <password> \
+  -t 'homeassistant/device/<node id>/config' -r -n
+```
 
-New: a **manual refresh button** on the outdoor unit.
+**Copy the topic verbatim from the `coordinator.discovery_bundle_published`
+log line** — one line per device, emitted on every discovery publish.
+Do not compose the topic yourself: the node id is a slug, not a device
+name or a ONECTA id. `-r -n` publishes an empty **retained** payload,
+which is how MQTT clears a retained topic; without `-r` it clears
+nothing. See "Rolling back" in the README.
 
-- **Refresh from cloud / Aus Cloud aktualisieren** — pressing it runs one poll
-  cycle immediately (fetch all devices from the ONECTA cloud and republish every
-  entity state), instead of waiting for the next scheduled poll. One button per
-  outdoor unit.
-- To protect the ONECTA daily request quota, a press within 30s of the last poll
-  is ignored, and presses during a running poll are merged into one refresh.
+**Two instances on one broker.** Two go-daikin2mqtt daemons on the same
+ONECTA account still publish byte-identical configs under byte-identical
+identities and overwrite each other — nothing on the wire can tell them
+apart. A device bundle raises the stakes: what used to be a per-entity
+collision is now a whole-entity-set replacement. Run **one daemon per
+ONECTA account per `MQTT_TOPIC`**; separate accounts or separate
+`MQTT_TOPIC` values are unaffected.
 
-# 0.6.0 (2026-07-07)
+The scheduler device was deliberately **excluded** from the tombstone
+read-back for exactly this reason: two instances share its node id, and
+each was deleting the other's live schedule switches. The residual is
+documented and accepted — a schedule deleted while the daemon is
+**stopped** leaves a phantom switch behind to remove by hand. Deleting a
+schedule in the daemon's own web UI, which is how schedules are deleted,
+still removes the switch as before.
 
-Hardening release — security/robustness audit of the whole codebase, all
-confirmed findings fixed. No new dependencies, no config changes.
+**The defects this release fixes**, in the order an operator will care:
 
-- **Security:** web-UI request timeouts (slow-body/idle-connection
-  exhaustion), OAuth login state store capped at 128 pending entries,
-  `POST /api/patch` requires `Content-Type: application/json` (CSRF),
-  ONECTA PATCH URL segments path-escaped, `NaN`/`Inf` write payloads
-  rejected and local `demand_control` range-checked (0–100).
-- **Fixed:** a stalled cloud/token endpoint could freeze the daemon forever
-  (HTTP clients now have a 60s timeout); crash-loop when a device exposes a
-  climate control without a power point; retained `.../set` commands were
-  re-applied on every reconnect/restart; a failed Home Assistant discovery
-  publish was never retried until the entity set changed; Faikin state
-  handling no longer blocks the MQTT read loop.
+- A sibling instance's entities were being swept. The ownership rule
+  keyed on the MQTT root of a config's `state_topic`, and **24 of the
+  264 payloads carry no `state_topic` at all** — 14 `climate` (which
+  name one topic per function instead) and 10 `button` (command-only by
+  schema). For those the rule fell back to the shared `daikin_`
+  namespace prefix, which every installation has, so a second instance
+  had its thermostats and refresh buttons removed from Home Assistant.
+- The local-mode fan-speed vocabulary was mapped against the
+  **humidification** values. ONECTA documents `fanSpeed.currentMode` as
+  `quiet`/`auto`/`fixed` (with `fixed` an integer 1..5, which this
+  bridge advertises as `1`..`5`); the translation map was keyed on
+  `low`/`medium`/`high`, which is the humidification vocabulary. Every
+  numbered speed fell through it, so in local mode the climate fan
+  dropdown read `unknown` whenever the unit was not on `auto`. The
+  dropdown now shows the running speed. Cloud-only installations were
+  never affected.
+- `scope: outdoor` state topics depended on the order the cloud
+  returned devices in. A shared outdoor entity reads one member's
+  topic, and which member that was is now chosen deterministically
+  rather than by ONECTA's list order.
 
-# 0.5.1 and earlier
+Everything below is the detailed record.
 
-See the full history in
-[changelog.md](https://github.com/SukramJ/go-daikin2mqtt/blob/main/changelog.md).
+## What's Changed
+
+### Changed
+
+- **Home Assistant discovery now uses the device bundle.** Instead of
+  one retained config per entity — 264 of them on a measured
+  twelve-scenario fleet — the daemon publishes **one retained document
+  per Home Assistant device**, at
+  `homeassistant/device/<node id>/config`, carrying that device's whole
+  component set. The exact topics are logged, one line per device, as
+  `coordinator.discovery_bundle_published`.
+
+  **What a migrating user sees: nothing.** Every entity keeps its
+  `unique_id`, so Home Assistant's registry entry survives the move —
+  the entity id, any rename, any custom icon or area, and the recorded
+  history. What changes is only where the definition lives. The old
+  per-entity configs are retracted first, automatically, because Home
+  Assistant refuses a device document while a per-entity config for one
+  of its ids is still retained (and says so only as
+  `WARNING [mqtt.entity] Received a conflicting MQTT discovery message`
+  in its own log).
+
+  **If the daemon dies mid-migration**, the device is left with no
+  discovery config at all and its entities disappear from Home
+  Assistant until the daemon starts again — which repeats the whole
+  migration from scratch, because nothing about it is remembered across
+  a restart. No manual step is needed.
+
+  **If you roll back to 0.11.x or earlier**, you must clear the
+  retained device documents by hand, or the old build's per-entity
+  configs are refused by the same rule in the other direction. See
+  "Rolling back" in the README.
+
+- **A removed entity is now removed.** An entity that disappears from a
+  device — a deleted weekly schedule, `LOCAL_MODE` turned off, an entry
+  dropped from `characteristics.yaml` — is marked as deleted in the
+  device document rather than merely left out of it. Omitting a
+  component does not remove it from Home Assistant: the entity stays,
+  and because this bridge's availability is bridge-level it would read
+  *available* rather than unavailable, with nothing on screen to say it
+  is dead.
+
+- **An oversized device document is withheld rather than half-applied.**
+  The document is checked against the Maximum Packet Size the broker
+  advertised before anything is retracted, so a broker with a low cap
+  leaves the working per-entity configs in place and logs
+  `coordinator.discovery_bundle_too_large` instead of clearing them and
+  then failing to publish. A broker that advertises no limit is treated
+  as having none, which is what MQTT says it means.
+
+### Fixed
+
+- **A second go-daikin2mqtt on the same broker could delete the
+  first's weekly-schedule switches.** The schedule switches live under
+  a reserved topic segment (`<MQTT_TOPIC>/scheduler/…`) and on a Home
+  Assistant device whose node id is the same string in every
+  installation, so two daemons write the same discovery document and
+  the same state topics — even with completely different schedules on
+  different ONECTA accounts. Each instance treated the other's live
+  switches as its own removed ones: they were marked deleted in the
+  shared document and their retained configs were cleared, so Home
+  Assistant **removed them from the entity registry** — gone from
+  dashboards and automations, with the area, rename and icon lost. The
+  other instance restored them on its next discovery change and did the
+  same back, indefinitely.
+
+  Schedule switches are no longer claimed by any instance's ownership
+  check, so neither instance can remove the other's. **One consequence
+  for a single instance:** a weekly schedule deleted while the daemon
+  is **stopped** leaves its switch behind as an entity to remove by
+  hand. Deleting a schedule in the daemon's own web UI, which is how
+  schedules are deleted, still removes the switch as before.
+
+  **Still true, and now written down: run one daemon per ONECTA
+  account per `MQTT_TOPIC`.** Two instances on the *same* ONECTA
+  account with different `LOCAL_MODE` or `characteristics.yaml` settings
+  see the same devices and cannot be told apart by anything on the
+  wire; the one with fewer entities will keep removing the other's.
+  Separate accounts, or separate `MQTT_TOPIC` values, are unaffected.
+
+- **A broker restarted without its retained store got its entities
+  back.** Discovery was only republished when the entity set changed,
+  and that gate survived a reconnect — so a broker that came back empty
+  stayed empty, possibly forever, since a stable installation's entity
+  set never changes. The gate is now re-opened on every connect. An
+  unchanged fleet still costs no broker traffic: the library compares
+  the document bytes underneath it.
+
+- **`MQTT_TOPIC` and `HASS_BASE_TOPIC` written with a leading or
+  trailing `/`** are now trimmed at the configuration boundary. An empty
+  MQTT topic level is legal and distinct, so `homeassistant/` would have
+  put the daemon's own discovery filter on a different tree from the one
+  it publishes to, with nothing in any log to say so.
+
+### Added
+
+- **`MQTT_CLIENT_ID`** (`DAIKIN_MQTT_CLIENT_ID`, add-on option
+  `mqtt_client_id`). The MQTT client identifier was a compile-time
+  constant, so every go-daikin2mqtt presented the same string. A broker
+  must disconnect the session it already holds when a second client
+  presents that session's identifier, so two daemons on one broker —
+  two ONECTA accounts, a staging instance, a migration overlap —
+  disconnected each other in a loop, with nothing in either log saying
+  why. **Existing installations are unaffected:** the key defaults to
+  the exact value used before it existed. Set it only if you run more
+  than one instance.
+
+### Fixed
+
+- **A second go-daikin2mqtt on the same broker could delete the
+  first's thermostat and refresh-button entities.** The daemon clears
+  retained discovery configs it no longer publishes, and decided a
+  config was "its own" from the `daikin_` prefix plus the MQTT root of
+  the config's `state_topic`. The composite thermostat entity and the
+  refresh button carry no `state_topic` at all — the thermostat names
+  one topic per function instead — so for those the rule fell back to
+  the `daikin_` prefix, which every installation shares. A second
+  instance (a second ONECTA account, a holiday home, a staging
+  daemon) therefore had its thermostats and refresh buttons removed
+  from Home Assistant — silently, and from dashboards and automations
+  with them. On a **shared** `MQTT_TOPIC` the whole second instance
+  was removed, not only those two.
+
+  A config is now recognised as this instance's own only if every
+  topic it names sits under this instance's MQTT root **and** under a
+  device this instance actually polls. **One consequence for a single
+  instance:** a device removed from your ONECTA account is no longer
+  polled, so its retained configs are no longer cleared automatically
+  and remain as unavailable entities until cleared by hand. An entity
+  removed by a catalogue change, or a deleted schedule, is cleared
+  exactly as before.
+- **The climate fan dropdown showed `unknown` in local mode** whenever
+  a unit was not on `auto`. The Faikin read path owns `fan_mode` for a
+  mapped device, and the map translating the module's reported fan
+  speed was keyed on Daikin's *humidification* vocabulary
+  (`low`/`medium`/`high`) rather than its fan-speed one
+  (`auto`/`quiet`/`1`..`5`), so every numbered speed fell through and
+  nothing was published. Cloud-only installations are unaffected.
+- **Entity ids on a shared outdoor unit no longer move with
+  `LANGUAGE`.** They were seeded from the outdoor sub-device's
+  *display* name, which this bridge composes from a translated label,
+  so switching `LANGUAGE` produced a second set of entities and left
+  the first behind as orphans — Home Assistant never renames a
+  registered entity.
+
+  **German installations: a one-time re-registration.** Entities on a
+  shared outdoor unit change id once, from
+  `sensor.daikin_aussengerat_*` to `sensor.daikin_outdoor_unit_*` (up
+  to thirteen per outdoor unit). Dashboards and automations naming the
+  old ids need updating once. Devices, device ids and every other
+  entity are untouched, and English installations see no change at
+  all.
+- **A multi-split's shared outdoor entities no longer depend on the
+  order the ONECTA API returns devices in.** The entity reads one
+  member's topic, and which member it was had been decided by the
+  order the cloud listed them; it is now chosen deterministically. All
+  members publish the value, as before, so the entity keeps reading a
+  live topic throughout. Entity ids, device ids and history are
+  unaffected. Single-indoor installations see no change.
+- **The `data_source` entity attribute** (cloud vs local Faikin) is
+  published on every poll instead of only when the set of discovered
+  entities changes, so it can no longer go stale.
+
+### Changed
+
+- **Fewer redundant MQTT messages.** Entity state is now published
+  through a de-duplicating gate: a value that has not changed since
+  the last poll is compared instead of re-written. A steady-state
+  multi-split wrote ~220 retained messages per poll, nearly all of
+  them byte-identical to the previous one; it now writes only what
+  moved. Nothing about *what* Home Assistant sees changes — every
+  topic, payload, QoS and retain flag is unchanged, and the gate is
+  re-opened on every reconnect so a broker restarted without its
+  retained store is refilled.
+- Internal: orphan cleanup — see the *Fixed* entry about a second
+  instance's entities, which is the same change.
+- Internal: every MQTT topic this bridge publishes to or subscribes to
+  is now composed by one `internal/layout` package instead of
+  seventeen separate expressions across four packages. No published
+  topic changes.
+- Internal: the state, availability and command planes are published
+  by `go-hamqtt`'s `publisher` package instead of by this bridge's own
+  code. The Last Will and the retained `online` marker now come from
+  one object rather than from three literals in three packages. No
+  published topic, payload, QoS or retain flag changes; the twelve
+  pinned surface scenarios and their digests are unmoved.
+
+# Version 0.11.0 (2026-08-16)
+
+## What's Changed
+
+### Changed
+
+- **Adopt go-mqtt v1.3.0.** Upstream's adversarial audit of the whole
+  client (wire codec, connection core, supporting components, CI)
+  found and fixed 42 issues, 3 of them high severity; the exported API
+  only grew two additive fields, so this is a drop-in bump with no
+  call-site changes.
+- **Reconnects now damp against a flapping broker.** A connection that
+  drops within 10 seconds of coming up
+  (`mqtt.LifecycleConfig.FlapWindow`, left at its default here) now
+  backs off exponentially instead of redialling immediately —
+  previously a broker that accepted a CONNECT and immediately dropped
+  the socket could be redialled thousands of times a second. Applies
+  to both the main broker connection and, in local mode, the separate
+  Faikin connection when it isn't shared with the main one.
+- **The publish circuit breaker no longer trips on this bridge's own
+  mistakes.** A client-side validation failure (an invalid topic, a
+  QoS above what the broker granted, ...) used to count as a broker
+  failure and could open the circuit for every healthy publish
+  alongside it; only genuine broker-side failures count now, matching
+  the "5 consecutive broker-side failures" contract this bridge's
+  breaker was already configured for (see 0.5.0 below).
+- **A clean shutdown no longer races a reconnect.** The client
+  couldn't previously tell a broker closing the socket in response to
+  our own DISCONNECT from an actual connection loss, so stopping the
+  daemon could trigger one last, immediately-undone reconnect before
+  the lifecycle loop exited.
+- Malformed frames from the broker now tear the connection down
+  immediately, per the MQTT spec, instead of being read past —
+  hardening with no visible effect against a compliant broker.
+
+# Version 0.10.3 (2026-08-13)
+
+## What's Changed
+
+### Fixed
+
+- **The Home Hub is no longer offered as a schedulable device.** A gateway has
+  no climate control, so a block has nothing to set on it. The rule now lives
+  on the server (`/api/devices` reports `schedulable` per device) instead of
+  being re-derived in the browser, so there is one definition of it.
+
+- **The outdoor unit is called "outdoor unit".** It used to carry its serial
+  number, which is an identifier rather than a name. The serial moved to the
+  tooltip. With more than one outdoor unit the rooms it serves are appended,
+  since that is what actually tells them apart; in the schedule dialog they are
+  always shown, which also keeps the target distinct from the identically named
+  type button above it.
+
+- **Assets are fingerprinted by content, not by version.** The revalidation
+  added in 0.10.1 used the build version as the ETag, which is stale for anyone
+  running a build between releases — a `main` build, the `:latest` image or a
+  local `make build` carries the same version string with different files, so
+  the browser kept the old copy on the strength of a matching ETag. The
+  validator is now a hash of the embedded asset tree.
+
+# Version 0.10.2 (2026-08-13)
+
+## What's Changed
+
+### Security
+
+Both findings come from the repository's CodeQL scan and are in the optional
+web UI. They are only reachable when `WEB_ENABLE` is on, and neither is
+exploitable without getting the operator to open a crafted link (or, for the
+second, without control of the reverse proxy in front of the daemon) — but
+both were real gaps rather than false positives.
+
+- **Reflected XSS on the OAuth error page** (`go/reflected-xss`, high). The
+  page shows the `error` and `error_description` query parameters the identity
+  provider echoes back, and escaped them with a hand-written replacer covering
+  `<`, `>` and `&`. In the text position they occupy that happened to be
+  enough, but the escaping did not cover quotes, so the page was one careless
+  edit — moving the value into an attribute — away from being exploitable. The
+  page is now an `html/template`, which escapes according to the position a
+  value actually appears in.
+
+- **Incomplete redirect check** (`go/bad-redirect-check`, medium). The
+  Home-Assistant ingress prefix (`X-Ingress-Path`) was validated by requiring a
+  leading `/` and rejecting `//`. Browsers also read `/\host` as
+  protocol-relative, so a header of `/\evil.example` passed the check and
+  became an off-site redirect after the OAuth callback — and could also be
+  injected into the derived `redirect_uri`. Both separators are now rejected in
+  the second position, and a backslash anywhere in the path is rejected
+  outright.
+
+Regression tests cover both, and each was verified to fail against the previous
+implementation.
+
+# Version 0.10.1 (2026-08-13)
+
+## What's Changed
+
+### Fixed
+
+- **The UI kept looking unchanged after an upgrade.** Files embedded with
+  `go:embed` carry no modification time, so the server sent neither
+  `Last-Modified` nor `ETag` for the stylesheet and the script — and a response
+  with no validator and no `Cache-Control` is cached heuristically. Browsers
+  therefore kept serving the previous `style.css` and `app.js` after the daemon
+  was updated, which made every UI fix look like it had not shipped. Assets now
+  carry `Cache-Control: no-cache` and an `ETag` derived from the build version,
+  so the browser revalidates and gets a cheap `304` when nothing changed. **If
+  the schedule view still looks wrong after updating, reload once with
+  Ctrl-Shift-R — this release is the last one that needs it.**
+
+- **An empty orange bar sat above the calendar.** The conflict banner's own
+  rule set `display: flex`, which outranks the `hidden` attribute the script
+  sets, so the banner was permanently visible with no content. `[hidden]` is
+  now enforced globally, which rules out the whole class of bug rather than
+  this one instance.
+
+- **The weekday buttons were ambiguous in German.** They used the "narrow"
+  locale format, in which Monday/Wednesday, Tuesday/Thursday and
+  Saturday/Sunday are all rendered as the same single letter (M D M D F S S).
+  They now use the short format (Mo, Di, Mi, …).
+
+- **The rate-limit panel showed "undefined / undefined".** `/api/ratelimit`
+  serialised Go field names (`LimitMinute`) while the UI reads snake_case. The
+  test that covered this decoded the response back into the same Go struct, so
+  it passed regardless of the field names on the wire; it now checks the names
+  the UI actually reads.
+
+- The edit button of a schedule wrapped onto its own line in the sidebar, and
+  the summary line broke across three lines.
+
+### Changed
+
+- **The calendar now names the unit it belongs to**, directly above the grid.
+  The device picker scrolls out of sight on a long page, which left it
+  ambiguous which unit was being edited; the heading also states whether it is
+  an indoor or an outdoor schedule and how many active schedules apply.
+- The legend only explains the colours the current view can show — an outdoor
+  calendar lists no HVAC modes.
+- A block shows its own label first and the schedule name second: the label is
+  what distinguishes the blocks of one schedule, and it was the part being
+  truncated in narrow columns.
+
+### Internal
+
+- A manual UI harness (`UI_SERVER=1 go test ./internal/web/ -run
+  TestManualUIServer`) serves the real SPA against fixture devices, which is
+  how the above were found. It is skipped by default.
+
+# Version 0.10.0 (2026-08-13)
+
+## What's Changed
+
+### Added
+
+- **The outdoor unit can be scheduled.** Silent mode, eco and the power limit
+  are one physical knob on the shared compressor rather than a per-room state,
+  so they now have their own schedule type: an **outdoor schedule** targets an
+  outdoor unit and its settings fan out to every indoor unit on it.
+
+  - A schedule is now either an **indoor** schedule (power, HVAC mode,
+    setpoint — what 0.9.x did) or an **outdoor** schedule (silent mode, eco,
+    power limit). The editor shows only the fields that apply, because a block
+    carrying both would be half meaningless for whichever target it reached.
+    The type is chosen when the schedule is created and fixed afterwards.
+
+  - Each outdoor setting can be left alone. A night block can enable the silent
+    mode and cap the power limit without touching eco, and a morning block can
+    release both without saying anything about the third.
+
+  - The outdoor units appear in the calendar's picker after the rooms. Their
+    blocks are drawn in a colour of their own, since "heat" or "cool" has no
+    meaning there.
+
+  - Two new diagnostic sensors on the outdoor unit report the active outdoor
+    block and its next change, mirroring the per-room ones. They only appear
+    once an outdoor schedule exists.
+
+### Changed
+
+- The schedule preview endpoint takes `?target=` (a device or an outdoor unit)
+  instead of `?device=`; the old parameter is still accepted so a browser
+  holding a cached page from 0.9.x keeps working across the upgrade.
+
+### Notes
+
+- **Existing schedules are unaffected.** A `schedules.json` written by 0.9.x
+  has no type and reads back as an indoor schedule, unchanged.
+- Scheduling **powerful** remains out of scope: it is per indoor unit but drives
+  the same shared compressor and is mutually exclusive with eco, which an
+  outdoor schedule now sets. Letting both be automated would require the
+  suspend/restore logic to arbitrate between two automated writers rather than
+  between a person and one.
+
+# Version 0.9.1 (2026-08-13)
+
+## What's Changed
+
+### Fixed
+
+- **The schedule UI showed no selection.** The `.chip` rules were left behind
+  when the calendar was ported into the app's stylesheet, so every toggle
+  button in the Schedules section — the device picker, the weekday, mode and
+  state selectors and the target list in the schedule dialog — rendered as an
+  unstyled browser button. Nothing indicated which device was selected or which
+  weekdays a block ran on. The rules are now in place: a selected chip is
+  filled in the accent colour.
+
+- **The device picker offered devices that cannot be scheduled.** A gateway
+  (the Home Hub) has no `climateControl` management point, so it can carry no
+  blocks, but it appeared in the picker anyway. Only devices with a
+  `climateControl` point are offered now — plus any device already referenced
+  by a schedule, so a plan never becomes invisible because its device is
+  momentarily unresolvable.
+
+### Added
+
+- The device picker now carries a visible "Device" label instead of only a
+  tooltip, so the chip row reads as a labelled control.
+
+### Internal
+
+- A new test asserts that every CSS class used in the markup or in `app.js`
+  has a rule in the stylesheet — the check that would have caught the missing
+  `.chip` rules. It found two further classes that had been carrying no rules
+  since earlier versions (`topbar-status`, `dp-name`); both now have one.
+
+# Version 0.9.0 (2026-08-13)
+
+## What's Changed
+
+### Added
+
+- **Weekly schedules.** A seven-day / 24-hour programme run by the daemon
+  itself, edited in a calendar view in the diagnostic web UI and switchable
+  from Home Assistant. Off by default — set `SCHEDULE_ENABLE: true` (add-on
+  option `schedule_enable`) to turn it on. The design document is
+  [`docs/schedule-design.md`](docs/schedule-design.md).
+
+  - **Blocks with a target state.** A block occupies a time range and sets
+    power, HVAC mode and setpoint **at its start**; the state holds until the
+    next block, and a gap means "no intervention". Leaving the setpoint unset
+    lets a block switch on/off or change the mode without touching a manually
+    chosen temperature. Blocks snap to a 30-minute grid and may run past
+    midnight (and past Sunday into Monday).
+
+  - **Manual changes win until the next block.** The scheduler writes at block
+    boundaries only. Change the temperature by hand — in Home Assistant, the
+    Daikin app or on the remote — and it stays until the next block starts.
+    There is no continuous enforcement fighting the user.
+
+  - **Several schedules per device, layered by priority.** Each schedule
+    carries a list of target devices and a priority; per half-hour slot the
+    highest priority wins (on a tie, the block that started more recently). A
+    base programme can therefore be overridden by "home office" or "holiday"
+    without editing it, and the covered blocks stay visible as hatching in the
+    calendar.
+
+  - **Home Assistant entities.** Every schedule becomes a switch on a new
+    device *daikin2mqtt Scheduler* (`switch.daikin_schedule_<id>`), so
+    "holiday on when everyone leaves" is an ordinary HA automation. Each
+    climate device gains two diagnostic sensors: *Active schedule* and *Next
+    schedule change* (RFC 3339 with `device_class: timestamp`, so Home
+    Assistant formats it in the viewer's language).
+
+  - **Local-first switching.** All three scheduled characteristics
+    (`onOffMode`, `operationMode`, `temperatureControl`) are modelled by the
+    Faikin command set, so on a device mapped for local mode a scheduled switch
+    never falls back to the cloud: no ONECTA request quota is consumed and no
+    `scan_ignore` window is opened. For cloud-only devices a block change costs
+    up to three requests per device.
+
+  - **Multi-split aware.** Scheduled switching goes through the same write path
+    as an MQTT command, so the existing mode sync, the local/cloud backend
+    choice and the cloud lock all apply unchanged. The calendar additionally
+    warns while editing when two devices on one outdoor unit are scheduled to
+    heat and cool at the same time — something the hardware cannot do.
+
+  - **Correct across restarts and time changes.** A missed block start is only
+    caught up within `SCHEDULE_CATCHUP` (default 30 minutes), so a restart
+    hours into a block does not overwrite a manual change made in the meantime.
+    Switch points are computed as wall-clock times in the configured zone, so
+    daylight-saving transitions shift the schedule with the clock; the doubled
+    hour in autumn does not switch twice.
+
+  - New settings: `SCHEDULE_ENABLE`, `SCHEDULE_STORE_PATH` (default
+    `<config dir>/schedules.json`, written atomically with `0600`),
+    `SCHEDULE_TIMEZONE` (IANA zone, empty = the daemon's own) and
+    `SCHEDULE_CATCHUP`. In the add-on the schedules live on `/data`, so they
+    survive updates.
+
+### Changed
+
+- `/api/devices` now also reports each device's friendly name, which the
+  schedule editor's device picker uses.
+- The daemon embeds the IANA time-zone database (`time/tzdata`). The distroless
+  image ships no system zone data, and a wall-clock scheduler would otherwise
+  silently fall back to UTC.
+
+### Notes
+
+- Schedule ids are derived from the name once, when the schedule is created,
+  and then frozen. Renaming a schedule changes only its display name, so its
+  Home Assistant entity survives the rename. The editor shows the resulting
+  entity id read-only.
+- Schedule and block names are user content: they are stored and displayed
+  verbatim in every language and are never translated.
+
+# Version 0.8.2 (2026-07-20)
+
+## What's Changed
+
+### Fixed
+
+- **Fan speed is shown per indoor unit again — in rpm.** Since 0.2.19 the fan
+  reading was misclassified as a value "identical on every indoor unit" and
+  collapsed into a single aggregated `fan_frequency` sensor (Hz) on the outdoor
+  unit, so the individual units' fan speeds were not displayed at all. Live
+  data disproves that classification: the S21 `RL` report is the responding
+  unit's **own** fan (at the same moment one unit read 900 rpm while the others
+  read 0, with all three reporting the identical shared compressor frequency).
+  Each indoor unit now gets its own diagnostic sensor **`fan_speed`** in
+  **rpm** (converted from Faikin's `fanfreq`, which is rpm/60 in Hz with the
+  firmware-default `ha.fanrpm=0`); the misleading outdoor `fan_frequency`
+  aggregate is gone. `compressor_frequency` stays as the genuinely shared
+  outdoor value.
+
+- **Refrigerant temperature is per indoor unit again too.** Same 0.2.19
+  misclassification, same live disproof: the Faikin `liquid` field is each
+  unit's **own** liquid-line (coil) temperature — members read 20/18/14 °C at
+  the same moment — so the single max-aggregated outdoor sensor showed an
+  arbitrary unit's value (often an idle one's). `refrigerant_temperature` is
+  now a diagnostic sensor on each indoor unit; only `compressor_frequency` and
+  `outdoor_temperature` remain as genuinely shared outdoor readings.
+
+  **Migration:** the old `fan_frequency` and outdoor `refrigerant_temperature`
+  sensors on the outdoor unit are removed automatically (discovery orphan
+  cleanup). Their stale retained state topics on the broker are harmless; the
+  new per-unit `fan_speed` and `refrigerant_temperature` sensors appear on each
+  indoor unit without any action.
+
+# Version 0.8.1 (2026-07-19)
+
+## What's Changed
+
+### Fixed
+
+- **The Eco mode switch no longer snaps back to off.** Turning econo on while
+  the indoor units are in standby left the Home Assistant switch on for two
+  minutes (the optimistic outdoor hold) and then flipped it back to off — even
+  though every unit had accepted the command (the Daikin app showed eco on
+  everywhere). Root cause, verified live against the Faikin modules: a standby
+  FTXA executes the econo command (S21 `D7`) but never reports the bit back in
+  its `G7` status, so the firmware retries `s21.tries` times, publishes
+  `failed-set`, and keeps reporting `econo:false`; once the hold expired, that
+  false aggregate reverted the switch. Only a **running** unit confirms econo.
+  The coordinator now treats standby econo readings as carrying no information:
+  a per-outdoor-group **latch** remembers the last reliably observed or
+  successfully written value — while at least one member runs, the running
+  members' reports are the truth (and refresh the latch, in both directions);
+  while the whole group is off, the latched value is published. The
+  powerful ⇄ econo suspend/restore logic sees the latched state too, so a boost
+  during an all-off eco phase restores eco correctly afterwards.
+
+# Version 0.8.0 (2026-07-19)
+
+## What's Changed
+
+### Fixed
+
+- **Mode sync no longer switches on the other indoor units.** Turning one
+  indoor unit on (e.g. to cooling) used to propagate the new `operationMode` to
+  **every** member of the outdoor group — including units that were off. On the
+  local Faikin path this powered them all on: the firmware's
+  `command/<host>/mode` topic force-sets `power=1` for any mode value except
+  "off". The sync now only writes to members that are **known to be running in
+  the opposite compressor direction** (`heating` vs `cooling`/`dry`); units
+  that are off — or whose state is unknown — are never touched and stay off.
+  The last command still wins: switching a unit on with a conflicting mode
+  flips the running members over, and an off unit that is later turned on via
+  Home Assistant brings its own mode, from which the sync re-runs. In pure
+  cloud mode the skipped members also no longer burn ONECTA daily-quota
+  requests.
+
+### Changed
+
+- **Mode sync is conflict-scoped.** `auto` and `fanOnly` demand no compressor
+  direction, so they neither trigger a sync nor get synced away — setting one
+  unit to fan-only no longer drags a cooling unit out of its mode. Same-family
+  members (`cooling` next to `dry`) keep their mode too.
+
+### Internal
+
+- New per-device power/mode caches (`powerCache`, extended `modeCache`) fed
+  from three sources: the cloud poll, the local Faikin state feed, and each
+  successful write (`noteWrite`, so back-to-back commands see the value just
+  written instead of the stale last-poll snapshot). For locally-mapped devices
+  the lagging cloud snapshot only bootstraps missing entries and never
+  overwrites the fresher local value. Mode-scoped `{mode}` PATCH paths now
+  read the same cache, so they also follow a locally-observed mode change
+  between polls.
+
+# Version 0.7.0 (2026-07-14)
+
+## What's Changed
+
+### Features
+
+- **Manual cloud refresh button.** A new Home Assistant button entity
+  (`Refresh from cloud` / `Aus Cloud aktualisieren`, `mdi:cloud-refresh`) runs
+  one poll cycle on demand — the same work the scheduled poll does: fetch every
+  device from the ONECTA cloud, resolve it against the catalog and republish all
+  entity states. It sits on the **outdoor unit**: the catalog entry is
+  `scope: outdoor`, so the indoor units sharing an outdoor unit collapse to a
+  single button (a device with no known outdoor serial gets its own button on
+  the main device). The button is a daemon action, not device data: its
+  characteristic (`daemonRefresh`) is synthetic and never reported by the cloud,
+  so the point is synthesized by the coordinator for discovery only.
+- **Refresh throttle.** ONECTA enforces a hard daily request quota, so a press
+  arriving within 30s of the last poll is ignored (logged as
+  `coordinator.refresh_throttled`) and presses arriving while a poll is in
+  flight coalesce into a single extra cycle. An automation pressing the button
+  in a loop therefore cannot burn the quota.
+
+### Internal
+
+- The catalog gained the `button` platform and an optional `icon` field
+  (a plain HA icon override, e.g. `mdi:cloud-refresh`). Discovery omits
+  `state_topic` for stateless platforms — HA's MQTT button rejects a config
+  carrying one.
+
+# Version 0.6.0 (2026-07-07)
+
+## What's Changed
+
+Hardening release: a multi-dimension security/robustness audit of the whole
+codebase (web server, auth/token handling, cloud client, MQTT write path,
+local Faikin path); every confirmed finding is fixed below. No new
+dependencies, no config changes.
+
+### Security
+
+- **Web server request timeouts.** The embedded web UI's `http.Server` now
+  sets `ReadTimeout` (15s), `WriteTimeout` (60s, generous because
+  `/api/devices` can wait on the serialized cloud client with retries) and
+  `IdleTimeout` (120s) in addition to the existing `ReadHeaderTimeout`, so
+  slow-body and idle-connection exhaustion attacks can no longer pin
+  connections open indefinitely.
+- **OAuth login state store is capped.** Unauthenticated `GET
+  /api/auth/login` requests could grow the pending-OAuth-state store without
+  bound (memory-exhaustion DoS). The store now holds at most 128 pending
+  logins and evicts the earliest-expiring entry first — harmless for real
+  use, where concurrent pending logins are ~1.
+- **CSRF hardening on `POST /api/patch`.** The endpoint now requires
+  `Content-Type: application/json` (415 otherwise), blocking cross-site
+  HTML-form and `no-cors` fetch submissions, which can only carry simple
+  content types. The bundled SPA already sends the correct header.
+- **ONECTA PATCH URL segments are path-escaped.** Device ID, embedded ID and
+  characteristic name — which arrive via MQTT topic wildcards and the web
+  API — are now `url.PathEscape`d before being interpolated into the
+  authenticated PATCH URL, neutralizing `/`, `?`, `#` and friends. A no-op
+  for legitimate IDs.
+- **Non-finite numbers are rejected on the write path.** `NaN`/`±Inf`
+  payloads on `.../set` topics are dropped instead of being forwarded to the
+  cloud or converted to a local Faikin command (where `int(NaN)` is
+  implementation-defined), and the local `demand_control` command now
+  enforces its valid 0–100 range.
+
+### Fixed
+
+- **A stalled cloud/token endpoint can no longer freeze the daemon.** The
+  ONECTA client and the OAuth token source previously fell back to
+  `http.DefaultClient` (no timeout); a hung TCP peer would hold the global
+  cloud lock — or the token mutex — forever, wedging every poll and write.
+  Both now share one HTTP client with a 60s timeout, and the fallbacks
+  default to a 60s-timeout client too.
+- **Crash-loop fixed when a `climateControl` point set has no power point.**
+  `climateEntities` dereferenced the power point unconditionally; a device
+  exposing mode + setpoint but no `onOffMode` panicked the daemon on every
+  poll. Such devices now keep their individual entities instead of a
+  combined climate entity.
+- **Retained `.../set` commands are no longer replayed.** A retained command
+  (e.g. published by a misconfigured client) was re-applied to the hardware
+  and cloud on every reconnect and restart. Retained deliveries on the write
+  subscription are now dropped with a warning; the Faikin state subscription
+  deliberately still consumes its retained state document.
+- **Home Assistant discovery retries after a failed publish.** The
+  point-set signature was cached before publishing; a transient broker or
+  circuit-breaker failure during discovery permanently suppressed it until
+  the entity set changed. The signature is now committed only after a
+  successful publish, so the next poll retries.
+- **Faikin state handling moved off the MQTT read loop.** The `state/<host>`
+  handler did bulk publishes and potentially cloud HTTP (mode-sync/econo
+  reconciliation, waiting on the serialized cloud client) inline in the MQTT
+  read loop, stalling all inbound traffic on that connection. Messages are
+  now parsed in the callback and drained by a dedicated goroutine via a
+  buffered queue (drop + warn when full), mirroring the write path.
+
+# Version 0.5.1 (2026-07-06)
+
+## What's Changed
+
+### Fixed
+
+- **Entity-id seed now published as both `object_id` and `default_entity_id`.**
+  Current Home Assistant releases do not yet honour `default_entity_id`
+  reliably (home-assistant/core#157241 — the seed is ignored and HA derives a
+  localized `entity_id` from the device + entity name instead), while the
+  deprecated `object_id` still works. Every discovery payload (sensors,
+  numbers, selects, switches, and the climate entity) now carries both — so the
+  English, language-independent entity_id seed (e.g.
+  `sensor.wohnzimmer_room_temperature`) actually lands in the `entity_id`
+  regardless of the configured `LANGUAGE`. `object_id` keeps today's HA
+  correct, `default_entity_id` keeps future HA correct; the `unique_id` stays
+  independent, so the entity identity never changes.
+
+# Version 0.5.0 (2026-07-04)
+
+## What's Changed
+
+### Changed
+
+- **MQTT publishes are circuit-protected.** Upgraded to `go-mqtt` v1.1.0
+  and adopted its new `Breaker` decorator on the bridge's publish path
+  (coordinator state publishes and HA discovery announcements): during a
+  degraded-broker phase (TCP link up, acknowledgements missing) publishes
+  fail fast with `ErrCircuitOpen` instead of each stalling on the full
+  ack timeout. After 5 consecutive broker-side failures the circuit
+  opens; after 30 seconds a single half-open probe tests recovery, and
+  one success closes the circuit again. Local conditions (caller
+  cancellation, oversized packets) never trip it. Every state transition
+  is logged as a `daikin2mqtt.mqtt_breaker_state` warning. The
+  write-command subscription is deliberately not gated — it carries its
+  own SUBACK-bounded wait and must keep working while the publish side is
+  browned out — and the local Faikin connection stays ungated too, since
+  it carries low-rate user-intent device commands on a possibly separate
+  broker. The lifecycle's reconnect loop remains in charge of the link
+  itself.
+
+# Version 0.4.0 (2026-07-04)
+
+## What's Changed
+
+### Changed
+
+- **Adopt go-mqtt v1.0.0 — MQTT 5.0 is now the wire default.** The shared
+  `go-mqtt` client now speaks MQTT 5.0 by default (3.1.1 remains selectable via
+  `ProtocolVersion`); this daemon deliberately leaves `ProtocolVersion` unset,
+  so both the primary broker connection and the optional local Faikin
+  connection now negotiate MQTT 5.0. Nothing in this bridge's docs/config
+  promises pre-v5 broker support, so no config change is needed to benefit.
+- **Subscriptions are now confirmed by the broker.** `Subscribe` blocks until
+  the broker's SUBACK and returns `(SubscribeResult, error)` — a rejected
+  filter is now a hard error instead of a silent log line. The
+  coordinator's write-command subscription, HA discovery's orphan
+  reconciliation, and the local Faikin state subscription all now check that
+  error explicitly.
+- **More robust, event-driven reconnect.** The underlying client reacts to
+  connection loss immediately instead of polling, so a dropped broker
+  connection is noticed and re-dialed faster.
+- **Fail-fast publishing on a dead connection.** Publishes against a known-dead
+  connection now return an error immediately instead of hanging until a
+  timeout.
+- **Full QoS 0/1/2 support end-to-end** in the underlying client (previously
+  QoS 2 was rejected at publish time).
+- Handler wiring moved from the old `func(topic, payload, retained)` shape to
+  `func(msg *mqtt.Message)`; `TCPConfig.CleanSession` is now `CleanStart` and
+  `WillTopic`/`WillPayload`/`WillRetain` are now `Will{Topic, Payload, Retain}`
+  — internal call-site changes only, no user-facing config impact.
+
+# Version 0.3.1 (2026-07-03)
+
+## What's Changed
+
+### Changed
+
+- **Adopt go-mqtt v0.2.0.** Retained `MessageHandler` flag, per-filter QoS
+  replay on reconnect, and a hardened ping watchdog — no more spurious
+  `ping_timeout` reconnects.
+
+# Version 0.3.0 (2026-07-02)
+
+## What's Changed
+
+### Changed
+
+- **MQTT client extracted to `github.com/SukramJ/go-mqtt`.** The hand-rolled
+  MQTT 3.1.1 client that lived under `internal/mqtt` is now the shared
+  `go-mqtt` module (v0.1.0), used by all four `go-*2mqtt` bridges, so a fix
+  lands once instead of drifting across four copies. No behavioural change for
+  this daemon.
+
+### Security
+
+- **MQTT frame-size cap** (inherited via the module). The MQTT read path
+  capped an incoming frame's `remaining length` only at the 256 MiB wire
+  maximum and allocated the body buffer unconditionally, so a malicious or
+  malfunctioning broker could force a multi-hundred-megabyte allocation per
+  frame (OOM/DoS). Frames larger than 1 MiB are now rejected before any
+  allocation.
+
+### Fixed
+
+- **Rejected MQTT subscriptions are surfaced** (inherited via the module). A
+  broker SUBACK failure code (`0x80`) is now decoded and logged instead of
+  silently leaving a command topic undelivered.
+
+# Version 0.2.22 (2026-07-02)
+
+## What's Changed
+
+### Fixed
+
+- MQTT half-open connections are now detected and recovered. The keep-alive loop
+  sent PINGREQ but never checked that the matching PINGRESP came back, and the
+  read loop runs without a read deadline — so a broker/network drop without a TCP
+  FIN/RST (e.g. a Mosquitto or Home Assistant restart) left the read loop blocked
+  in `ReadFrame` forever: the socket was never torn down, no reconnect happened,
+  and QoS-1 publishes timed out with `context deadline exceeded` on the dead
+  socket until a manual restart. A PINGRESP watchdog now declares the connection
+  lost when a keep-alive ping goes unanswered, so the existing reconnect logic
+  re-dials automatically (within one keep-alive interval).
+
+# Version 0.2.21 (2026-06-27)
+
+## What's Changed
+
+### Changed
+
+- **Eco mode is now an outdoor-unit setting.** Eco (econo) limits the shared
+  outdoor compressor, so on a multi-split it only works when set the same on every
+  indoor unit — just like *Outdoor silent*. It is now surfaced as a **single
+  entity per outdoor unit** (instead of one per indoor unit): writes fan out to
+  all indoor units and the displayed state is the OR across the group.
+- **Powerful now suspends and restores eco group-wide.** Powerful (boost) and eco
+  pull the shared compressor in opposite directions, so they cannot run together.
+  When powerful is switched on for any indoor unit, eco is now remembered and
+  switched off across the whole outdoor unit; when powerful ends — whether turned
+  off manually or after the 20-minute hardware timeout — the previous eco state is
+  **restored automatically** (the hardware does not restore it on its own).
+  Governed by the existing `enforce_mutual_exclusive` option.
+
+### Migration
+
+- The eco-mode entity moves from each indoor-unit device to the outdoor-unit
+  device. The old per-indoor eco entities go stale and are cleared automatically
+  by the self-cleaning discovery from 0.2.20 — the single new entity appears under
+  the outdoor unit on its own.
+
+# Version 0.2.20 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- **Self-cleaning Home Assistant discovery.** The daemon now clears its own
+  retained discovery configs that it no longer publishes — entities removed,
+  moved to another device, or renamed across versions. After publishing
+  discovery it collects the retained configs under the HA discovery prefix and
+  clears the ones it owns (`unique_id` in the `daikin_…` namespace with a state
+  topic under the configured root) that are not in the current set. Other
+  integrations' configs are never touched. This removes the previously-needed
+  manual broker cleanup after entity changes — including the 0.2.19 telemetry
+  rework — so stale, unavailable entities disappear on their own.
+
+# Version 0.2.19 (2026-06-20)
+
+## What's Changed
+
+### Changed
+
+- Reworked the placement of the local telemetry to follow the physics (verified
+  on a live multi-split):
+  - **Per indoor unit** (each unit's own value): `energy_total`,
+    `heating_energy_total`, `cooling_energy_total`, `power_consumption`.
+  - **System total per outdoor unit** (the SUM across the indoor units): new
+    `outdoor_energy_total`, `outdoor_heating_energy_total`,
+    `outdoor_cooling_energy_total`, `outdoor_power`.
+  - **Shared outdoor values** (identical on every indoor unit) shown **once** per
+    outdoor unit: `compressor_frequency`, `fan_frequency`,
+    `refrigerant_temperature`, and now also `outdoor_temperature`.
+
+  **Migration:** the previous outdoor-aggregated `energy_total` /
+  `power_consumption` / … entities and the duplicated per-indoor
+  `outdoor_temperature` / `compressor_frequency` / `fan_frequency` /
+  `refrigerant_temperature` entities change device/scope. Stale ones go
+  unavailable in Home Assistant — delete them; the new layout appears
+  automatically.
+
+# Version 0.2.18 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- Every entity now exposes a **`data_source`** attribute (`cloud` or `local`) so
+  you can see, per entity, whether its value comes from the ONECTA cloud or the
+  local Faikin interface. Published as retained JSON attributes alongside
+  discovery (`json_attributes_topic`).
+
+### Changed
+
+- Removed `gateway_firmware_version` and `gateway_mac_address` sensors — both are
+  already in the Home Assistant **device** info (`sw_version` / `connections`).
+  `gateway_ip_address` and `gateway_software_version` stay (not in device info).
+
+  **Migration:** the removed entities go unavailable in Home Assistant after the
+  update — delete them.
+
+# Version 0.2.17 (2026-06-20)
+
+## What's Changed
+
+### Fixed
+
+- In local mode the climate **preset** (boost) now stays in sync with the
+  powerful state. It was published from the (stale) cloud value, so toggling
+  powerful — via the switch or the preset itself — left the preset showing
+  `none`, making boost impossible to turn off from the climate card. The preset
+  is now fed from the Faikin `powerful` state like the powerful switch, and the
+  cloud poll no longer overwrites it for locally-controlled units.
+
+### Changed
+
+- Model, serial number and (hydro) software version are kept in the Home
+  Assistant **device** info, not as separate sensors. Removed
+  `indoor_unit_model`, `indoor_unit_serial_number`, `outdoor_unit_model`,
+  `outdoor_unit_serial_number`, `gateway_serial_number`, `indoor_hydro_model`,
+  `indoor_hydro_software_version` — the same information is on the device page.
+
+  **Migration:** the removed entities go unavailable in Home Assistant after the
+  update — delete them.
+
+# Version 0.2.16 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- In local mode, each mapped device's Home Assistant **device link**
+  (`configuration_url`) now points at its **Faikin module web UI**
+  (`http://<ip>/`, from the module's reported `ipv4`/`ipv6`), mirroring Faikin's
+  own discovery — so the device page opens the local module instead of the
+  ONECTA cloud. Cloud-only devices keep the ONECTA link.
+
+# Version 0.2.15 (2026-06-20)
+
+## What's Changed
+
+### Changed
+
+- Model and software/firmware versions are kept in the Home Assistant **device**
+  info (the device's `model` / `sw_version` / `serial_number`, already populated
+  from the cloud data) rather than duplicated as separate sensors. The redundant
+  entities added in 0.2.14 are removed: `gateway_model`,
+  `indoor_unit_software_version`, `outdoor_unit_software_version`. Gateway SSID,
+  time zone, and firmware-update-supported are no longer surfaced
+  (`gateway_ssid`, `gateway_timezone`, `gateway_firmware_update_supported`
+  removed). The status-flag diagnostics from 0.2.14 stay: `caution_state`,
+  `mode_conflict`, `holiday_mode`, and the outdoor unit `outdoor_error_code` /
+  `outdoor_error_state` / `outdoor_warning_state` / `outdoor_caution_state`.
+
+  **Migration:** the removed entities go unavailable in Home Assistant after the
+  update — delete them; the same information is shown on the device page.
+
+# Version 0.2.14 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- Catalogued more ONECTA characteristics as **diagnostic** entities (previously
+  unmapped), surfaced on the matching sub-device:
+  - Gateway: `gateway_model`, `gateway_ssid`, `gateway_timezone`,
+    `gateway_firmware_update_supported`.
+  - Indoor unit: `indoor_unit_software_version`.
+  - Outdoor unit: `outdoor_unit_software_version`, `outdoor_error_code`,
+    `outdoor_error_state`, `outdoor_warning_state`, `outdoor_caution_state`.
+  - Climate: `caution_state`, `mode_conflict` (useful on a multi-split),
+    `holiday_mode`.
+
+# Version 0.2.13 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- Safeguard for the summed outdoor energy totals: if every reporting indoor unit
+  shows the **same** energy counter, it is treated as a single shared meter and
+  published as-is instead of being summed (which would multiply it by the unit
+  count). Per-unit meters (different values) keep summing to the system total.
+  This protects hardware where Faikin's `energy` (the outside power meter) is a
+  shared outdoor counter rather than per indoor unit. Confirmed against the
+  firmware: the energy fields are decoded from S21 device responses, and
+  `energyheat`/`energycool` are the per-device command `'U'`.
+
+# Version 0.2.12 (2026-06-20)
+
+## What's Changed
+
+### Fixed
+
+- Corrected the outdoor-unit telemetry aggregation introduced in 0.2.11. Live
+  multi-split data showed that **power and energy are per indoor unit** (each unit
+  reports its own), not a single shared outdoor value — only the compressor
+  frequency is shared. The 0.2.11 *max* aggregation therefore showed just the
+  single highest unit, which is meaningless. Now:
+  - `power_consumption`, `energy_total`, `heating_energy_total`,
+    `cooling_energy_total` are **summed** across the group = the system total.
+    Energy is **held** per unit at its highest seen value, so an idle unit that
+    stops reporting (reads 0) does not drop the summed `total_increasing` total.
+  - `compressor_frequency` stays the shared outdoor value (max; identical across
+    members).
+
+# Version 0.2.11 (2026-06-20)
+
+## What's Changed
+
+### Changed
+
+- The outdoor-unit telemetry added in 0.2.10 — **power draw**, **compressor
+  frequency** and the **lifetime energy totals** — now appears as **one sensor
+  per outdoor unit** instead of one per indoor unit. On a multi-split only the
+  active indoor unit reports these over the S21 bus, so the per-unit sensors were
+  misleading (idle units showed 0). They are aggregated as the max across the
+  outdoor group (= the reporting unit); energy totals are never republished as 0,
+  so the `total_increasing` counter is not reset when no unit is currently
+  reporting. `fan_frequency` and `refrigerant_temperature` remain per indoor
+  unit.
+
+  **Migration:** after updating, the old per-indoor-unit `power_consumption` /
+  `energy_total` / `heating_energy_total` / `cooling_energy_total` /
+  `compressor_frequency` entities become unavailable (their discovery scheme
+  changed) — delete them in Home Assistant; the new outdoor-unit sensors appear
+  automatically.
+
+### Documentation
+
+- New [docs/faikin-home-assistant.md](docs/faikin-home-assistant.md): how to run
+  local mode alongside the Faikin firmware **without duplicate Home Assistant
+  entities**. Key point — Faikin's `ha.enable` gates **both** its own HA
+  discovery **and** the AC fields the daemon reads from `state/<host>`, so it
+  must stay enabled; avoid duplicates by pointing Faikin's `topic.ha` at a prefix
+  Home Assistant does not scan (e.g. `homeassistant_disabled`), not by disabling
+  HA. (Corrects the earlier `{"ha":false}` guidance.)
+
+# Version 0.2.10 (2026-06-20)
+
+## What's Changed
+
+### Added
+
+- Local-only telemetry sensors, read straight from the Faikin state document
+  (the cloud does not expose these per indoor unit):
+  - **Energy totals** — `energy_total`, `heating_energy_total`,
+    `cooling_energy_total` (lifetime kWh, `total_increasing`). These complement
+    the cloud's daily/weekly/monthly buckets and keep working without the cloud.
+  - **Power** — `power_consumption` (current draw, W).
+  - **Diagnostics** — `compressor_frequency`, `fan_frequency`,
+    `refrigerant_temperature` (entity category `diagnostic`).
+
+  They appear only for devices mapped to a Faikin host. The live climate sensors
+  (room/outdoor temperature, humidity, setpoint) were already read locally; what
+  still comes from the cloud is static device info (model/serial/firmware) and
+  diagnostics (error/warning states).
+
+# Version 0.2.9 (2026-06-19)
+
+## What's Changed
+
+### Added
+
+- Local-first now also covers the climate **fan speed** and **swing** controls.
+  Previously `fan_mode` and `swing_mode`/`swing_h_mode` always fell back to the
+  cloud (rate-limited, slower); they now read from and write to the local Faikin
+  interface for mapped devices, like the rest of the climate entity. The cloud
+  and Faikin vocabularies are mapped explicitly: fan via single-character codes
+  (`A`/`Q`/`1`..`5`, robust to 3- vs 5-speed units); swing combines the cloud's
+  two axes (vertical/horizontal) into Faikin's single `command/<host>/swing`,
+  including comfort airflow (`C`). `floorheatingairflow` has no Faikin equivalent
+  and still uses the cloud.
+
+# Version 0.2.8 (2026-06-19)
+
+## What's Changed
+
+This release aligns the local Faikin read and write paths with the firmware's
+actual MQTT interface (verified against the revk/ESP32-Faikout source and the
+firmware's own Home Assistant discovery), replacing earlier guesses.
+
+### Fixed
+
+- **Writes** now reach Faikin: the command topic is `command/<host>/<suffix>`
+  (e.g. `command/Klima WZ/quiet`) — the firmware convention, with no app name in
+  the path (just like the `state/<host>` topic), matching Faikin's own HA
+  discovery. The previous `<prefix>/<host>/command/<suffix>` form (with the
+  "Faikout" prefix) was never received by the firmware, so toggles had no effect.
+  Switch payloads are now `true`/`false` (the firmware also accepts `1`/`on`).
+- **Reads** now use the firmware's canonical state topic `state/<host>` (the app
+  document every entity in Faikin's own HA discovery reads from: `mode` as a
+  word, `temp` = room temperature, `target` = setpoint) instead of the
+  non-standard `state/<host>/status` (S21) topic. `state/<host>` is retained and
+  published on change; OS/heartbeat documents lacking `power` are still ignored.
+- `LOCAL_FAIKIN_PREFIX` / `local_faikin_prefix` is **deprecated and ignored**
+  (the command topic is fixed); existing configs keep loading.
+
+# Version 0.2.7 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Toggling an outdoor-shared setting (outdoor silent, demand) no longer snaps
+  back. The optimistic value published on write was immediately overwritten by
+  the group aggregate computed from a still-stale Faikin status (the active
+  indoor unit reports the change only on its next, sparse status). The
+  just-written value is now **held** until a status confirms it (or a 2-minute
+  timeout), so Home Assistant shows the change immediately and stably.
+
+# Version 0.2.6 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- The single outdoor-shared entities (outdoor silent, demand limit) now reflect
+  the whole outdoor unit instead of one fixed indoor unit. On a multi-split only
+  the **active** indoor unit applies an outdoor-unit setting and reports it back,
+  so a toggle changed one unit while the entity (reading another) appeared not to
+  react. The state is now **aggregated across the outdoor group** (silent on if
+  any member reports it; demand the most restrictive) and published to every
+  member, and a write is reflected **optimistically** on all members at once for
+  immediate Home Assistant feedback. The command was already fanned out to all
+  units (it must be uniform across the outdoor unit).
+
+# Version 0.2.5 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Local writes now use Faikin's dedicated per-setting command topics
+  (`<prefix>/<host>/command/<suffix>`, payload `1`/`0` for switches, matching
+  the firmware's own HA discovery) instead of the combined
+  `command/control` JSON. The JSON form did not take effect for outdoor silent
+  on multi-split units — the command was delivered but the unit never changed.
+  `onOffMode`→`power`, `operationMode`→`mode` (single-letter C/H/A/D/F),
+  `temperatureControl`→`temp`, `powerfulMode`/`econoMode`/`streamerMode`/
+  `outdoorSilentMode`→their switches, `demandControl`→`demand`.
+
+# Version 0.2.4 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Local mode showed no values until a live Faikin update happened to arrive.
+  `subscribeLocal` runs before the first cloud poll, so the **retained** Faikin
+  state delivered at subscribe time was dropped — the `embeddedID` needed to
+  route it onto the daemon's topics is only learned from a cloud poll. Since
+  Faikin publishes the AC state infrequently, entities stayed empty/stale. The
+  latest AC state per device is now cached and (re)published after each cloud
+  poll once the `embeddedID` is known, so the retained Faikin state reaches Home
+  Assistant promptly.
+
+# Version 0.2.3 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Local mode now reads the AC state from the Faikin S21 status topic
+  (`state/<host>/status`), which reliably carries every field (power, mode,
+  setpoint, quiet, econo, streamer, demand, …) on each poll. The app-level
+  `state/<host>` topic publishes the full document only occasionally and is
+  otherwise flooded with OS heartbeats, so entities (e.g. outdoor silent)
+  showed stale values and toggles snapped back. The status document uses S21
+  field forms — `home` = room temperature, `temp` = setpoint, single-letter
+  `mode` (C/H/A/D/F) — mapped by the new `ParseStatus`. Both topics are still
+  subscribed for robustness across firmware variants.
+
+# Version 0.2.2 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Local mode no longer resets entities to off/zero between updates. Faikin
+  interleaves OS/heartbeat documents (uptime, rssi, …) on `state/<host>`
+  alongside the full AC state. The daemon parsed every message, so a heartbeat
+  (which carries no AC fields) published `power off`, `temp 0`, `outdoor_silent
+  off`, … overwriting the real values — entities flickered and a just-set
+  toggle (e.g. outdoor silent) snapped straight back. Heartbeat documents are
+  now detected (no `power` field) and skipped; only real AC state is published.
+
+# Version 0.2.1 (2026-06-19)
+
+## What's Changed
+
+### Fixed
+
+- Local-only settings now appear in Home Assistant in local mode. HA discovery
+  is driven by the cloud poll, so settings the ONECTA cloud does not expose for
+  a unit (e.g. econo, streamer, outdoor silent, demand on the FTXA range, which
+  Faikin reads off the serial bus) previously published their local state but no
+  discovery config — so no entity was created. In local mode the daemon now
+  synthesizes discovery points for these topics (per mapped device, skipping any
+  the cloud already resolves), so `econo_mode`, `streamer`, `outdoor_silent` and
+  `demand_control` show up and are fed by the Faikin read path.
+
+# Version 0.2.0 (2026-06-19)
+
+## What's Changed
+
+Local-first control through the indoor units' Faikin modules, multi-split
+outdoor-unit handling, and new comfort/air entities.
+
+### Added
+
+- **Local-first mode** (`LOCAL_MODE`): read and control the indoor units through
+  their local Faikin / Faikout (revk/ESP32-Faikout) MQTT interface instead of
+  the ONECTA cloud. State is sourced from `state/<host>` and commands are sent
+  to `<prefix>/<host>/command/control`; the cloud still serves what Faikin does
+  not expose. `LOCAL_DEVICE_MAP` maps each ONECTA device to a Faikin host and
+  accepts a YAML map or an `id=host,…` string. The Faikin broker defaults to the
+  main MQTT broker (shared connection) or can be separate (`LOCAL_FAIKIN_SERVER`,
+  credentials falling back to the main MQTT login). Unmapped devices and
+  settings Faikin does not model fall back to the cloud.
+- **Outdoor-shared settings** surface as a single entity per outdoor unit with
+  write fan-out to every member indoor unit: **Outdoor silent** (Außen
+  Geräuscharm) and **Demand limit**. New per-indoor-unit entities **Econo mode**
+  and **Streamer**.
+- **Home Assistant add-on**: local-first and multi-split options (`local_mode`,
+  `local_faikin_*`, `local_device_map`, `multisplit_*`, `enforce_mutual_exclusive`)
+  in the add-on schema, wired through `run.sh`.
+
+### Changed
+
+- **Multi-split outdoor-unit constraints** (on by default, each configurable):
+  a heat/cool mode change propagates to the other indoor units of the same
+  outdoor unit (`MULTISPLIT_MODE_SYNC`) — a standard multi-split cannot cool and
+  heat simultaneously, so conflicting units would otherwise drop to standby; the
+  mutually-exclusive **Powerful** and **Econo** clear each other
+  (`ENFORCE_MUTUAL_EXCLUSIVE`).
+- **Gateways** now appear nested under their respective indoor unit (`via_device`)
+  instead of as standalone devices. Their `unique_id`s are unchanged, so Home
+  Assistant re-parents the existing devices automatically on the next discovery.
+
+# Version 0.1.6 (2026-06-18)
+
+## What's Changed
+
+Cleaner, room-prefixed English Home Assistant entity IDs.
+
+### Changed
+
+- The MQTT discovery `default_entity_id` is now built from the device name plus
+  the English topic (e.g. `sensor.galerie_room_temperature`,
+  `switch.galerie_powerful_mode`) instead of the raw
+  `daikin_<device-id>_<topic>` form. Entity IDs stay English and
+  language-independent while keeping the human-friendly room/label prefix; the
+  display **name** remains localized. German umlauts in device names are
+  transliterated (ä→a, ö→o, ü→u, ß→ss) and adjacent duplicate tokens are
+  collapsed.
+
+  Note (as in 0.1.5): Home Assistant does not rename already-created entities.
+  Delete the affected entities (or the device) and let them be re-discovered to
+  adopt the new IDs.
+
+# Version 0.1.5 (2026-06-18)
+
+## What's Changed
+
+Home Assistant entity IDs are English again, independent of the display
+language.
+
+### Fixed
+
+- Home Assistant `entity_id`s are now always English, regardless of the
+  selected display language. The MQTT discovery configs seeded the entity ID
+  via the `object_id` field, which current Home Assistant no longer honors — it
+  was replaced by `default_entity_id`. Without it, HA derived the entity ID
+  from the device plus the (localized) entity name, producing e.g. German
+  `entity_id`s under the German locale. The discovery payloads now emit
+  `default_entity_id` (`<domain>.<object_id>`), so entity IDs stay English while
+  the display **name** remains localized (German under the `de` locale).
+
+  Note: Home Assistant does not rename already-created entities. To pick up the
+  English IDs on an existing install, delete the Daikin device (or the affected
+  entities) in HA and let them be re-discovered.
+
+# Version 0.1.4 (2026-06-17)
+
+## What's Changed
+
+Smoother first-install onboarding for the Home Assistant add-on.
+
+### Fixed
+
+- The daemon no longer crash-loops when `CLIENT_ID`/`CLIENT_SECRET` are empty
+  (a fresh add-on install starts with them unset). It now starts unconfigured —
+  the web UI is reachable and the auth panel reports **"client credentials not
+  configured"** — and the bridge stays idle until the credentials are entered.
+  A startup warning (`daikin2mqtt.credentials_missing`) points to the fix.
+- `client_id`/`client_secret` are marked optional in the add-on options schema
+  (`str?`/`password?`) so the Supervisor does not require them to start.
+
+# Version 0.1.3 (2026-06-17)
+
+## What's Changed
+
+OAuth login fixes for the Home Assistant ingress iframe.
+
+### Fixed
+
+- The "Connect to Daikin" button now opens the OAuth flow in the **top-level
+  window** (`target="_top"`). Behind HA ingress the UI runs in an iframe, but
+  the Daikin IdP login sets `X-Frame-Options: sameorigin` and refuses to be
+  framed, so the login previously failed to render.
+
+### Added
+
+- The authentication panel now shows the **effective redirect URI** (derived
+  from the request behind ingress) so you can register exactly that value with
+  the Daikin portal — it is served via `/api/auth/status` and surfaced in the UI.
+
+# Version 0.1.2 (2026-06-17)
+
+## What's Changed
+
+Makes the Home Assistant add-on actually installable from the store.
+
+### Fixed
+
+- Publish a **dedicated add-on image** (HA base + bashio + `run.sh`) per
+  architecture to `ghcr.io/sukramj/go-daikin2mqtt-addon-{arch}` via the new
+  `addon-image.yml` workflow, and point the manifest at it. The previous
+  `image:` referenced the distroless daemon image (`ghcr.io/sukramj/go-daikin2mqtt`),
+  which runs the binary directly and has **no `run.sh`**, so the add-on options
+  were never translated into `DAIKIN_*` env and the add-on aborted at boot.
+
+# Version 0.1.1 (2026-06-17)
+
+## What's Changed
+
+Home Assistant add-on completion plus OAuth and first-boot fixes on top of 0.1.0.
+
+### Added
+
+- German labels for the combined climate entity's fan / swing / preset
+  dropdowns (mirroring `daikin_onecta`), reverse-mapped to the raw Daikin
+  values on write.
+- Home Assistant add-on manifest (`addon/config.yaml`) and repository
+  descriptor (`repository.yaml`) so the add-on is installable from the repo.
+- Zero-config MQTT: an empty `mqtt_server` auto-uses the Supervisor's MQTT
+  service (host / port / credentials), like zigbee2mqtt.
+- Automatic OAuth `redirect_uri` derivation from the request when unset —
+  behind Ingress this yields the external HTTPS ingress URL (logged for portal
+  registration), so no separate reverse-proxy rule is needed.
+- Optional host-port exposure (`ports`, disabled by default) for the
+  explicit reverse-proxy redirect route, plus a configurable `redirect_uri`
+  option and an add-on Quickstart.
+
+### Fixed
+
+- Daemon no longer requires a config file: it boots from `DAIKIN_*`
+  environment variables alone (the add-on ships no `config.yaml`).
+- Add-on container resolves `characteristics.yaml` (runs from `WORKDIR /app`).
+- `.gitignore` no longer excludes `addon/config.yaml` (the runtime-config rule
+  is anchored to the repo root).
+- Cross-platform (Windows) test assumptions for the token-store path and
+  file permissions.
+
+# Version 0.1.0 (2026-06-16)
+
+## What's Changed
+
+First functional release of go-daikin2mqtt — a pure-Go bridge between the
+Daikin ONECTA cloud API and MQTT, validated end-to-end against live devices.
+
+### Added
+
+- ONECTA OAuth2 client (Authorization Code + PKCE) with rotated
+  refresh-token persistence, proactive refresh, and 401 auto-refresh.
+- Cloud client with global cloud lock, rate-limit accounting, GET retries
+  with backoff, circuit breaker, and a post-write scan-ignore window.
+- Device model parser and a curated characteristic catalog
+  (`characteristics.yaml`) with nested value resolution (`sensoryData`,
+  mode-scoped `temperatureControl` setpoints) and `consumptionData` energy.
+- Coordinator: adaptive day/night polling, MQTT state publishing, bridge
+  LWT, and a write path (MQTT `/set` → ONECTA PATCH).
+- Home Assistant MQTT discovery (sensor / binary_sensor / number / select /
+  switch) with English `entity_id`s and localized (en/de) display names;
+  localized select options that map back to API codes.
+- Optional diagnostic web UI with integrated OAuth (HA-ingress ready).
+- `daikin2mqtt-util` CLI: auth, devices, points, set, ratelimit,
+  catalog-check, plus a `--mock` mode using the ONECTA mock endpoint.
+- Device coverage: climateControl (air-to-air & Altherma leaving-water),
+  domesticHotWaterTank, air purifier, and hardware info points.
+- Home Assistant add-on (`addon/`), multi-arch GHCR images, curl|bash
+  installer with a hardened systemd unit, and build/release/CI workflows.
