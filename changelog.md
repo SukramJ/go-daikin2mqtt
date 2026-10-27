@@ -1,4 +1,4 @@
-# Unreleased
+# Version 0.18.0 (2026-10-27)
 
 ## Changed
 
