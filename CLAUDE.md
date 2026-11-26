@@ -450,7 +450,7 @@ value/command templates (`go-hamqtt` does it for selects under `StatusObjectEnco
 climate builder and the schedule sensor state theirs). The set path still accepts a label
 (`CodeForLabel` / `canonicalAux`).
 
-### MQTT (`github.com/SukramJ/go-mqtt`, `github.com/SukramJ/go-mqtt/protocol`)
+### MQTT (`sukramj.dev/go-mqtt`, `sukramj.dev/go-mqtt/protocol`)
 A **custom pure-Go MQTT 3.1.1 implementation** (no paho/library), extracted into the shared
 `go-mqtt` module (formerly a locally duplicated `internal/mqtt`): packet codec in `protocol/`,
 TCP adapter, and a `Lifecycle` wrapper that auto-reconnects with backoff and re-fires

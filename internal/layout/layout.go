@@ -49,7 +49,7 @@ package layout
 import (
 	"strings"
 
-	hatopic "github.com/SukramJ/go-hamqtt/topic"
+	hatopic "sukramj.dev/go-hamqtt/topic"
 )
 
 // SchedulerDeviceID is the reserved first-level item the weekly scheduler's

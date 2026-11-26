@@ -8,7 +8,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/SukramJ/go-hamqtt/publisher"
+	"sukramj.dev/go-hamqtt/publisher"
 )
 
 // errTransportNotWired is returned by every method of a deferredTransport that
