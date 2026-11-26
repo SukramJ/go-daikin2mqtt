@@ -9,7 +9,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/SukramJ/go-hamqtt/discovery"
+	"sukramj.dev/go-hamqtt/discovery"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/daikin/model"
 )

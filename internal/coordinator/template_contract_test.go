@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SukramJ/go-hamqtt/publisher"
+	"sukramj.dev/go-hamqtt/publisher"
 )
 
 // The template contract: every entity's templates, rendered against the state

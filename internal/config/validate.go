@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode"
 
-	hatopic "github.com/SukramJ/go-hamqtt/topic"
+	hatopic "sukramj.dev/go-hamqtt/topic"
 )
 
 // ValidationError is returned by [Validate] when the loaded config fails

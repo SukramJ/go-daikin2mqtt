@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"strings"
 
-	hacatalog "github.com/SukramJ/go-ha-catalog"
-	"github.com/SukramJ/go-hamqtt/discovery"
-	"github.com/SukramJ/go-hamqtt/model"
-	"github.com/SukramJ/go-hamqtt/publisher"
-	hatopic "github.com/SukramJ/go-hamqtt/topic"
+	hacatalog "sukramj.dev/go-ha-catalog"
+	"sukramj.dev/go-hamqtt/discovery"
+	"sukramj.dev/go-hamqtt/model"
+	"sukramj.dev/go-hamqtt/publisher"
+	hatopic "sukramj.dev/go-hamqtt/topic"
 
 	"github.com/SukramJ/go-daikin2mqtt/internal/catalog"
 	"github.com/SukramJ/go-daikin2mqtt/internal/layout"
